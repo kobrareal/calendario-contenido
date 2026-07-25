@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s https://splendid-moonbeam-377ad6.netlify.app/ -o /tmp/live.html)",
+      "Read(//tmp/**)",
+      "mcp__claude-in-chrome__tabs_context_mcp",
+      "mcp__claude-in-chrome__navigate",
+      "mcp__claude-in-chrome__computer",
+      "PowerShell(powershell -ExecutionPolicy Bypass -File \"C:\\\\Users\\\\Usuario\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--Claude-code\\\\7d782103-baca-465a-981e-4524ce054ac4\\\\scratchpad\\\\staticserver.ps1\")",
+      "Bash(git init *)",
+      "Bash(git config *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'Initial commit: Calendario de Contenido application *)"
+    ]
+  }
+}
