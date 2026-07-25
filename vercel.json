@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/calendario-contenido.html"
+    }
+  ]
+}
