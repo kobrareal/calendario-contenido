@@ -1,0 +1,34 @@
+# Mantiene despierto el proyecto de Supabase.
+#
+# Los proyectos del plan gratis se pausan tras una semana sin actividad, y habría que
+# reactivarlos a mano desde el panel. Para un calendario que se le muestra a clientes ese
+# es el peor modo de falla posible: el cliente abre su link justo en la semana floja y ve
+# todo vacío. Una lectura diaria alcanza para que nunca se considere inactivo.
+#
+# La clave de abajo es la pública (viaja dentro del HTML del calendario igual), así que no
+# hace falta guardarla como secret.
+
+name: Mantener Supabase despierto
+
+on:
+  schedule:
+    - cron: '17 12 * * *' # todos los días 12:17 UTC (no en punto: GitHub encola las cron populares)
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Leer una fila de la base
+        run: |
+          codigo=$(curl -s -o /tmp/salida.txt -w '%{http_code}' \
+            -H "apikey: sb_publishable_czva3OfAUAIDA4URy3ZXbw_Zyi4D4MZ" \
+            "https://vodpudtwogorlqikstcf.supabase.co/rest/v1/kv?select=key&limit=1")
+          echo "HTTP $codigo"
+          cat /tmp/salida.txt
+          # Falla a propósito si la base no responde bien, así llega el aviso por mail
+          # en vez de que el ping quede fallando en silencio durante semanas.
+          if [ "$codigo" != "200" ]; then
+            echo "::error::Supabase no respondió 200 — puede estar pausado o la tabla cambió"
+            exit 1
+          fi
