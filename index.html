@@ -478,6 +478,45 @@
   .idea-row .meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted-2);font-family:'IBM Plex Mono',monospace;}
   .idea-row .actions{display:flex;gap:6px;flex-shrink:0;}
   .ideas-empty{color:var(--muted-2);font-size:12.5px;text-align:center;padding:20px 0;}
+  .idea-link-input{
+    width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:11.5px;
+    padding:8px 10px;margin-bottom:8px;
+  }
+  .idea-link{
+    display:inline-block;margin-top:6px;max-width:100%;
+    font-family:'IBM Plex Mono',monospace;font-size:11px;
+    color:var(--accent);text-decoration:none;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .idea-link:hover{text-decoration:underline;}
+
+  /* ---------- multilink del encabezado ---------- */
+  .links-wrap{position:relative;}
+  .links-panel{
+    position:absolute;top:calc(100% + 8px);left:0;z-index:300;
+    width:300px;padding:12px;
+    background:var(--card-bg);border:1px solid var(--border);border-radius:14px;
+    box-shadow:0 18px 40px rgba(0,0,0,.5);
+  }
+  .links-panel h4{
+    margin:0 0 10px;font-size:11px;letter-spacing:.6px;text-transform:uppercase;
+    color:var(--muted);font-weight:600;
+  }
+  .link-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .link-row a{
+    flex:1;min-width:0;color:var(--text);text-decoration:none;font-size:13px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    padding:6px 8px;border-radius:8px;background:var(--surface-2);
+  }
+  .link-row a:hover{background:var(--surface-3);}
+  .link-row a .host{display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted-2);}
+  .links-empty{color:var(--muted-2);font-size:12px;font-style:italic;padding:2px 0 10px;}
+  .links-add{border-top:1px solid var(--border);margin-top:10px;padding-top:10px;display:flex;flex-direction:column;gap:6px;}
+  .links-add input{
+    background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);
+    padding:7px 9px;font-size:12px;
+  }
 
   /* ---------- search modal ---------- */
   .search-months-list{
@@ -649,6 +688,10 @@
         <div style="display:flex;align-items:center;gap:8px;">
           <h1 id="brandTitle">Calendario de contenido</h1>
           <button class="btn ghost icon-only admin-only" id="editTitleBtn" title="Editar título"><i class="fa-solid fa-pen"></i><span class="label">Editar</span></button>
+          <!-- El panel de links se arma por JS al abrirlo, para no ocupar lugar en el encabezado. -->
+          <div class="links-wrap">
+            <button class="btn ghost icon-only" id="quickLinksBtn" title="Links útiles de esta marca"><i class="fa-solid fa-link"></i><span class="label">Links</span></button>
+          </div>
         </div>
         <div class="sub" id="clientName" style="display:none;"></div>
       </div>
@@ -890,6 +933,7 @@
     <div class="idea-add-box">
       <label class="field-label">Nueva idea</label>
       <textarea id="newIdeaText" placeholder="Ej: colaboración con influencer local, video de detrás de escena en la cocina..."></textarea>
+      <input type="url" id="newIdeaLink" class="idea-link-input" placeholder="🔗 Link de referencia (opcional): un reel, un artículo, una foto…" />
       <div class="idea-add-row">
         <div class="angle-picker" id="newIdeaAnglePicker" style="flex:1;"></div>
         <button class="btn primary" id="addIdeaBtn">+ Agregar</button>
@@ -966,7 +1010,35 @@
     '🍀', '🌸', '🌺', '🌻', '🌼', '🌷', '🌹', '🥀', '🌱', '🌲', '🌳', '🌴', '🌵', '🌾', '🌿', '☘️', '🍁', '🍂', '🍃', '⚽'
   ];
 
-  function buildEmojiPicker(targetInput){
+  // Completa el "https://" que uno nunca escribe al pegar un link a mano. Sin esto el
+  // navegador interpreta "instagram.com/marca" como una ruta del propio calendario y el
+  // link lleva a una página en blanco. Devuelve '' si no hay nada que abrir.
+  function normalizarUrl(valor){
+    const s = (valor || '').trim();
+    if(!s) return '';
+    return /^[a-z][a-z0-9+.-]*:/i.test(s) ? s : 'https://' + s;
+  }
+
+  // Devuelve solo el primer emoji de un texto. Hace falta porque muchos emojis no son un
+  // caracter: 🍽️ son dos y 👨‍👩‍👧 son cinco, así que cortar por longitud los parte al medio y
+  // deja símbolos rotos. Intl.Segmenter agrupa por "grafema", que es lo que uno ve como
+  // un solo dibujo.
+  function primerEmoji(texto){
+    const s = (texto || '').trim();
+    if(!s) return '';
+    try{
+      const seg = new Intl.Segmenter('es', { granularity:'grapheme' });
+      return [...seg.segment(s)][0].segment;
+    }catch(e){
+      return Array.from(s)[0] || ''; // navegadores sin Intl.Segmenter: al menos no parte pares surrogate
+    }
+  }
+
+  // opciones.reemplazar: en los ángulos el emoji es uno solo y elegir otro tiene que
+  // sustituirlo. En los copys y guiones, en cambio, se van sumando al texto que estás
+  // escribiendo, así que ahí el comportamiento por defecto (agregar) es el correcto.
+  function buildEmojiPicker(targetInput, opciones){
+    const reemplazar = !!(opciones && opciones.reemplazar);
     const container = document.createElement('div');
     container.style.cssText = 'position:absolute;top:100%;left:0;background:var(--surface-3);border:1px solid var(--border);border-radius:8px;padding:8px;z-index:200;min-width:280px;max-width:300px;box-shadow:0 4px 12px rgba(0,0,0,.3);';
 
@@ -993,7 +1065,11 @@
           const btn = document.createElement('button');
           btn.type = 'button'; btn.textContent = emoji;
           btn.style.cssText = 'background:none;border:1px solid var(--border);cursor:pointer;font-size:16px;padding:4px;border-radius:4px;';
-          btn.addEventListener('click', ()=>{ targetInput.value += emoji; targetInput.dispatchEvent(new Event('input')); container.remove(); });
+          btn.addEventListener('click', ()=>{
+            targetInput.value = reemplazar ? emoji : (targetInput.value + emoji);
+            targetInput.dispatchEvent(new Event('input'));
+            container.remove();
+          });
           emojiGrid.appendChild(btn);
         }
       });
@@ -2245,6 +2321,9 @@
     btnRow.style.cssText = 'display:flex;gap:8px;';
     const uploadBtn = document.createElement('button');
     uploadBtn.type = 'button'; uploadBtn.className = 'btn small'; uploadBtn.textContent = '📷 Subir imagen';
+    const pasteBtn = document.createElement('button');
+    pasteBtn.type = 'button'; pasteBtn.className = 'btn small'; pasteBtn.textContent = '📋 Pegar';
+    pasteBtn.title = 'Pegar una imagen copiada (o Ctrl+V sobre esta tarjeta)';
     const clearBtn = document.createElement('button');
     clearBtn.type = 'button'; clearBtn.className = 'btn ghost small'; clearBtn.textContent = 'Quitar';
     const fileInput = document.createElement('input');
@@ -2259,21 +2338,60 @@
     fileInput.addEventListener('change', async (e)=>{
       const file = e.target.files[0];
       fileInput.value = '';
-      if(!file) return;
+      if(file) await aplicarImagen(file);
+    });
+    // Aplica una imagen recién llegada (subida o pegada). Pasa por compressImageFile igual
+    // que la subida, así una captura de pantalla grande no se guarda entera en la base.
+    async function aplicarImagen(blob){
       showToast('Procesando imagen…');
       try{
-        const dataUrl = await compressImageFile(file);
+        const dataUrl = await compressImageFile(blob);
         pushUndo(key);
         item.thumb = dataUrl;
         urlInput.value = '';
         img.src = dataUrl; img.classList.add('show');
         scheduleSaveDay(key);
-        renderCalendar();
+        renderCalendar();       // repinta la grilla del mes y, dentro, la vista previa del feed
         showToast('Imagen agregada');
       }catch(err){
         showToast('No se pudo procesar esa imagen. Probá con otra.');
       }
+    }
+
+    // Dos caminos para pegar, porque ninguno funciona solo en todos los casos:
+    // el botón lee el portapapeles directo (pide permiso la primera vez), y el Ctrl+V
+    // sobre la tarjeta funciona siempre, sin permisos, pero requiere que la tarjeta
+    // tenga el foco.
+    pasteBtn.addEventListener('click', async ()=>{
+      if(!navigator.clipboard || !navigator.clipboard.read){
+        showToast('Tu navegador no permite leer el portapapeles. Hacé Ctrl+V sobre la tarjeta.');
+        return;
+      }
+      try{
+        const elementos = await navigator.clipboard.read();
+        for(const elem of elementos){
+          const tipoImagen = elem.types.find(t => t.startsWith('image/'));
+          if(tipoImagen){
+            await aplicarImagen(await elem.getType(tipoImagen));
+            return;
+          }
+        }
+        showToast('No hay ninguna imagen copiada. Copiá una y probá de nuevo.');
+      }catch(err){
+        showToast('No pude leer el portapapeles. Probá con Ctrl+V sobre la tarjeta.');
+      }
     });
+
+    card.addEventListener('paste', async (e)=>{
+      const archivo = [...(e.clipboardData && e.clipboardData.items || [])]
+        .filter(it => it.type && it.type.startsWith('image/'))
+        .map(it => it.getAsFile())
+        .find(Boolean);
+      if(!archivo) return; // texto pegado en un campo: dejarlo pasar sin interferir
+      e.preventDefault();
+      await aplicarImagen(archivo);
+    });
+
     clearBtn.addEventListener('click', ()=>{
       pushUndo(key);
       item.thumb = '';
@@ -2290,7 +2408,7 @@
       renderCalendar();
     });
 
-    btnRow.appendChild(uploadBtn); btnRow.appendChild(clearBtn);
+    btnRow.appendChild(uploadBtn); btnRow.appendChild(pasteBtn); btnRow.appendChild(clearBtn);
     thumbControls.appendChild(btnRow); thumbControls.appendChild(fileInput); thumbControls.appendChild(urlInput);
     thumbRow.appendChild(img); thumbRow.appendChild(thumbControls);
     card.appendChild(thumbRow);
@@ -2631,7 +2749,7 @@
       row.innerHTML = `
         <input type="color" value="${a.color}" aria-label="Color del ángulo" />
         <div style="position:relative;display:inline-block;">
-          <input type="text" value="${escapeHtml(a.emoji || '📌')}" maxlength="2" style="width:40px;text-align:center;cursor:pointer;" aria-label="Emoji del ángulo" placeholder="Emoji" />
+          <input type="text" value="${escapeHtml(a.emoji || '📌')}" style="width:40px;text-align:center;cursor:pointer;" aria-label="Emoji del ángulo" placeholder="Emoji" />
           <button type="button" style="background:none;border:none;cursor:pointer;padding:0;margin-left:2px;font-size:12px;" title="Selector de emoji">▼</button>
         </div>
         <input type="text" value="${escapeHtml(a.name)}" aria-label="Nombre del ángulo" />
@@ -2644,11 +2762,18 @@
       const delBtn = row.querySelector('.del');
 
       colorInput.addEventListener('input', ()=>{ angles[idx].color = colorInput.value; angleModalDirty=true; });
-      emojiInput.addEventListener('input', ()=>{ angles[idx].emoji = emojiInput.value || '📌'; angleModalDirty=true; });
+      // Se recorta a un solo emoji acá también, no solo en el selector: así tampoco se
+      // acumulan si los escribís a mano o los pegás desde otro lado.
+      emojiInput.addEventListener('input', ()=>{
+        const uno = primerEmoji(emojiInput.value);
+        if(emojiInput.value !== uno) emojiInput.value = uno;
+        angles[idx].emoji = uno || '📌';
+        angleModalDirty = true;
+      });
       emojiBtn.addEventListener('click', (e)=>{
         e.stopPropagation();
         document.querySelectorAll('[data-emoji-picker]').forEach(p=>p.remove());
-        const picker = buildEmojiPicker(emojiInput);
+        const picker = buildEmojiPicker(emojiInput, { reemplazar: true });
         picker.setAttribute('data-emoji-picker', 'true');
         emojiBtn.parentElement.appendChild(picker);
       });
@@ -2756,6 +2881,123 @@
     renderCalendar();
   });
 
+  // ---------- multilink del encabezado ----------
+  // Links útiles de la marca (Instagram, Drive, la carpeta de fotos, lo que sea) al alcance
+  // de un click. Se guardan con el prefijo del cliente, así cada marca tiene los suyos.
+  // El panel se arma recién al abrirlo y se destruye al cerrarlo: en el encabezado queda
+  // solo el botón.
+  let quickLinks = [];
+
+  async function loadQuickLinks(){
+    try{
+      const val = await storageGet('quick-links');
+      quickLinks = val ? JSON.parse(val) : [];
+    }catch(e){ quickLinks = []; }
+  }
+  async function saveQuickLinks(){
+    try{ await storageSet('quick-links', JSON.stringify(quickLinks)); }
+    catch(e){ showToast('No se pudieron guardar los links (quedaron guardados en este navegador)'); }
+  }
+
+  function cerrarPanelLinks(){
+    const abierto = document.querySelector('.links-panel');
+    if(abierto) abierto.remove();
+  }
+
+  function construirPanelLinks(){
+    const panel = document.createElement('div');
+    panel.className = 'links-panel';
+
+    const titulo = document.createElement('h4');
+    titulo.textContent = 'Links útiles';
+    panel.appendChild(titulo);
+
+    if(quickLinks.length === 0){
+      const vacio = document.createElement('div');
+      vacio.className = 'links-empty';
+      vacio.textContent = IS_READONLY ? 'No hay links guardados.' : 'Todavía no guardaste ningún link.';
+      panel.appendChild(vacio);
+    }
+
+    quickLinks.forEach(link=>{
+      const fila = document.createElement('div');
+      fila.className = 'link-row';
+
+      const a = document.createElement('a');
+      a.href = link.url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      let host = link.url;
+      try{ host = new URL(link.url).hostname.replace(/^www\./,''); }catch(e){ /* URL rara: se muestra tal cual */ }
+      a.innerHTML = escapeHtml(link.label) + '<span class="host">' + escapeHtml(host) + '</span>';
+      a.title = link.url;
+      fila.appendChild(a);
+
+      if(!IS_READONLY){
+        const borrar = document.createElement('button');
+        borrar.type = 'button'; borrar.className = 'btn ghost small';
+        borrar.style.color = 'var(--danger)'; borrar.textContent = '🗑';
+        borrar.title = 'Eliminar este link';
+        borrar.addEventListener('click', async ()=>{
+          quickLinks = quickLinks.filter(l => l.id !== link.id);
+          await saveQuickLinks();
+          abrirPanelLinks(); // se redibuja para reflejar el borrado
+        });
+        fila.appendChild(borrar);
+      }
+      panel.appendChild(fila);
+    });
+
+    if(!IS_READONLY){
+      const alta = document.createElement('div');
+      alta.className = 'links-add';
+      const nombre = document.createElement('input');
+      nombre.type = 'text'; nombre.placeholder = 'Nombre (ej: Instagram)';
+      const url = document.createElement('input');
+      url.type = 'text'; url.placeholder = 'instagram.com/tumarca';
+      const agregar = document.createElement('button');
+      agregar.type = 'button'; agregar.className = 'btn primary small'; agregar.textContent = '+ Agregar link';
+
+      const guardar = async ()=>{
+        const urlLimpia = normalizarUrl(url.value);
+        if(!urlLimpia){ showToast('Escribí la dirección del link'); return; }
+        quickLinks.push({ id: genId(), label: nombre.value.trim() || urlLimpia, url: urlLimpia });
+        await saveQuickLinks();
+        abrirPanelLinks();
+      };
+      agregar.addEventListener('click', guardar);
+      // Enter en cualquiera de los dos campos agrega, para no obligar a ir al botón.
+      [nombre, url].forEach(campo => campo.addEventListener('keydown', (e)=>{
+        if(e.key === 'Enter'){ e.preventDefault(); guardar(); }
+      }));
+
+      alta.appendChild(nombre); alta.appendChild(url); alta.appendChild(agregar);
+      panel.appendChild(alta);
+    }
+
+    return panel;
+  }
+
+  function abrirPanelLinks(){
+    cerrarPanelLinks();
+    const panel = construirPanelLinks();
+    $('quickLinksBtn').parentElement.appendChild(panel);
+    // Se registra en el próximo tick para que este mismo click no lo cierre de inmediato.
+    setTimeout(()=>{
+      const cerrarSiEsAfuera = (e)=>{
+        if(panel.contains(e.target) || e.target.closest('#quickLinksBtn')) return;
+        panel.remove();
+        document.removeEventListener('click', cerrarSiEsAfuera);
+      };
+      document.addEventListener('click', cerrarSiEsAfuera);
+    }, 0);
+  }
+
+  $('quickLinksBtn').addEventListener('click', ()=>{
+    if(document.querySelector('.links-panel')) cerrarPanelLinks();
+    else abrirPanelLinks();
+  });
+
   // ---------- ideas panel (content ideas for later, independent of any month) ----------
   let ideas = [];
   let newIdeaAngleId = null;
@@ -2823,6 +3065,22 @@
     dateSpan.textContent = idea.createdAt ? new Date(idea.createdAt).toLocaleDateString('es-AR') : '';
     meta.appendChild(dateSpan);
     info.appendChild(meta);
+
+    if(idea.link){
+      const enlace = document.createElement('a');
+      enlace.className = 'idea-link';
+      enlace.href = idea.link;
+      enlace.target = '_blank';
+      // noopener: la página que se abre no queda con acceso a este calendario.
+      enlace.rel = 'noopener noreferrer';
+      // Se muestra el dominio y no la URL entera, que puede ser larguísima y romper la fila.
+      let dominio = idea.link;
+      try{ dominio = new URL(idea.link).hostname.replace(/^www\./,''); }catch(e){ /* URL rara: se muestra tal cual */ }
+      enlace.textContent = '🔗 ' + dominio;
+      enlace.title = idea.link;
+      info.appendChild(enlace);
+    }
+
     row.appendChild(info);
 
     const actions = document.createElement('div');
@@ -2857,6 +3115,12 @@
     textarea.value = idea.text;
     textarea.style.marginBottom = '8px';
     row.appendChild(textarea);
+    const linkInput = document.createElement('input');
+    linkInput.type = 'url';
+    linkInput.className = 'idea-link-input';
+    linkInput.placeholder = '🔗 Link de referencia (opcional)';
+    linkInput.value = idea.link || '';
+    row.appendChild(linkInput);
     const pickerRow = document.createElement('div');
     pickerRow.style.cssText = 'display:flex;gap:8px;align-items:center;';
     const pickerContainer = document.createElement('div');
@@ -2871,6 +3135,7 @@
     saveBtn.addEventListener('click', async ()=>{
       if(!textarea.value.trim()){ showToast('La idea no puede quedar vacía'); return; }
       idea.text = textarea.value.trim();
+      idea.link = normalizarUrl(linkInput.value);
       idea.angle = editingIdeaAngle;
       editingIdeaId = null;
       await saveIdeas();
@@ -2884,9 +3149,10 @@
   $('addIdeaBtn').addEventListener('click', async ()=>{
     const text = $('newIdeaText').value.trim();
     if(!text){ showToast('Escribí una idea primero'); return; }
-    ideas.push({ id: genId(), text, angle: newIdeaAngleId, createdAt: new Date().toISOString() });
+    ideas.push({ id: genId(), text, link: normalizarUrl($('newIdeaLink').value), angle: newIdeaAngleId, createdAt: new Date().toISOString() });
     await saveIdeas();
     $('newIdeaText').value = '';
+    $('newIdeaLink').value = '';
     newIdeaAngleId = null;
     renderNewIdeaPicker();
     renderIdeasList();
@@ -3588,7 +3854,7 @@
     $('resyncBtn').textContent = '↑ Subir todo lo local a la base';
     $('resyncBtn').disabled = false;
     showToast(fail === 0 ? `Listo: ${ok} datos subidos a la base` : `${ok} subidos, ${fail} fallaron — probá de nuevo`);
-    await loadAngles(); await loadClientName(); await loadClientPhoto(); await loadIdeas(); await loadRecurringRules(); await loadMonth(); renderCalendar();
+    await loadAngles(); await loadClientName(); await loadClientPhoto(); await loadIdeas(); await loadQuickLinks(); await loadRecurringRules(); await loadMonth(); renderCalendar();
   }
   $('resyncBtn').addEventListener('click', pushAllLocalToBackend);
 
@@ -3746,6 +4012,7 @@
       {name: 'Marca', fn: loadClientName},
       {name: 'Avatar', fn: loadClientPhoto},
       {name: 'Ideas', fn: loadIdeas},
+      {name: 'Links', fn: loadQuickLinks},
       {name: 'Reglas', fn: loadRecurringRules},
       {name: 'Mes', fn: loadMonth}
     ];
