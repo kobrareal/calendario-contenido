@@ -12,7 +12,15 @@
       "Bash(git add *)",
       "Bash(git commit -m 'Initial commit: Calendario de Contenido application *)",
       "Bash(git commit *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(curl -s -o /dev/null -w \"raiz: %{http_code}\\\\n\" https://calendario-contenido-kappa.vercel.app/)",
+      "Bash(curl -s -o /dev/null -w \"index.html: %{http_code}\\\\n\" https://calendario-contenido-kappa.vercel.app/index.html)",
+      "Bash(curl -s -o /dev/null -w \"calendario-contenido.html: %{http_code}\\\\n\" https://calendario-contenido-kappa.vercel.app/calendario-contenido.html)",
+      "Bash(curl -s -o /dev/null -w \"README.md: %{http_code}\\\\n\" https://calendario-contenido-kappa.vercel.app/README.md)",
+      "Bash(git ls-tree *)",
+      "Bash(git hash-object *)",
+      "Bash(rm -f vercel.json)",
+      "Bash(git commit -m 'Serve app from index.html; keep calendario-contenido.html as redirect stub *)"
     ]
   }
 }
