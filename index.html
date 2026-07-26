@@ -114,8 +114,26 @@
   .btn.icon-only:hover .label{opacity:1;}
   .btn.small{padding:6px 10px;font-size:12px;}
 
-  .block-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .block-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px;}
   .block-title-row .block-title{margin-bottom:0;}
+  /* El encabezado clickeable va aparte de los botones "+ Reel" / "+ Story": un <button>
+     no puede contener otro <button>, así que la fila queda como div y solo esta parte
+     es el disparador del acordeón. */
+  .section-toggle{
+    display:flex;align-items:center;gap:8px;
+    background:none;border:none;padding:4px 6px 4px 0;margin:0;
+    cursor:pointer;color:inherit;font:inherit;text-align:left;
+    border-radius:8px;transition:background .15s;
+  }
+  .section-toggle:hover{background:var(--surface-2);}
+  .section-arrow{font-size:10px;color:var(--muted);width:10px;flex:none;}
+  .section-count{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0;
+    color:var(--muted-2);text-transform:none;margin-left:6px;
+  }
+  /* La sección cerrada desaparece del flujo para que la abierta se quede con todo el alto. */
+  .block.collapsed > div[id$="Content"]{display:none;}
+  .block.collapsed{margin-bottom:10px;}
   .item-card{
     border:1px solid var(--border);border-radius:14px;background:var(--card-bg);
     padding:14px;margin-bottom:12px;
@@ -732,26 +750,35 @@
       <button class="close-x" id="closePanel">✕</button>
     </div>
 
-    <div class="block">
+    <!-- Feed y Stories funcionan como acordeón: solo una queda abierta, para que la que
+         estás editando ocupe todo el alto del panel en vez de repartirlo entre las dos. -->
+    <div class="block" id="feedBlock">
       <div class="block-title-row">
-        <div class="block-title"><span class="dot-icon" style="background:var(--accent)"></span>Feed</div>
+        <button type="button" class="section-toggle" id="feedToggleBtn" aria-expanded="true" aria-controls="feedContent">
+          <span class="section-arrow">▼</span>
+          <span class="block-title"><span class="dot-icon" style="background:var(--accent)"></span>Feed<span class="section-count" id="feedCount"></span></span>
+        </button>
         <div style="display:flex;gap:6px;">
           <button type="button" class="btn ghost small admin-only" id="addReelBtn">+ Reel</button>
           <button type="button" class="btn ghost small admin-only" id="addCarruselBtn">+ Carrusel</button>
         </div>
       </div>
-      <div id="feedItemsList"></div>
+      <div id="feedContent">
+        <div id="feedItemsList"></div>
+      </div>
     </div>
 
     <div class="block" id="storiesBlock">
-      <button type="button" class="block-title-row" id="storiesToggleBtn" style="background:none;border:none;cursor:pointer;width:100%;text-align:left;padding:0;">
-        <div class="block-title"><span class="dot-icon" style="background:var(--accent)"></span><span id="storiesLabel">Stories</span></div>
-        <span style="font-size:12px;color:var(--muted);">▼</span>
-      </button>
-      <div id="storiesContent">
-        <div style="display:flex;gap:6px;padding:10px 0;">
+      <div class="block-title-row">
+        <button type="button" class="section-toggle" id="storiesToggleBtn" aria-expanded="false" aria-controls="storiesContent">
+          <span class="section-arrow">▶</span>
+          <span class="block-title"><span class="dot-icon" style="background:var(--accent-2)"></span>Stories<span class="section-count" id="storiesCount"></span></span>
+        </button>
+        <div style="display:flex;gap:6px;">
           <button type="button" class="btn ghost small admin-only" id="addStoryBtn">+ Story</button>
         </div>
+      </div>
+      <div id="storiesContent">
         <div id="storiesItemsList"></div>
       </div>
     </div>
@@ -1846,25 +1873,40 @@
     ensureEntry(key);
     $('pasteDayBtn').disabled = !dayClipboard;
     renderDayPanelItems(key);
-
-    // Setup stories toggle
-    const storiesToggleBtn = $('storiesToggleBtn');
-    const storiesContent = $('storiesContent');
-    let storiesExpanded = true;
-
-    storiesToggleBtn.addEventListener('click', ()=>{
-      storiesExpanded = !storiesExpanded;
-      storiesContent.style.display = storiesExpanded ? 'block' : 'none';
-      const arrow = storiesToggleBtn.querySelector('span:last-child');
-      arrow.textContent = storiesExpanded ? '▼' : '▶';
-    });
+    openPanelSection('feed'); // cada día abre mostrando el feed, con Stories plegado
 
     $('dayOverlay').classList.add('open');
   }
 
+  // Acordeón del panel del día: abre una sección y pliega la otra, así la que estás
+  // editando se queda con todo el alto disponible.
+  //
+  // Los listeners se registran una sola vez, acá abajo. Antes vivían dentro de
+  // openDayPanel, así que se acumulaba uno nuevo por cada día que abrías y un solo click
+  // terminaba disparando el toggle varias veces: la sección parecía no responder.
+  function openPanelSection(which){
+    const secciones = { feed: $('feedBlock'), stories: $('storiesBlock') };
+    Object.keys(secciones).forEach(nombre => {
+      const bloque = secciones[nombre];
+      const abierta = nombre === which;
+      bloque.classList.toggle('collapsed', !abierta);
+      bloque.querySelector('.section-toggle').setAttribute('aria-expanded', abierta ? 'true' : 'false');
+      // Se busca .section-arrow y no "el último span": ese era el bug que le escribía la
+      // flecha encima al texto "Stories" y lo hacía desaparecer del encabezado.
+      bloque.querySelector('.section-arrow').textContent = abierta ? '▼' : '▶';
+    });
+  }
+  $('feedToggleBtn').addEventListener('click', ()=> openPanelSection('feed'));
+  $('storiesToggleBtn').addEventListener('click', ()=> openPanelSection('stories'));
+
   function renderDayPanelItems(key){
     ensureEntry(key);
     const entry = monthData[key];
+
+    // Los contadores van en el encabezado para que la sección plegada siga diciendo si
+    // tiene contenido; sin esto habría que abrirla para saberlo.
+    $('feedCount').textContent = entry.feed.length ? '· ' + entry.feed.length : '';
+    $('storiesCount').textContent = entry.stories.length ? '· ' + entry.stories.length : '';
 
     const feedList = $('feedItemsList');
     feedList.innerHTML = '';
@@ -2399,6 +2441,7 @@
     scheduleSaveDay(openDate);
     renderCalendar();
     renderDayPanelItems(openDate);
+    openPanelSection('feed'); // si estabas en Stories, mostrar lo que acabás de agregar
   });
   $('addCarruselBtn').addEventListener('click', ()=>{
     if(!openDate) return;
@@ -2408,6 +2451,7 @@
     scheduleSaveDay(openDate);
     renderCalendar();
     renderDayPanelItems(openDate);
+    openPanelSection('feed');
   });
   $('addStoryBtn').addEventListener('click', ()=>{
     if(!openDate) return;
@@ -2417,6 +2461,7 @@
     scheduleSaveDay(openDate);
     renderCalendar();
     renderDayPanelItems(openDate);
+    openPanelSection('stories'); // idem al revés: abrir Stories para ver el que se sumó
   });
 
   function ensureEntry(key){
