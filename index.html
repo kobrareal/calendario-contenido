@@ -35,6 +35,33 @@
     --ai-border:rgba(139,92,246,.4);
   }
   *{box-sizing:border-box;}
+
+  /* ---------- barras de scroll ---------- */
+  /* Firefox: solo admite estos dos, así que se le da el color y el ancho fino. */
+  *{scrollbar-width:thin;scrollbar-color:rgba(139,92,246,.55) transparent;}
+  /* Chrome / Edge: acá sí se puede pintar la barra completa. La pista queda transparente
+     para que no corte el degradado del fondo, y el pulgar toma el violeta de la paleta
+     con un halo al pasar el mouse, igual que los botones. */
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{
+    background:linear-gradient(180deg, rgba(139,92,246,.65), rgba(79,142,247,.65));
+    border-radius:999px;
+    border:2px solid transparent;
+    background-clip:padding-box; /* deja un aire alrededor del pulgar sin usar margin */
+  }
+  ::-webkit-scrollbar-thumb:hover{
+    background:linear-gradient(180deg, rgba(157,120,250,.9), rgba(110,164,255,.9));
+    background-clip:padding-box;
+    box-shadow:0 0 12px var(--glow);
+  }
+  /* Colores literales y no var(--…): las variables definidas en :root no resuelven dentro
+     de los pseudo-elementos de la barra de scroll, y la regla queda sin efecto. */
+  ::-webkit-scrollbar-thumb:active{
+    background:linear-gradient(180deg, #8b5cf6, #4f8ef7);
+    background-clip:padding-box;
+  }
+  ::-webkit-scrollbar-corner{background:transparent;}
   /* Native <option> popups ignore a dark background set only on <select>; color-scheme plus
      explicit option colors keeps every dropdown readable instead of light-on-light. */
   select{color-scheme:dark;}
@@ -141,15 +168,14 @@
      por igual y la plegada seguía reclamando su mitad aunque estuviera vacía. Con
      flex:0 0 auto se encoge a la altura de su encabezado y la abierta se queda con el resto. */
   .block.collapsed > div[id$="Content"]{display:none;}
-  .panel > .block.collapsed{flex:0 0 auto;overflow:hidden;}
-  .block.collapsed{padding-top:12px;padding-bottom:12px;margin-bottom:12px;}
+  .panel > .block.collapsed{flex:0 0 auto;overflow:hidden;padding:9px 12px;margin-bottom:9px;}
   .block.collapsed .block-title-row{margin-bottom:0;}
   .item-card{
-    border:1px solid var(--border);border-radius:14px;background:var(--card-bg);
-    padding:14px;margin-bottom:12px;
+    border:1px solid var(--border);border-radius:12px;background:var(--card-bg);
+    padding:11px;margin-bottom:9px;
   }
   .item-card:last-child{margin-bottom:0;}
-  .item-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .item-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
   .kind-toggle{display:flex;gap:6px;}
   .kind-opt{
     background:var(--card-bg-2);border:1px solid var(--border);color:var(--muted);
@@ -161,8 +187,11 @@
   .time-input{
     background:var(--surface);border:1px solid var(--border);color:var(--text);
     border-radius:8px;padding:5px 8px;font-family:'IBM Plex Mono',monospace;font-size:12px;
-    color-scheme:dark;
+    color-scheme:dark;cursor:pointer;
   }
+  .time-input:disabled{opacity:.45;cursor:default;}
+  .horario-row{display:flex;align-items:center;gap:3px;}
+  .horario-sep{color:var(--muted-2);font-family:'IBM Plex Mono',monospace;font-size:12px;}
   .item-remove{
     background:none;border:none;color:var(--muted-2);cursor:pointer;font-size:14px;
     padding:5px 7px;border-radius:6px;
@@ -210,8 +239,8 @@
   .cell{
     background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
     backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);
-    min-height:104px;padding:8px;cursor:pointer;position:relative;
-    display:flex;flex-direction:column;gap:6px;
+    min-height:92px;padding:7px;cursor:pointer;position:relative;
+    display:flex;flex-direction:column;gap:4px;
     transition:border-color .15s, background .15s, opacity .15s, box-shadow .15s;
   }
   .cell:hover{border-color:var(--muted-2);background:var(--surface-2);box-shadow:0 0 20px rgba(168,120,255,.18);}
@@ -287,8 +316,16 @@
     aspect-ratio:3/4;overflow-y:auto;overflow-x:hidden;
     background:var(--surface-3);scrollbar-width:thin;
   }
+  /* Más angosta que la general porque la columna del preview es estrecha, pero con los
+     mismos colores: antes era la única barra gris y desentonaba. */
   .frames-viewport::-webkit-scrollbar{width:6px;}
-  .frames-viewport::-webkit-scrollbar-thumb{background:var(--surface-2);border-radius:3px;}
+  .frames-viewport::-webkit-scrollbar-thumb{
+    background:linear-gradient(180deg, rgba(139,92,246,.65), rgba(79,142,247,.65));
+    border-radius:999px;
+  }
+  .frames-viewport::-webkit-scrollbar-thumb:hover{
+    background:linear-gradient(180deg, rgba(157,120,250,.9), rgba(110,164,255,.9));
+  }
   .frames-viewport::-webkit-scrollbar-track{background:transparent;}
   .frames{
     display:grid;grid-template-columns:repeat(3,1fr);gap:2px;
@@ -350,29 +387,46 @@
     height:100%;display:flex;flex-direction:column;padding:0;
     animation:slidein .18s ease-out;
   }
-  .panel > .panel-head{position:sticky;top:0;padding:26px 26px 0;z-index:50;background:var(--surface);}
-  .panel > .block{flex:1;padding:26px 26px 0;overflow-y:auto;}
+  /* Márgenes ajustados: los originales dejaban una franja vacía arriba, otra entre las dos
+     secciones y otra sobre los botones, que sumadas obligaban a scrollear para ver el
+     posteo que se está editando. */
+  .panel > .panel-head{position:sticky;top:0;padding:16px 18px 0;z-index:50;background:var(--surface);}
+  .panel > .block{flex:1;padding:8px 18px 0;overflow-y:auto;}
   .panel > .block:first-of-type{padding-top:0;}
-  .panel > .panel-footer{position:sticky;bottom:0;padding:6px 26px 26px;background:var(--surface);z-index:50;}
+  .panel > .panel-footer{position:sticky;bottom:0;padding:6px 18px 14px;background:var(--surface);z-index:50;}
   @keyframes slidein{from{transform:translateX(24px);opacity:0;}to{transform:translateX(0);opacity:1;}}
-  .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;}
-  .panel-head h2{font-family:'Inter',sans-serif;font-weight:700;font-size:19px;margin:0;text-transform:capitalize;}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .panel-head h2{font-family:'Inter',sans-serif;font-weight:700;font-size:17px;margin:0;text-transform:capitalize;}
   .close-x{
     background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;
     width:30px;height:30px;border-radius:6px;
   }
   .close-x:hover{background:var(--surface-2);color:var(--text);}
 
-  .block{margin-bottom:26px;border:1px solid var(--border);border-radius:10px;padding:16px;background:var(--surface-2);backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);}
+  .block{margin-bottom:12px;border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--surface-2);backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);}
   .block-title{
-    display:flex;align-items:center;gap:8px;margin-bottom:12px;
+    display:flex;align-items:center;gap:8px;margin-bottom:8px;
     font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:600;
   }
   .dot-icon{width:8px;height:8px;border-radius:50%;}
 
-  label.field-label{display:block;font-size:11.5px;color:var(--muted-2);margin-bottom:6px;font-family:'IBM Plex Mono',monospace;}
+  label.field-label{display:block;font-size:11.5px;color:var(--muted-2);margin-bottom:5px;font-family:'IBM Plex Mono',monospace;}
 
-  .angle-picker{position:relative;margin-bottom:14px;}
+  /* Etiqueta a la izquierda y campo a la derecha, en vez de uno debajo del otro: cada
+     campo que se pasa a esta fila ahorra un renglón entero de alto en la tarjeta. */
+  .field-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  .field-row > label.field-label{flex:none;width:52px;margin-bottom:0;line-height:1.3;}
+  .field-row > .campo{flex:1;min-width:0;}
+  .field-row > .campo.angle-picker{margin-bottom:0;}
+  .field-row-top{align-items:flex-start;}
+  .field-row-top > label.field-label{padding-top:6px;}
+  /* En pantallas angostas vuelve a apilarse, si no el campo queda impracticable. */
+  @media(max-width:520px){
+    .field-row{flex-direction:column;align-items:stretch;gap:4px;}
+    .field-row > label.field-label{width:auto;}
+  }
+
+  .angle-picker{position:relative;margin-bottom:8px;}
   .angle-trigger{
     width:100%;text-align:left;background:var(--surface);border:1px solid var(--border);
     border-radius:8px;padding:9px 12px;color:var(--text);cursor:pointer;font-size:13px;
@@ -408,7 +462,7 @@
   .ai-box .field-label{color:#b9a8f5;}
   .ai-box textarea{height:34px;min-height:34px;overflow-y:auto;background:var(--card-bg-2);color:var(--text);margin-bottom:8px;}
   .ai-box textarea::placeholder{color:var(--muted-2);}
-  .copy-textarea{min-height:180px;}
+  .copy-textarea{min-height:110px;}
   .ai-btn-row{display:flex;gap:8px;}
   .ai-generate-btn{flex:1;justify-content:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;font-weight:600;}
   .ai-generate-btn:hover{filter:brightness(1.08);}
@@ -2137,6 +2191,60 @@
 
   // Generic "change something about this day, then re-save + re-render" helper,
   // used by every discrete click action (angle pick, kind toggle) inside item cards.
+  // El horario dejó de ser un campo de reloj y pasó a dos desplegables. Los posteos se
+  // agendan "a las 9" o "a las 9 y media", así que tipear la hora dígito por dígito era más
+  // trabajo que elegirla. Se conserva el formato "HH:MM" porque es con el que compareByTime
+  // ordena la lista del día.
+  function buildSelectorHorario(item, alCambiar){
+    const cont = document.createElement('div');
+    cont.className = 'horario-row';
+
+    const [horaActual, minActual] = (item.time || '').split(':');
+
+    const selHora = document.createElement('select');
+    selHora.className = 'time-input'; selHora.title = 'Hora de este posteo';
+    selHora.innerHTML = '<option value="">--</option>' +
+      Array.from({length:24}, (_, h)=>{
+        const v = String(h).padStart(2,'0');
+        return `<option value="${v}"${v===horaActual ? ' selected' : ''}>${v}</option>`;
+      }).join('');
+
+    const sep = document.createElement('span');
+    sep.className = 'horario-sep'; sep.textContent = ':';
+
+    const selMin = document.createElement('select');
+    selMin.className = 'time-input'; selMin.title = 'Minutos';
+    selMin.innerHTML = ['00','30']
+      .map(v=>`<option value="${v}"${v===minActual ? ' selected' : ''}>${v}</option>`).join('');
+
+    const aplicar = ()=>{
+      // Sin hora elegida no hay horario: el campo queda vacío y el posteo va al final del día.
+      item.time = selHora.value ? `${selHora.value}:${selMin.value || '00'}` : '';
+      selMin.disabled = !selHora.value;
+      alCambiar();
+    };
+    selMin.disabled = !selHora.value;
+    selHora.addEventListener('change', aplicar);
+    selMin.addEventListener('change', aplicar);
+
+    cont.appendChild(selHora); cont.appendChild(sep); cont.appendChild(selMin);
+    return cont;
+  }
+
+  // Etiqueta a la izquierda y campo a la derecha, para no gastar un renglón por campo.
+  // alinearArriba: para controles altos (la miniatura), donde centrar la etiqueta contra
+  // 70px de alto la deja flotando en el medio sin relación con nada.
+  function filaCampo(texto, control, alinearArriba){
+    const fila = document.createElement('div');
+    fila.className = 'field-row' + (alinearArriba ? ' field-row-top' : '');
+    const label = document.createElement('label');
+    label.className = 'field-label';
+    label.textContent = texto;
+    control.classList.add('campo');
+    fila.appendChild(label); fila.appendChild(control);
+    return fila;
+  }
+
   function mutateAndRerender(key, mutator){
     pushUndo(key);
     mutator();
@@ -2405,11 +2513,7 @@
     carruselBtn.addEventListener('click', ()=> mutateAndRerender(key, ()=>{ item.kind = 'carrusel'; }));
     kindToggle.appendChild(reelBtn); kindToggle.appendChild(carruselBtn);
 
-    const timeInput = document.createElement('input');
-    timeInput.type = 'time'; timeInput.className = 'time-input'; timeInput.title = 'Horario de este posteo';
-    timeInput.value = item.time || '';
-    timeInput.addEventListener('change', ()=> mutateAndRerender(key, ()=>{
-      item.time = timeInput.value;
+    const timeInput = buildSelectorHorario(item, ()=> mutateAndRerender(key, ()=>{
       monthData[key].feed.sort(compareByTime);
     }));
 
@@ -2448,21 +2552,15 @@
     previewRow.appendChild(document.createTextNode('No mostrar en el feed (preview)'));
     card.appendChild(previewRow);
 
-    const titleLabel = document.createElement('label');
-    titleLabel.className = 'field-label'; titleLabel.style.marginTop = '10px'; titleLabel.textContent = 'Título';
     const titleInput = document.createElement('input');
     titleInput.type = 'text'; titleInput.className = 'rule-text-input'; titleInput.placeholder = 'Ej: CAMPERAS, DESCUENTO 30%...';
     titleInput.value = item.title || '';
     titleInput.addEventListener('input', ()=>{ item.title = titleInput.value; scheduleSaveDay(key); renderCalendar(); });
-    card.appendChild(titleLabel);
-    card.appendChild(titleInput);
+    card.appendChild(filaCampo('Título', titleInput));
 
-    const pickerLabel = document.createElement('label');
-    pickerLabel.className = 'field-label'; pickerLabel.textContent = 'Ángulo';
-    card.appendChild(pickerLabel);
     const pickerContainer = document.createElement('div');
     pickerContainer.className = 'angle-picker';
-    card.appendChild(pickerContainer);
+    card.appendChild(filaCampo('Ángulo', pickerContainer));
     buildPickerEl(pickerContainer, item.angle, (id)=> mutateAndRerender(key, ()=>{ item.angle = id; }));
 
     const textLabel = document.createElement('label');
@@ -2541,9 +2639,6 @@
     scriptContainer.appendChild(scriptBtn);
     card.appendChild(scriptContainer);
 
-    const thumbLabel = document.createElement('label');
-    thumbLabel.className = 'field-label'; thumbLabel.style.marginTop = '10px'; thumbLabel.textContent = 'Miniatura';
-    card.appendChild(thumbLabel);
     const thumbRow = document.createElement('div');
     thumbRow.className = 'thumb-row';
     const img = document.createElement('img');
@@ -2645,7 +2740,7 @@
     btnRow.appendChild(uploadBtn); btnRow.appendChild(pasteBtn); btnRow.appendChild(clearBtn);
     thumbControls.appendChild(btnRow); thumbControls.appendChild(fileInput); thumbControls.appendChild(urlInput);
     thumbRow.appendChild(img); thumbRow.appendChild(thumbControls);
-    card.appendChild(thumbRow);
+    card.appendChild(filaCampo('Miniatura', thumbRow, true));
     card.appendChild(buildEstadoRow(key, item));
     card.appendChild(buildClientNoteBox(key, item));
 
@@ -2664,11 +2759,7 @@
     const label = document.createElement('div');
     label.className = 'item-kind-label'; label.textContent = '📱 Story';
 
-    const timeInput = document.createElement('input');
-    timeInput.type = 'time'; timeInput.className = 'time-input'; timeInput.title = 'Horario de esta story';
-    timeInput.value = item.time || '';
-    timeInput.addEventListener('change', ()=> mutateAndRerender(key, ()=>{
-      item.time = timeInput.value;
+    const timeInput = buildSelectorHorario(item, ()=> mutateAndRerender(key, ()=>{
       monthData[key].stories.sort(compareByTime);
     }));
 
@@ -2692,21 +2783,15 @@
     head.appendChild(leftGroup); head.appendChild(rightGroup);
     card.appendChild(head);
 
-    const titleLabel = document.createElement('label');
-    titleLabel.className = 'field-label'; titleLabel.textContent = 'Título';
     const titleInput = document.createElement('input');
     titleInput.type = 'text'; titleInput.className = 'rule-text-input'; titleInput.placeholder = 'Ej: ANUNCIO IMPORTANTE...';
     titleInput.value = item.title || '';
     titleInput.addEventListener('input', ()=>{ item.title = titleInput.value; scheduleSaveDay(key); renderCalendar(); });
-    card.appendChild(titleLabel);
-    card.appendChild(titleInput);
+    card.appendChild(filaCampo('Título', titleInput));
 
-    const pickerLabel = document.createElement('label');
-    pickerLabel.className = 'field-label'; pickerLabel.textContent = 'Ángulo';
-    card.appendChild(pickerLabel);
     const pickerContainer = document.createElement('div');
     pickerContainer.className = 'angle-picker';
-    card.appendChild(pickerContainer);
+    card.appendChild(filaCampo('Ángulo', pickerContainer));
     buildPickerEl(pickerContainer, item.angle, (id)=> mutateAndRerender(key, ()=>{ item.angle = id; }));
 
     const textLabel = document.createElement('label');
