@@ -175,7 +175,24 @@
     padding:11px;margin-bottom:9px;
   }
   .item-card:last-child{margin-bottom:0;}
-  .item-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .item-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+  .item-card.colapsada{padding:7px 9px;}
+  .item-card.colapsada .item-card-head{margin-bottom:0;}
+  .item-card.colapsada .item-body{display:none;}
+  /* Plegada, la tarjeta muestra el resumen en vez de los controles de tipo y horario:
+     así entra en un solo renglón, que es el punto de plegarla. */
+  .item-card.colapsada .kind-toggle,
+  .item-card.colapsada .horario-row{display:none;}
+  .item-toggle{
+    background:none;border:none;color:var(--muted);cursor:pointer;
+    font-size:10px;padding:2px 4px;border-radius:5px;flex:none;line-height:1;
+  }
+  .item-toggle:hover{color:var(--text);background:var(--surface-2);}
+  .item-resumen{
+    display:none;font-size:12px;color:var(--muted);min-width:0;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .item-card.colapsada .item-resumen{display:block;}
   .kind-toggle{display:flex;gap:6px;}
   .kind-opt{
     background:var(--card-bg-2);border:1px solid var(--border);color:var(--muted);
@@ -236,11 +253,66 @@
     text-align:center;font-family:'IBM Plex Mono',monospace;
   }
   .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
+
+  /* ---------- selector Mes / Semana ---------- */
+  .view-toggle{display:flex;gap:4px;margin-left:8px;}
+  .view-opt{
+    background:var(--card-bg-2);border:1px solid var(--border);color:var(--muted);
+    padding:5px 11px;border-radius:8px;font-size:12px;cursor:pointer;transition:all .15s;
+    font-family:'Inter',sans-serif;
+  }
+  .view-opt:hover{color:var(--text);}
+  .view-opt.active{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;font-weight:600;}
+
+  /* ---------- vista semanal ---------- */
+  /* Siete columnas como el mes, pero con celdas altas: la semana existe para ver el detalle
+     de cada posteo (horario, ángulo, estado) sin tener que abrir día por día. */
+  .grid.semana{grid-template-columns:repeat(7,1fr);align-items:stretch;}
+  .grid.semana .cell{min-height:320px;padding:9px;}
+  .sem-cabecera{
+    display:flex;align-items:baseline;justify-content:space-between;gap:6px;
+    padding-bottom:6px;margin-bottom:6px;border-bottom:1px solid var(--border);
+  }
+  .sem-dia{font-family:'Inter',sans-serif;font-size:12px;font-weight:700;text-transform:capitalize;}
+  .sem-fecha{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted-2);}
+  .cell.otro-mes{opacity:.55;}
+  .cell.otro-mes .sem-fecha{color:var(--danger);}
+  .sem-lista{display:flex;flex-direction:column;gap:5px;}
+  .sem-item{
+    border:1px solid var(--border);border-radius:8px;background:var(--card-bg);
+    padding:6px 7px;display:flex;flex-direction:column;gap:3px;cursor:grab;
+  }
+  .sem-item:active{cursor:grabbing;}
+  .sem-item.dragging{opacity:.35;}
+  .sem-item-top{display:flex;align-items:center;gap:5px;font-size:10px;}
+  .sem-hora{font-family:'IBM Plex Mono',monospace;color:var(--muted);}
+  .sem-tipo{
+    font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;
+    padding:1px 4px;border-radius:4px;background:var(--surface-2);color:var(--muted);
+  }
+  .sem-angulo{
+    font-size:11px;font-weight:600;color:#0c0812;border-radius:4px;padding:2px 5px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  }
+  .sem-angulo.sin{background:transparent;border:1px dashed var(--border);color:var(--muted-2);font-weight:400;}
+  .sem-texto{
+    font-size:11px;color:var(--muted);line-height:1.35;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  }
+  .sem-vacio{color:var(--muted-2);font-size:11px;font-style:italic;padding:4px 0;}
+  .sem-seccion{
+    font-family:'IBM Plex Mono',monospace;font-size:9px;text-transform:uppercase;
+    color:var(--muted-2);letter-spacing:.5px;margin:6px 0 2px;
+  }
+  @media(max-width:900px){
+    .grid.semana{grid-template-columns:1fr;}
+    .grid.semana .cell{min-height:0;}
+  }
   .cell{
     background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
     backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);
-    min-height:92px;padding:7px;cursor:pointer;position:relative;
-    display:flex;flex-direction:column;gap:4px;
+    min-height:74px;padding:7px;cursor:pointer;position:relative;
+    display:flex;flex-direction:column;gap:2px;
     transition:border-color .15s, background .15s, opacity .15s, box-shadow .15s;
   }
   .cell:hover{border-color:var(--muted-2);background:var(--surface-2);box-shadow:0 0 20px rgba(168,120,255,.18);}
@@ -258,7 +330,9 @@
   .cell.week-start:hover .week-dup-btn{display:flex;}
   .week-dup-btn:hover{color:var(--accent);border-color:var(--accent);}
   .cell.drop-target{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent), 0 0 26px var(--glow);}
-  .tags{display:flex;flex-direction:column;gap:4px;margin-top:auto;}
+  /* Sin margin-top:auto: empujaba las etiquetas al pie de la celda y dejaba un hueco entre
+     el número del día y la única etiqueta que hubiera. Ahora se apilan desde arriba. */
+  .tags{display:flex;flex-direction:column;gap:3px;margin-top:4px;}
   .tag{
     font-size:10.5px;padding:3px 6px;border-radius:5px;
     display:flex;align-items:center;gap:5px;
@@ -415,7 +489,9 @@
   /* Etiqueta a la izquierda y campo a la derecha, en vez de uno debajo del otro: cada
      campo que se pasa a esta fila ahorra un renglón entero de alto en la tarjeta. */
   .field-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
-  .field-row > label.field-label{flex:none;width:52px;margin-bottom:0;line-height:1.3;}
+  /* 66px es lo que mide la etiqueta más larga en esta tipografía; con menos, el texto se
+     desbordaba y quedaba pisado por el campo de al lado. */
+  .field-row > label.field-label{flex:none;width:66px;margin-bottom:0;line-height:1.3;white-space:nowrap;}
   .field-row > .campo{flex:1;min-width:0;}
   .field-row > .campo.angle-picker{margin-bottom:0;}
   .field-row-top{align-items:flex-start;}
@@ -464,6 +540,7 @@
   .ai-box textarea::placeholder{color:var(--muted-2);}
   .copy-textarea{min-height:110px;}
   .ai-btn-row{display:flex;gap:8px;}
+  .acciones-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;}
   .ai-generate-btn{flex:1;justify-content:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;font-weight:600;}
   .ai-generate-btn:hover{filter:brightness(1.08);}
   .ai-generate-btn:disabled{opacity:.6;cursor:wait;}
@@ -822,9 +899,13 @@
     </div>
 
     <div class="month-nav">
-      <button id="prevMonth" aria-label="Mes anterior">‹</button>
+      <button id="prevMonth" aria-label="Anterior">‹</button>
       <div class="month-label mono" id="monthLabel">—</div>
-      <button id="nextMonth" aria-label="Mes siguiente">›</button>
+      <button id="nextMonth" aria-label="Siguiente">›</button>
+      <div class="view-toggle" role="group" aria-label="Vista del calendario">
+        <button type="button" class="view-opt active" id="viewMonthBtn">Mes</button>
+        <button type="button" class="view-opt" id="viewWeekBtn">Semana</button>
+      </div>
     </div>
 
     <div class="top-actions">
@@ -1138,6 +1219,8 @@
 <script>
 (function(){
   const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  // Empieza en lunes, igual que la grilla del mes.
+  const DIAS_SEMANA = ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"];
   const COPY_MAX_LEN = 499; // keeps generated/typed copy under 500 characters
 
   const EMOJI_PICKER_EMOJIS = [
@@ -1895,12 +1978,213 @@
     showToast(count ? `Semana duplicada (${count} día${count===1?'':'s'})` : 'No había días de la semana siguiente disponibles');
   }
 
+  // ---------- vista semanal ----------
+  // El mes sirve para la foto general; la semana es para trabajar el día a día, con menos
+  // días en pantalla y el detalle de cada posteo a la vista.
+  let vistaActual = 'mes';          // 'mes' | 'semana'
+  let inicioSemana = lunesDe(today); // lunes de la semana mostrada
+
+  function lunesDe(fecha){
+    const d = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+    d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); // getDay(): 0=domingo
+    return d;
+  }
+  function diasDeLaSemana(){
+    return Array.from({length:7}, (_, i)=>{
+      const d = new Date(inicioSemana);
+      d.setDate(d.getDate() + i);
+      return d;
+    });
+  }
+
+  // La semana puede cruzar dos meses (la del 29 de junio al 5 de julio), y monthData solo
+  // trae el mes visible. Se piden los 7 días y se mezclan: como monthData está indexado por
+  // fecha completa, conviven sin pisarse con los del mes cargado.
+  async function cargarSemana(){
+    const claves = diasDeLaSemana().map(d => dateKey(d.getFullYear(), d.getMonth(), d.getDate()));
+    setSaving('saving');
+    claves.forEach(k=>{
+      if(monthData[k]) return;
+      const cache = localStorage.getItem('cc-cache:'+clientKey(k));
+      if(cache){ try{ monthData[k] = normalizeEntry(JSON.parse(cache)); }catch(e){} }
+    });
+    try{
+      const valores = await storageGetMany(claves);
+      valores.forEach((val, i)=>{
+        if(val){ try{ monthData[claves[i]] = normalizeEntry(JSON.parse(val)); }catch(e){} }
+      });
+    }catch(e){ /* se queda con lo que haya en cache */ }
+    setSaving('saved');
+    setTimeout(()=>setSaving('idle'), 900);
+  }
+
+  function renderSemana(){
+    const grid = $('calendarGrid');
+    grid.innerHTML = '';
+    grid.classList.add('semana');
+    const hoyKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+
+    diasDeLaSemana().forEach((fecha, idx)=>{
+      const key = dateKey(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+      const entry = monthData[key];
+      const cell = document.createElement('div');
+      cell.className = 'cell' + (key === hoyKey ? ' today' : '') +
+        (fecha.getMonth() !== viewMonth ? ' otro-mes' : '');
+
+      if(angleFilter){
+        const coincide = entry && (
+          (entry.feed && entry.feed.some(it=>it.angle===angleFilter)) ||
+          (entry.stories && entry.stories.some(it=>it.angle===angleFilter))
+        );
+        if(!coincide) cell.classList.add('dimmed');
+      }
+
+      cell.tabIndex = 0;
+      cell.setAttribute('role','button');
+      cell.setAttribute('aria-label', `Editar contenido del ${fecha.getDate()} de ${MESES[fecha.getMonth()]}`);
+
+      const cab = document.createElement('div');
+      cab.className = 'sem-cabecera';
+      const nombreDia = document.createElement('span');
+      nombreDia.className = 'sem-dia';
+      nombreDia.textContent = DIAS_SEMANA[idx];
+      const numFecha = document.createElement('span');
+      numFecha.className = 'sem-fecha';
+      // Los días de otro mes muestran también el mes, para que no se confundan con los de éste.
+      numFecha.textContent = fecha.getMonth() === viewMonth
+        ? String(fecha.getDate())
+        : `${fecha.getDate()} ${MESES[fecha.getMonth()].slice(0,3)}`;
+      cab.appendChild(nombreDia); cab.appendChild(numFecha);
+      cell.appendChild(cab);
+
+      const cuerpo = document.createElement('div');
+      cuerpo.className = 'sem-lista';
+      const feed = (entry && entry.feed) || [];
+      const stories = (entry && entry.stories) || [];
+
+      if(feed.length === 0 && stories.length === 0){
+        const vacio = document.createElement('div');
+        vacio.className = 'sem-vacio';
+        vacio.textContent = 'Sin contenido';
+        cuerpo.appendChild(vacio);
+      }
+      if(feed.length) cuerpo.appendChild(seccionSemana('Feed', feed, key, 'feed'));
+      if(stories.length) cuerpo.appendChild(seccionSemana('Stories', stories, key, 'stories'));
+      cell.appendChild(cuerpo);
+
+      cell.addEventListener('click', ()=> openDayPanel(key));
+      cell.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openDayPanel(key); }});
+      hacerCeldaSoltable(cell, key);
+
+      grid.appendChild(cell);
+    });
+  }
+
+  function seccionSemana(titulo, items, key, listName){
+    const cont = document.createElement('div');
+    const rot = document.createElement('div');
+    rot.className = 'sem-seccion';
+    rot.textContent = titulo;
+    cont.appendChild(rot);
+
+    items.forEach(it=>{
+      const a = angleById(it.angle);
+      const fila = document.createElement('div');
+      fila.className = 'sem-item';
+
+      const arriba = document.createElement('div');
+      arriba.className = 'sem-item-top';
+      const est = ESTADOS[it.status];
+      if(est && it.status !== 'pendiente'){
+        const punto = document.createElement('span');
+        punto.className = 'estado-dot';
+        punto.style.background = est.color;
+        punto.title = 'Estado: ' + est.label;
+        arriba.appendChild(punto);
+      }
+      if(it.time){
+        const hora = document.createElement('span');
+        hora.className = 'sem-hora'; hora.textContent = it.time;
+        arriba.appendChild(hora);
+      }
+      const tipo = document.createElement('span');
+      tipo.className = 'sem-tipo';
+      tipo.textContent = listName === 'stories' ? 'Story' : (it.kind === 'carrusel' ? 'Carrusel' : 'Reel');
+      arriba.appendChild(tipo);
+      if(it.approval && it.approval !== 'sin-revisar'){
+        const ap = document.createElement('span');
+        ap.textContent = APROBACIONES[it.approval].icono;
+        ap.title = 'Cliente: ' + APROBACIONES[it.approval].label;
+        arriba.appendChild(ap);
+      }
+      if(it.hideFromPreview){
+        const oculto = document.createElement('span');
+        oculto.textContent = '🚫'; oculto.title = 'No se muestra en la vista previa del feed';
+        arriba.appendChild(oculto);
+      }
+      fila.appendChild(arriba);
+
+      const chip = document.createElement('div');
+      chip.className = 'sem-angulo' + (a ? '' : ' sin');
+      if(a){ chip.style.background = a.color; chip.textContent = (a.emoji ? a.emoji + ' ' : '') + a.name; }
+      else { chip.textContent = 'Sin ángulo'; }
+      fila.appendChild(chip);
+
+      const resumen = (it.title || it.text || it.context || '').trim();
+      if(resumen){
+        const txt = document.createElement('div');
+        txt.className = 'sem-texto';
+        txt.textContent = resumen;
+        fila.appendChild(txt);
+      }
+
+      // Mismo protocolo de arrastre que las etiquetas del mes, así se puede mover de un día
+      // a otro también desde acá.
+      if(!IS_READONLY){
+        fila.draggable = true;
+        fila.title = 'Arrastrá para mover este contenido a otro día';
+        fila.addEventListener('dragstart', (e)=>{
+          e.stopPropagation();
+          fila.classList.add('dragging');
+          e.dataTransfer.effectAllowed = 'move';
+          e.dataTransfer.setData('text/plain', JSON.stringify({sourceKey: key, itemId: it.id, list: listName}));
+        });
+        fila.addEventListener('dragend', ()=> fila.classList.remove('dragging'));
+      }
+
+      cont.appendChild(fila);
+    });
+    return cont;
+  }
+
   // ---------- calendar render ----------
   function renderMonthLabel(){
+    if(vistaActual === 'semana'){
+      const dias = diasDeLaSemana();
+      const a = dias[0], b = dias[6];
+      const mismoMes = a.getMonth() === b.getMonth();
+      $('monthLabel').textContent = mismoMes
+        ? `${a.getDate()} – ${b.getDate()} ${MESES[a.getMonth()]}`
+        : `${a.getDate()} ${MESES[a.getMonth()].slice(0,3)} – ${b.getDate()} ${MESES[b.getMonth()].slice(0,3)}`;
+      return;
+    }
     $('monthLabel').textContent = `${MESES[viewMonth]} ${viewYear}`;
   }
 
   function renderCalendar(){
+    if(vistaActual === 'semana'){
+      renderSemana();
+    }else{
+      $('calendarGrid').classList.remove('semana');
+      renderMes();
+    }
+    renderMonthLabel();
+    renderFeedPreview();
+    populateAngleFilterOptions();
+    updateUnassignedNote();
+  }
+
+  function renderMes(){
     const grid = $('calendarGrid');
     grid.innerHTML = '';
     const firstOfMonth = new Date(viewYear, viewMonth, 1);
@@ -1959,26 +2243,27 @@
       cell.addEventListener('click', ()=>openDayPanel(key));
       cell.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); openDayPanel(key); }});
 
-      // Drop target for moving a reel/carrusel/story dragged from another day (admin only).
-      if(!IS_READONLY){
-        cell.addEventListener('dragover', (e)=>{ e.preventDefault(); e.dataTransfer.dropEffect = 'move'; cell.classList.add('drop-target'); });
-        cell.addEventListener('dragleave', ()=> cell.classList.remove('drop-target'));
-        cell.addEventListener('drop', (e)=>{
-          e.preventDefault();
-          cell.classList.remove('drop-target');
-          let data;
-          try{ data = JSON.parse(e.dataTransfer.getData('text/plain')); }catch(err){ return; }
-          if(!data || !data.sourceKey || !data.itemId || !data.list) return;
-          moveItemBetweenDays(data.sourceKey, data.itemId, data.list, key);
-        });
-      }
+      hacerCeldaSoltable(cell, key);
 
       grid.appendChild(cell);
     }
-    renderMonthLabel();
-    renderFeedPreview();
-    populateAngleFilterOptions();
-    updateUnassignedNote();
+  }
+
+  // Convierte una celda en destino de arrastre. Extraído para que las celdas de la vista
+  // semanal acepten lo mismo que las del mes, sin repetir el manejo del evento.
+  function hacerCeldaSoltable(cell, key){
+    if(IS_READONLY) return;
+    cell.addEventListener('dragover', (e)=>{ e.preventDefault(); e.dataTransfer.dropEffect = 'move'; cell.classList.add('drop-target'); });
+    cell.addEventListener('dragleave', ()=> cell.classList.remove('drop-target'));
+    cell.addEventListener('drop', (e)=>{
+      e.preventDefault();
+      cell.classList.remove('drop-target');
+      let data;
+      try{ data = JSON.parse(e.dataTransfer.getData('text/plain')); }catch(err){ return; }
+      if(!data || !data.sourceKey || !data.itemId || !data.list) return;
+      if(data.sourceKey === key) return; // soltar en el mismo día no hace nada
+      moveItemBetweenDays(data.sourceKey, data.itemId, data.list, key);
+    });
   }
 
   function appendItemTags(container, items, emptyLabel, key, listName){
@@ -2244,6 +2529,11 @@
     fila.appendChild(label); fila.appendChild(control);
     return fila;
   }
+
+  // Qué tarjetas están desplegadas. Vive solo en memoria y a propósito: al abrir un día uno
+  // quiere la lista compacta, no el estado en que la dejó tres días atrás. Lo que sí se
+  // recuerda dentro de la sesión es lo que abriste recién.
+  const tarjetasAbiertas = new Set();
 
   function mutateAndRerender(key, mutator){
     pushUndo(key);
@@ -2534,8 +2824,41 @@
     rightGroup.style.cssText = 'display:flex;align-items:center;gap:4px;';
     rightGroup.appendChild(botonDuplicarItem(item, 'feed', key));
     rightGroup.appendChild(removeBtn);
+    // Plegado individual: un día con cinco posteos obligaba a scrollear hasta el final para
+    // llegar al último. Plegados, cada uno ocupa un renglón y se abre el que se va a editar.
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button'; toggleBtn.className = 'item-toggle';
+    toggleBtn.title = 'Plegar o desplegar este posteo';
+
+    const resumen = document.createElement('span');
+    resumen.className = 'item-resumen';
+    const anguloResumen = item.angle ? angleById(item.angle) : null;
+    const textoResumen = (item.title || item.text || item.context || '').trim();
+    resumen.textContent = [
+      anguloResumen ? ((anguloResumen.emoji ? anguloResumen.emoji + ' ' : '') + anguloResumen.name) : 'Sin ángulo',
+      textoResumen
+    ].filter(Boolean).join(' · ');
+
+    const pintarPliegue = ()=>{
+      const abierta = tarjetasAbiertas.has(item.id);
+      card.classList.toggle('colapsada', !abierta);
+      toggleBtn.textContent = abierta ? '▼' : '▶';
+    };
+    toggleBtn.addEventListener('click', ()=>{
+      if(tarjetasAbiertas.has(item.id)) tarjetasAbiertas.delete(item.id);
+      else tarjetasAbiertas.add(item.id);
+      pintarPliegue();
+    });
+
+    leftGroup.prepend(toggleBtn);
+    leftGroup.appendChild(resumen);
     head.appendChild(leftGroup); head.appendChild(rightGroup);
     card.appendChild(head);
+
+    const cuerpo = document.createElement('div');
+    cuerpo.className = 'item-body';
+    card.appendChild(cuerpo);
+    pintarPliegue();
 
     const previewRow = document.createElement('label');
     previewRow.className = 'gen-checkbox-row';
@@ -2550,17 +2873,17 @@
     });
     previewRow.appendChild(previewCheck);
     previewRow.appendChild(document.createTextNode('No mostrar en el feed (preview)'));
-    card.appendChild(previewRow);
+    cuerpo.appendChild(previewRow);
 
     const titleInput = document.createElement('input');
     titleInput.type = 'text'; titleInput.className = 'rule-text-input'; titleInput.placeholder = 'Ej: CAMPERAS, DESCUENTO 30%...';
     titleInput.value = item.title || '';
     titleInput.addEventListener('input', ()=>{ item.title = titleInput.value; scheduleSaveDay(key); renderCalendar(); });
-    card.appendChild(filaCampo('Título', titleInput));
+    cuerpo.appendChild(filaCampo('Título', titleInput));
 
     const pickerContainer = document.createElement('div');
     pickerContainer.className = 'angle-picker';
-    card.appendChild(filaCampo('Ángulo', pickerContainer));
+    cuerpo.appendChild(filaCampo('Ángulo', pickerContainer));
     buildPickerEl(pickerContainer, item.angle, (id)=> mutateAndRerender(key, ()=>{ item.angle = id; }));
 
     const textLabel = document.createElement('label');
@@ -2574,14 +2897,20 @@
       item.text = textarea.value;
       scheduleSaveDay(key);
     });
-    card.appendChild(buildAiBox(key, item, item.kind==='carrusel' ? 'carrusel' : 'reel', (text)=>{ textarea.value = text; }));
-    card.appendChild(textLabel);
-    card.appendChild(textarea);
+    cuerpo.appendChild(buildAiBox(key, item, item.kind==='carrusel' ? 'carrusel' : 'reel', (text)=>{ textarea.value = text; }));
+    cuerpo.appendChild(textLabel);
+    cuerpo.appendChild(textarea);
+
+    // Los dos botones comparten renglón: uno debajo del otro gastaban dos líneas enteras
+    // para dos controles chicos que entran de sobra en una.
+    const accionesRow = document.createElement('div');
+    accionesRow.className = 'acciones-row';
 
     const emojiRow = document.createElement('div');
-    emojiRow.style.cssText = 'position:relative;display:inline-block;margin-top:8px;';
+    emojiRow.style.cssText = 'position:relative;display:inline-block;';
     const emojiBtn = document.createElement('button');
-    emojiBtn.type = 'button'; emojiBtn.className = 'btn ghost'; emojiBtn.textContent = '😊 Agregar emoji';
+    emojiBtn.type = 'button'; emojiBtn.className = 'btn ghost small'; emojiBtn.textContent = '😊 Emoji';
+    emojiBtn.title = 'Insertar un emoji en el texto';
     emojiBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
       document.querySelectorAll('[data-emoji-picker]').forEach(p=>p.remove());
@@ -2590,11 +2919,10 @@
       emojiRow.appendChild(picker);
     });
     emojiRow.appendChild(emojiBtn);
-    card.appendChild(emojiRow);
+    accionesRow.appendChild(emojiRow);
 
     // Guión IA (sin límite de caracteres)
     const scriptContainer = document.createElement('div');
-    scriptContainer.style.cssText = 'margin-top:10px;';
     const scriptBtn = document.createElement('button');
     scriptBtn.type = 'button'; scriptBtn.className = 'btn ghost small'; scriptBtn.textContent = '✏️ Generar guión';
     let scriptTextarea = null;
@@ -2636,8 +2964,9 @@
         scriptBtn.textContent = '✏️ Generar guión';
       }
     });
-    scriptContainer.appendChild(scriptBtn);
-    card.appendChild(scriptContainer);
+    accionesRow.appendChild(scriptBtn); // comparte renglón con el de emoji
+    cuerpo.appendChild(accionesRow);
+    cuerpo.appendChild(scriptContainer); // acá se despliega el textarea del guión al pedirlo
 
     const thumbRow = document.createElement('div');
     thumbRow.className = 'thumb-row';
@@ -2740,9 +3069,11 @@
     btnRow.appendChild(uploadBtn); btnRow.appendChild(pasteBtn); btnRow.appendChild(clearBtn);
     thumbControls.appendChild(btnRow); thumbControls.appendChild(fileInput); thumbControls.appendChild(urlInput);
     thumbRow.appendChild(img); thumbRow.appendChild(thumbControls);
-    card.appendChild(filaCampo('Miniatura', thumbRow, true));
-    card.appendChild(buildEstadoRow(key, item));
-    card.appendChild(buildClientNoteBox(key, item));
+    // Sin etiqueta "Miniatura": los botones ya dicen qué hacen, y ponerla al costado
+    // gastaba la columna izquierda entera para un control que ocupa dos renglones.
+    cuerpo.appendChild(thumbRow);
+    cuerpo.appendChild(buildEstadoRow(key, item));
+    cuerpo.appendChild(buildClientNoteBox(key, item));
 
     return card;
   }
@@ -2780,18 +3111,51 @@
     rightGroup.style.cssText = 'display:flex;align-items:center;gap:4px;';
     rightGroup.appendChild(botonDuplicarItem(item, 'stories', key));
     rightGroup.appendChild(removeBtn);
+    // Plegado individual: un día con cinco posteos obligaba a scrollear hasta el final para
+    // llegar al último. Plegados, cada uno ocupa un renglón y se abre el que se va a editar.
+    const toggleBtn = document.createElement('button');
+    toggleBtn.type = 'button'; toggleBtn.className = 'item-toggle';
+    toggleBtn.title = 'Plegar o desplegar este posteo';
+
+    const resumen = document.createElement('span');
+    resumen.className = 'item-resumen';
+    const anguloResumen = item.angle ? angleById(item.angle) : null;
+    const textoResumen = (item.title || item.text || item.context || '').trim();
+    resumen.textContent = [
+      anguloResumen ? ((anguloResumen.emoji ? anguloResumen.emoji + ' ' : '') + anguloResumen.name) : 'Sin ángulo',
+      textoResumen
+    ].filter(Boolean).join(' · ');
+
+    const pintarPliegue = ()=>{
+      const abierta = tarjetasAbiertas.has(item.id);
+      card.classList.toggle('colapsada', !abierta);
+      toggleBtn.textContent = abierta ? '▼' : '▶';
+    };
+    toggleBtn.addEventListener('click', ()=>{
+      if(tarjetasAbiertas.has(item.id)) tarjetasAbiertas.delete(item.id);
+      else tarjetasAbiertas.add(item.id);
+      pintarPliegue();
+    });
+
+    leftGroup.prepend(toggleBtn);
+    leftGroup.appendChild(resumen);
     head.appendChild(leftGroup); head.appendChild(rightGroup);
     card.appendChild(head);
+
+    const cuerpo = document.createElement('div');
+    cuerpo.className = 'item-body';
+    card.appendChild(cuerpo);
+    pintarPliegue();
 
     const titleInput = document.createElement('input');
     titleInput.type = 'text'; titleInput.className = 'rule-text-input'; titleInput.placeholder = 'Ej: ANUNCIO IMPORTANTE...';
     titleInput.value = item.title || '';
     titleInput.addEventListener('input', ()=>{ item.title = titleInput.value; scheduleSaveDay(key); renderCalendar(); });
-    card.appendChild(filaCampo('Título', titleInput));
+    cuerpo.appendChild(filaCampo('Título', titleInput));
 
     const pickerContainer = document.createElement('div');
     pickerContainer.className = 'angle-picker';
-    card.appendChild(filaCampo('Ángulo', pickerContainer));
+    cuerpo.appendChild(filaCampo('Ángulo', pickerContainer));
     buildPickerEl(pickerContainer, item.angle, (id)=> mutateAndRerender(key, ()=>{ item.angle = id; }));
 
     const textLabel = document.createElement('label');
@@ -2805,14 +3169,20 @@
       item.text = textarea.value;
       scheduleSaveDay(key);
     });
-    card.appendChild(buildAiBox(key, item, 'story', (text)=>{ textarea.value = text; }));
-    card.appendChild(textLabel);
-    card.appendChild(textarea);
+    cuerpo.appendChild(buildAiBox(key, item, 'story', (text)=>{ textarea.value = text; }));
+    cuerpo.appendChild(textLabel);
+    cuerpo.appendChild(textarea);
+
+    // Los dos botones comparten renglón: uno debajo del otro gastaban dos líneas enteras
+    // para dos controles chicos que entran de sobra en una.
+    const accionesRow = document.createElement('div');
+    accionesRow.className = 'acciones-row';
 
     const emojiRow = document.createElement('div');
-    emojiRow.style.cssText = 'position:relative;display:inline-block;margin-top:8px;';
+    emojiRow.style.cssText = 'position:relative;display:inline-block;';
     const emojiBtn = document.createElement('button');
-    emojiBtn.type = 'button'; emojiBtn.className = 'btn ghost'; emojiBtn.textContent = '😊 Agregar emoji';
+    emojiBtn.type = 'button'; emojiBtn.className = 'btn ghost small'; emojiBtn.textContent = '😊 Emoji';
+    emojiBtn.title = 'Insertar un emoji en el texto';
     emojiBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
       document.querySelectorAll('[data-emoji-picker]').forEach(p=>p.remove());
@@ -2821,11 +3191,10 @@
       emojiRow.appendChild(picker);
     });
     emojiRow.appendChild(emojiBtn);
-    card.appendChild(emojiRow);
+    accionesRow.appendChild(emojiRow);
 
     // Guión IA (sin límite de caracteres)
     const scriptContainer = document.createElement('div');
-    scriptContainer.style.cssText = 'margin-top:10px;';
     const scriptBtn = document.createElement('button');
     scriptBtn.type = 'button'; scriptBtn.className = 'btn ghost small'; scriptBtn.textContent = '✏️ Generar guión';
     let scriptTextarea = null;
@@ -2867,11 +3236,12 @@
         scriptBtn.textContent = '✏️ Generar guión';
       }
     });
-    scriptContainer.appendChild(scriptBtn);
-    card.appendChild(scriptContainer);
+    accionesRow.appendChild(scriptBtn); // comparte renglón con el de emoji
+    cuerpo.appendChild(accionesRow);
+    cuerpo.appendChild(scriptContainer); // acá se despliega el textarea del guión al pedirlo
 
-    card.appendChild(buildEstadoRow(key, item));
-    card.appendChild(buildClientNoteBox(key, item));
+    cuerpo.appendChild(buildEstadoRow(key, item));
+    cuerpo.appendChild(buildClientNoteBox(key, item));
 
     return card;
   }
@@ -2880,7 +3250,10 @@
     if(!openDate) return;
     pushUndo(openDate);
     ensureEntry(openDate);
-    monthData[openDate].feed.push({id:genId(), kind:'reel', angle:null, text:'', thumb:''});
+    // Nace desplegado: se acaba de crear y lo próximo es escribirlo.
+    const nuevoId = genId();
+    tarjetasAbiertas.add(nuevoId);
+    monthData[openDate].feed.push({id:nuevoId, kind:'reel', angle:null, text:'', thumb:''});
     scheduleSaveDay(openDate);
     renderCalendar();
     renderDayPanelItems(openDate);
@@ -2890,7 +3263,9 @@
     if(!openDate) return;
     pushUndo(openDate);
     ensureEntry(openDate);
-    monthData[openDate].feed.push({id:genId(), kind:'carrusel', angle:null, text:'', thumb:''});
+    const nuevoId = genId();
+    tarjetasAbiertas.add(nuevoId);
+    monthData[openDate].feed.push({id:nuevoId, kind:'carrusel', angle:null, text:'', thumb:''});
     scheduleSaveDay(openDate);
     renderCalendar();
     renderDayPanelItems(openDate);
@@ -2900,7 +3275,9 @@
     if(!openDate) return;
     pushUndo(openDate);
     ensureEntry(openDate);
-    monthData[openDate].stories.push({id:genId(), angle:null, text:''});
+    const nuevoId = genId();
+    tarjetasAbiertas.add(nuevoId);
+    monthData[openDate].stories.push({id:nuevoId, angle:null, text:''});
     scheduleSaveDay(openDate);
     renderCalendar();
     renderDayPanelItems(openDate);
@@ -3005,16 +3382,48 @@
   $('dayOverlay').addEventListener('click', async (e)=>{ if(e.target.id==='dayOverlay'){ await flushSave(); $('dayOverlay').classList.remove('open'); renderCalendar(); }});
 
   // ---------- month nav ----------
-  $('prevMonth').addEventListener('click', async ()=>{
+  // Las flechas se mueven de a un mes o de a una semana según la vista. En semana, además,
+  // viewYear/viewMonth siguen al día jueves: es el que define a qué mes "pertenece" una
+  // semana partida entre dos, y de él dependen la vista previa del feed y las estadísticas.
+  async function moverPeriodo(direccion){
     await flushSave();
-    viewMonth--; if(viewMonth<0){ viewMonth=11; viewYear--; }
-    await loadMonth(); renderCalendar();
-  });
-  $('nextMonth').addEventListener('click', async ()=>{
+    if(vistaActual === 'semana'){
+      inicioSemana.setDate(inicioSemana.getDate() + 7*direccion);
+      const jueves = new Date(inicioSemana);
+      jueves.setDate(jueves.getDate() + 3);
+      if(jueves.getFullYear() !== viewYear || jueves.getMonth() !== viewMonth){
+        viewYear = jueves.getFullYear(); viewMonth = jueves.getMonth();
+        await loadMonth();
+      }
+      await cargarSemana();
+    }else{
+      viewMonth += direccion;
+      if(viewMonth < 0){ viewMonth = 11; viewYear--; }
+      if(viewMonth > 11){ viewMonth = 0; viewYear++; }
+      await loadMonth();
+    }
+    renderCalendar();
+  }
+  $('prevMonth').addEventListener('click', ()=> moverPeriodo(-1));
+  $('nextMonth').addEventListener('click', ()=> moverPeriodo(1));
+
+  async function cambiarVista(vista){
+    if(vista === vistaActual) return;
     await flushSave();
-    viewMonth++; if(viewMonth>11){ viewMonth=0; viewYear++; }
-    await loadMonth(); renderCalendar();
-  });
+    vistaActual = vista;
+    $('viewMonthBtn').classList.toggle('active', vista === 'mes');
+    $('viewWeekBtn').classList.toggle('active', vista === 'semana');
+    if(vista === 'semana'){
+      // Al entrar, mostrar la semana de hoy si hoy cae en el mes visible; si no, la primera
+      // del mes, que es lo que uno espera ver al cambiar de vista sin cambiar de mes.
+      const hoyEnVista = today.getFullYear() === viewYear && today.getMonth() === viewMonth;
+      inicioSemana = lunesDe(hoyEnVista ? today : new Date(viewYear, viewMonth, 1));
+      await cargarSemana();
+    }
+    renderCalendar();
+  }
+  $('viewMonthBtn').addEventListener('click', ()=> cambiarVista('mes'));
+  $('viewWeekBtn').addEventListener('click', ()=> cambiarVista('semana'));
 
   $('clientName').addEventListener('input', ()=>{
     updateBrandTitle();
