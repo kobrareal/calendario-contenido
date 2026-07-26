@@ -68,6 +68,11 @@
     background:var(--surface);border:1px solid var(--border);border-radius:24px;
     backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
     box-shadow:0 20px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+    /* El backdrop-filter de arriba crea un contexto de apilamiento propio, así que el
+       z-index del panel de links quedaba encerrado acá adentro y la grilla del mes —que va
+       después en el documento— se dibujaba encima. Con esto el encabezado entero queda por
+       arriba del calendario, y por debajo de overlays (50), modales (60) y avisos (80). */
+    position:relative;z-index:40;
   }
   .brand{display:flex;align-items:center;gap:12px;}
   .brand h1{
@@ -131,9 +136,14 @@
     font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0;
     color:var(--muted-2);text-transform:none;margin-left:6px;
   }
-  /* La sección cerrada desaparece del flujo para que la abierta se quede con todo el alto. */
+  /* La sección plegada tiene que quedar en una sola línea. Ocultar su contenido no alcanza:
+     .panel > .block lleva flex:1, así que las dos secciones se reparten el alto del panel
+     por igual y la plegada seguía reclamando su mitad aunque estuviera vacía. Con
+     flex:0 0 auto se encoge a la altura de su encabezado y la abierta se queda con el resto. */
   .block.collapsed > div[id$="Content"]{display:none;}
-  .block.collapsed{margin-bottom:10px;}
+  .panel > .block.collapsed{flex:0 0 auto;overflow:hidden;}
+  .block.collapsed{padding-top:12px;padding-bottom:12px;margin-bottom:12px;}
+  .block.collapsed .block-title-row{margin-bottom:0;}
   .item-card{
     border:1px solid var(--border);border-radius:14px;background:var(--card-bg);
     padding:14px;margin-bottom:12px;
@@ -369,10 +379,12 @@
     display:flex;align-items:center;gap:9px;
   }
   .angle-trigger:hover{border-color:var(--muted-2);}
+  /* Fondo opaco a propósito: con var(--surface-3), que es blanco al 14%, se transparentaba
+     y se leía el formulario de atrás por encima de las opciones. Un menú tiene que tapar. */
   .angle-menu{
-    position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:10;
-    background:var(--surface-3);border:1px solid var(--border);border-radius:8px;
-    padding:5px;max-height:220px;overflow-y:auto;box-shadow:0 10px 30px rgba(0,0,0,.4);
+    position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:120;
+    background:var(--card-bg);border:1px solid var(--surface-3);border-radius:10px;
+    padding:5px;max-height:220px;overflow-y:auto;box-shadow:0 16px 40px rgba(0,0,0,.65);
   }
   .angle-option{
     display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:6px;cursor:pointer;font-size:13px;
@@ -925,6 +937,21 @@
   </div>
 </div>
 
+<!-- DUPLICAR UN POST A OTRA FECHA -->
+<div class="modal-back" id="dupItemModal">
+  <div class="modal" style="width:420px;">
+    <h2>Duplicar a otra fecha</h2>
+    <p class="hint" id="dupItemHint">—</p>
+    <label class="field-label">Fecha de destino</label>
+    <input type="date" id="dupItemDate" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:13px;" />
+    <p class="hint" style="margin-top:10px;">Se crea una copia con el mismo ángulo, copy, guion e imagen. El post original queda donde está.</p>
+    <div class="modal-close-row" style="margin-top:6px;">
+      <button class="btn ghost" id="dupItemCancel" style="margin-right:auto;">Cancelar</button>
+      <button class="btn primary" id="dupItemConfirm">Duplicar</button>
+    </div>
+  </div>
+</div>
+
 <!-- IDEAS MODAL -->
 <div class="modal-back" id="ideasModal">
   <div class="modal" style="width:560px;">
@@ -1040,7 +1067,9 @@
   function buildEmojiPicker(targetInput, opciones){
     const reemplazar = !!(opciones && opciones.reemplazar);
     const container = document.createElement('div');
-    container.style.cssText = 'position:absolute;top:100%;left:0;background:var(--surface-3);border:1px solid var(--border);border-radius:8px;padding:8px;z-index:200;min-width:280px;max-width:300px;box-shadow:0 4px 12px rgba(0,0,0,.3);';
+    // Fondo opaco por el mismo motivo que .angle-menu: var(--surface-3) dejaba ver el
+    // formulario de atrás a través de la grilla de emojis.
+    container.style.cssText = 'position:absolute;top:100%;left:0;background:var(--card-bg);border:1px solid var(--surface-3);border-radius:10px;padding:8px;z-index:200;min-width:280px;max-width:300px;box-shadow:0 16px 40px rgba(0,0,0,.65);';
 
     const header = document.createElement('div');
     header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;';
@@ -2196,7 +2225,11 @@
       renderCalendar();
       renderDayPanelItems(key);
     });
-    head.appendChild(leftGroup); head.appendChild(removeBtn);
+    const rightGroup = document.createElement('div');
+    rightGroup.style.cssText = 'display:flex;align-items:center;gap:4px;';
+    rightGroup.appendChild(botonDuplicarItem(item, 'feed', key));
+    rightGroup.appendChild(removeBtn);
+    head.appendChild(leftGroup); head.appendChild(rightGroup);
     card.appendChild(head);
 
     const previewRow = document.createElement('label');
@@ -2450,7 +2483,11 @@
       renderCalendar();
       renderDayPanelItems(key);
     });
-    head.appendChild(leftGroup); head.appendChild(removeBtn);
+    const rightGroup = document.createElement('div');
+    rightGroup.style.cssText = 'display:flex;align-items:center;gap:4px;';
+    rightGroup.appendChild(botonDuplicarItem(item, 'stories', key));
+    rightGroup.appendChild(removeBtn);
+    head.appendChild(leftGroup); head.appendChild(rightGroup);
     card.appendChild(head);
 
     const titleLabel = document.createElement('label');
@@ -2879,6 +2916,78 @@
       showToast('Ángulos guardados');
     }
     renderCalendar();
+  });
+
+  // ---------- duplicar un post o story a otra fecha ----------
+  // Distinto de mover: el original se queda donde está. Sirve para contenido que se repite
+  // (un mismo recordatorio en dos semanas) sin volver a cargar copy, guion e imagen.
+  let dupPendiente = null; // {item, tipo:'feed'|'stories'}
+
+  function abrirDuplicarItem(item, tipo, keyOrigen){
+    dupPendiente = { item, tipo };
+    const etiqueta = tipo === 'stories' ? 'story' : (item.kind === 'carrusel' ? 'carrusel' : 'reel');
+    const resumen = (item.text || item.context || item.title || '').trim();
+    $('dupItemHint').textContent = resumen
+      ? `Vas a duplicar el ${etiqueta}: “${resumen.slice(0,70)}${resumen.length>70?'…':''}”`
+      : `Vas a duplicar un ${etiqueta} todavía sin texto.`;
+    $('dupItemDate').value = keyOrigen;
+    $('dupItemModal').classList.add('open');
+  }
+
+  async function duplicarItemEnFecha(item, tipo, destinoKey){
+    const copia = JSON.parse(JSON.stringify(item));
+    copia.id = genId(); // id nuevo: si comparte el del original, editar uno editaría los dos
+
+    const prefijoMesVisible = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-`;
+    if(destinoKey.startsWith(prefijoMesVisible)){
+      // Día del mes en pantalla: se toca monthData y se repinta.
+      ensureEntry(destinoKey);
+      pushUndo(destinoKey);
+      monthData[destinoKey][tipo].push(copia);
+      await saveDayNow(destinoKey);
+      renderCalendar();
+      if(openDate === destinoKey) renderDayPanelItems(destinoKey);
+    }else{
+      // Otro mes: no está cargado en memoria, así que se lee, se agrega y se guarda ese día
+      // suelto. Nunca se sobreescribe lo que ese día ya tenga.
+      const val = await storageGet(destinoKey);
+      let entry;
+      try{ entry = normalizeEntry(val ? JSON.parse(val) : {}); }
+      catch(e){ entry = { feed:[], stories:[] }; }
+      entry[tipo].push(copia);
+      await storageSet(destinoKey, JSON.stringify(entry));
+    }
+  }
+
+  function botonDuplicarItem(item, tipo, key){
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'item-remove'; btn.textContent = '⧉';
+    btn.title = 'Duplicar a otra fecha';
+    btn.addEventListener('click', ()=> abrirDuplicarItem(item, tipo, key));
+    return btn;
+  }
+
+  $('dupItemCancel').addEventListener('click', ()=>{
+    $('dupItemModal').classList.remove('open');
+    dupPendiente = null;
+  });
+  $('dupItemConfirm').addEventListener('click', async ()=>{
+    if(!dupPendiente) return;
+    const destino = $('dupItemDate').value;
+    if(!destino){ showToast('Elegí una fecha de destino'); return; }
+    const btn = $('dupItemConfirm');
+    btn.disabled = true; btn.textContent = 'Duplicando…';
+    try{
+      await duplicarItemEnFecha(dupPendiente.item, dupPendiente.tipo, destino);
+      const [y,m,d] = destino.split('-').map(Number);
+      showToast(`Duplicado al ${d} de ${MESES[m-1]}`);
+      $('dupItemModal').classList.remove('open');
+      dupPendiente = null;
+    }catch(e){
+      showToast('No se pudo duplicar: ' + ((e && e.message) ? e.message : 'error desconocido'));
+    }finally{
+      btn.disabled = false; btn.textContent = 'Duplicar';
+    }
   });
 
   // ---------- multilink del encabezado ----------
