@@ -530,6 +530,64 @@
     padding:7px 9px;font-size:12px;
   }
 
+  /* ---------- notificaciones ---------- */
+  .notif-wrap{position:relative;}
+  .notif-badge{
+    position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;padding:0 4px;
+    background:var(--danger);color:#fff;border-radius:9px;
+    font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;
+    display:flex;align-items:center;justify-content:center;
+    box-shadow:0 0 0 2px var(--bg-a);
+  }
+  .notif-panel{
+    position:absolute;top:calc(100% + 8px);right:0;z-index:300;
+    width:340px;max-width:86vw;padding:12px;
+    background:var(--card-bg);border:1px solid var(--border);border-radius:14px;
+    box-shadow:0 18px 40px rgba(0,0,0,.6);
+  }
+  .notif-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
+  .notif-head h4{
+    margin:0;font-size:11px;letter-spacing:.6px;text-transform:uppercase;
+    color:var(--muted);font-weight:600;
+  }
+  .notif-confirm{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);}
+  .notif-list{max-height:340px;overflow-y:auto;}
+  .notif-row{display:flex;align-items:flex-start;gap:6px;margin-bottom:4px;}
+  /* Las leídas se atenúan en vez de desaparecer: sigue estando el historial, pero lo nuevo salta. */
+  .notif-row.leida{opacity:.5;}
+  .notif-body{
+    flex:1;min-width:0;display:flex;gap:8px;align-items:flex-start;text-align:left;
+    background:var(--surface-2);border:1px solid transparent;border-radius:9px;
+    padding:8px 9px;cursor:pointer;color:var(--text);font:inherit;
+  }
+  .notif-body:hover{background:var(--surface-3);border-color:var(--border);}
+  .notif-ico{flex:none;font-size:13px;line-height:1.3;}
+  .notif-txt{display:flex;flex-direction:column;gap:2px;min-width:0;}
+  .notif-txt strong{font-size:12.5px;font-weight:600;}
+  .notif-detalle{font-size:11.5px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .notif-meta{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--muted-2);}
+
+  /* ---------- estado de producción y aprobación ---------- */
+  .estado-row{display:flex;align-items:center;gap:8px;margin:10px 0 4px;flex-wrap:wrap;}
+  .estado-select{
+    background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);
+    padding:6px 9px;font-size:12px;cursor:pointer;
+  }
+  .estado-dot{width:9px;height:9px;border-radius:50%;flex:none;}
+  .aprob-chip{
+    display:inline-flex;align-items:center;gap:5px;
+    font-size:11px;padding:4px 9px;border-radius:999px;
+    background:var(--surface-2);border:1px solid var(--border);
+  }
+  /* Puntito de estado dentro de cada etiqueta de la grilla del mes. */
+  .tag .estado-dot{box-shadow:0 0 0 1px rgba(0,0,0,.35);}
+  .aprob-box{
+    background:rgba(79,142,247,.08);border:1px dashed rgba(79,142,247,.4);border-radius:10px;
+    padding:10px;margin-top:12px;
+  }
+  .aprob-box .field-label{color:var(--accent);}
+  .aprob-btns{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+
   /* ---------- search modal ---------- */
   .search-months-list{
     display:grid;grid-template-columns:repeat(3,1fr);gap:6px;max-height:160px;overflow-y:auto;
@@ -717,6 +775,10 @@
 
     <div class="top-actions">
       <div class="save-indicator"><span class="save-dot" id="saveDot"></span><span id="saveText">al día</span></div>
+      <!-- El panel se arma al abrirlo; en la barra queda solo la campanita con su contador. -->
+      <div class="notif-wrap admin-only">
+        <button class="btn ghost icon-only" id="notifBtn" title="Novedades de tus clientes"><i class="fa-solid fa-bell"></i><span class="label">Notificaciones</span></button>
+      </div>
       <button class="btn admin-only" id="saveNowBtn">Guardar ahora</button>
       <button class="btn ghost icon-only admin-only" id="undoBtn" title="Deshacer último cambio" disabled><i class="fa-solid fa-undo"></i><span class="label">Deshacer</span></button>
       <button class="btn ghost icon-only admin-only" id="redoBtn" title="Rehacer último cambio deshecho" disabled><i class="fa-solid fa-redo"></i><span class="label">Rehacer</span></button>
@@ -1175,6 +1237,25 @@
     return 0;
   }
 
+  // ---------- estado de producción y aprobación del cliente ----------
+  // El orden acá es el orden en que aparecen en el desplegable, así que sigue el flujo real
+  // de trabajo. Los colores son los que se ven en el puntito de la grilla del mes.
+  const ESTADOS = {
+    'pendiente': { label:'Pendiente',   corto:'Pend.',  color:'#615c72' },
+    'por-grabar':{ label:'Por grabar',  corto:'Grabar', color:'#c17a3d' },
+    'grabado':   { label:'Grabado',     corto:'Grab.',  color:'#4a72a8' },
+    'editando':  { label:'Editando',    corto:'Edit.',  color:'#8b5fa3' },
+    'listo':     { label:'Listo para publicar', corto:'Listo', color:'#3fd399' },
+    'publicado': { label:'Publicado',   corto:'Pub.',   color:'#7c8a4c' }
+  };
+  const ORDEN_ESTADOS = ['pendiente','por-grabar','grabado','editando','listo','publicado'];
+
+  const APROBACIONES = {
+    'sin-revisar':{ label:'Sin revisar',   icono:'○', color:'var(--muted-2)' },
+    'aprobado':   { label:'Aprobado',      icono:'✅', color:'var(--ok)' },
+    'cambios':    { label:'Pidió cambios', icono:'✏️', color:'#f0b849' }
+  };
+
   function normalizeEntry(entry){
     if(!entry) return {feed:[], stories:[]};
     let feed = entry.feed, stories = entry.stories;
@@ -1190,10 +1271,15 @@
         clientNote: it.clientNote || '',
         time: it.time || '',
         title: it.title || '',
-        script: it.script || ''
+        script: it.script || '',
+        // Dos campos separados a propósito: "status" es tu avance de producción y "approval"
+        // es la decisión del cliente. Mezclarlos haría que aprobar borre en qué etapa estaba.
+        status: ESTADOS[it.status] ? it.status : 'pendiente',
+        approval: APROBACIONES[it.approval] ? it.approval : 'sin-revisar',
+        approvalAt: it.approvalAt || ''
       }));
     }else if(feed && (feed.angle || feed.text || feed.thumb)){
-      feed = [{ id: genId(), kind:'reel', angle: feed.angle||null, text: feed.text||'', thumb: feed.thumb||'', hideFromPreview:false, context:'', clientNote:'', time:'', title:'', script:'' }];
+      feed = [{ id: genId(), kind:'reel', angle: feed.angle||null, text: feed.text||'', thumb: feed.thumb||'', hideFromPreview:false, context:'', clientNote:'', time:'', title:'', script:'', status:'pendiente', approval:'sin-revisar', approvalAt:'' }];
     }else{
       feed = [];
     }
@@ -1206,10 +1292,13 @@
         clientNote: it.clientNote || '',
         time: it.time || '',
         title: it.title || '',
-        script: it.script || ''
+        script: it.script || '',
+        status: ESTADOS[it.status] ? it.status : 'pendiente',
+        approval: APROBACIONES[it.approval] ? it.approval : 'sin-revisar',
+        approvalAt: it.approvalAt || ''
       }));
     }else if(stories && (stories.angle || stories.text)){
-      stories = [{ id: genId(), angle: stories.angle||null, text: stories.text||'', context:'', clientNote:'', time:'', title:'', script:'' }];
+      stories = [{ id: genId(), angle: stories.angle||null, text: stories.text||'', context:'', clientNote:'', time:'', title:'', script:'', status:'pendiente', approval:'sin-revisar', approvalAt:'' }];
     }else{
       stories = [];
     }
@@ -1855,16 +1944,26 @@
       const titleText = it.title ? `${it.title} - ` : '';
       const tooltipText = `${titleText}${a ? a.name : 'Sin ángulo'}${it.text ? '\n\n' + it.text : ''}`;
 
+      // Puntito de estado y marca de aprobación: solo aparecen cuando hay algo que decir,
+      // así un mes recién armado no se llena de adornos grises.
+      const est = ESTADOS[it.status];
+      const puntoEstado = (est && it.status !== 'pendiente')
+        ? `<span class="estado-dot" style="background:${est.color}"></span>` : '';
+      const marcaAprob = it.approval === 'aprobado' ? ' ✅' : (it.approval === 'cambios' ? ' ✏️' : '');
+      const detalleEstado = (est && it.status !== 'pendiente') ? `\n\nEstado: ${est.label}` : '';
+      const detalleAprob = (it.approval && it.approval !== 'sin-revisar')
+        ? `\nCliente: ${APROBACIONES[it.approval].label}` : '';
+
       if(a){
         tag.className = 'tag tag-truncated';
         tag.style.background = a.color;
-        tag.title = tooltipText;
+        tag.title = tooltipText + detalleEstado + detalleAprob;
         const emoji = a.emoji ? `${a.emoji} ` : '';
-        tag.innerHTML = `<span class="k">${timePrefix}${kindLabel}</span><span>${escapeHtml(titleText)}${emoji}${escapeHtml(a.name)}${hiddenMark}</span>`;
+        tag.innerHTML = `<span class="k">${timePrefix}${kindLabel}</span>${puntoEstado}<span>${escapeHtml(titleText)}${emoji}${escapeHtml(a.name)}${hiddenMark}${marcaAprob}</span>`;
       }else{
         tag.className = 'tag tag-empty tag-truncated';
-        tag.title = tooltipText;
-        tag.textContent = timePrefix + titleText + kindLabel + hiddenMark;
+        tag.title = tooltipText + detalleEstado + detalleAprob;
+        tag.innerHTML = `${puntoEstado}<span>${escapeHtml(timePrefix + titleText + kindLabel + hiddenMark + marcaAprob)}</span>`;
       }
       if(key && listName && !IS_READONLY){
         tag.draggable = true;
@@ -2123,7 +2222,7 @@
   // "Nota del cliente" box: the one field that's editable everywhere, including on
   // read-only client links — it's how the client leaves feedback without being able
   // to touch anything else. Shared by admin and read-only cards alike.
-  function buildClientNoteBox(key, item){
+  function buildClientNoteBox(key, item, etiqueta){
     const box = document.createElement('div');
     box.className = 'client-note-box';
     const label = document.createElement('label');
@@ -2132,11 +2231,111 @@
     const textarea = document.createElement('textarea');
     textarea.placeholder = 'Dejá acá un comentario sobre este posteo...';
     textarea.value = item.clientNote || '';
+    // El aviso lo genera solo el cliente, y va con retardo: uno por tecla convertiría un
+    // comentario de dos renglones en cuarenta notificaciones. Se compara contra lo último
+    // avisado para no repetir si vuelve a tocar el campo sin cambiar nada.
+    let ultimoAvisado = (item.clientNote || '').trim();
+    let temporizadorAviso = null;
+    const avisarSiCambio = ()=>{
+      if(!IS_READONLY) return;
+      const ahora = textarea.value.trim();
+      if(!ahora || ahora === ultimoAvisado) return;
+      ultimoAvisado = ahora;
+      registrarNotificacion({ tipo:'nota', dia:key, itemId:item.id, etiqueta: etiqueta || 'posteo', detalle: ahora });
+    };
     textarea.addEventListener('input', ()=>{
       item.clientNote = textarea.value;
       scheduleSaveDay(key);
+      clearTimeout(temporizadorAviso);
+      temporizadorAviso = setTimeout(avisarSiCambio, 2500);
     });
+    // Si se va del campo antes de que corra el retardo, se manda en el momento. No alcanza
+    // con esto solo: si cierra la pestaña sin salir del campo, el blur nunca llega.
+    textarea.addEventListener('blur', ()=>{ clearTimeout(temporizadorAviso); avisarSiCambio(); });
     box.appendChild(textarea);
+    return box;
+  }
+
+  // Estado de producción (tuyo) + cómo quedó la revisión del cliente, en una sola fila
+  // dentro de cada tarjeta de administración.
+  function buildEstadoRow(key, item){
+    const row = document.createElement('div');
+    row.className = 'estado-row';
+    const dot = document.createElement('span');
+    dot.className = 'estado-dot';
+    const sel = document.createElement('select');
+    sel.className = 'estado-select';
+    sel.title = 'Estado de producción de este posteo';
+    ORDEN_ESTADOS.forEach(clave=>{
+      const opt = document.createElement('option');
+      opt.value = clave; opt.textContent = ESTADOS[clave].label;
+      if(item.status === clave) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    const pintar = ()=>{ dot.style.background = (ESTADOS[item.status] || ESTADOS.pendiente).color; };
+    pintar();
+    sel.addEventListener('change', ()=>{
+      pushUndo(key);
+      item.status = sel.value;
+      pintar();
+      scheduleSaveDay(key);
+      renderCalendar(); // el puntito de la grilla del mes cambia de color
+    });
+    row.appendChild(dot); row.appendChild(sel);
+    row.appendChild(buildAprobacionChip(item));
+    return row;
+  }
+
+  function buildAprobacionChip(item){
+    const a = APROBACIONES[item.approval] || APROBACIONES['sin-revisar'];
+    const chip = document.createElement('span');
+    chip.className = 'aprob-chip';
+    chip.style.color = a.color;
+    chip.textContent = a.icono + ' ' + a.label +
+      (item.approvalAt && item.approval !== 'sin-revisar'
+        ? ' · ' + new Date(item.approvalAt).toLocaleDateString('es-AR')
+        : '');
+    return chip;
+  }
+
+  // Lo que ve el cliente en el link de solo lectura: junto con la nota, es lo único que
+  // puede tocar. Cada acción deja una notificación en tu campanita.
+  function buildAprobacionBox(key, item, etiqueta){
+    const box = document.createElement('div');
+    box.className = 'aprob-box';
+    const label = document.createElement('label');
+    label.className = 'field-label'; label.textContent = '¿Aprobás este posteo?';
+    box.appendChild(label);
+
+    // Referencia mutable: al reemplazar el cartel hay que apuntar al nodo nuevo, o un
+    // segundo click intentaría reemplazar uno que ya salió del documento y no haría nada.
+    let chip = buildAprobacionChip(item);
+    box.appendChild(chip);
+
+    const btns = document.createElement('div');
+    btns.className = 'aprob-btns';
+    const marcar = async (valor)=>{
+      item.approval = valor;
+      item.approvalAt = new Date().toISOString();
+      const nuevo = buildAprobacionChip(item);
+      chip.replaceWith(nuevo);
+      chip = nuevo;
+      scheduleSaveDay(key);
+      await registrarNotificacion({
+        tipo: valor, dia: key, itemId: item.id,
+        etiqueta: etiqueta || 'posteo',
+        detalle: (item.text || item.context || '')
+      });
+      showToast(valor === 'aprobado' ? '¡Listo! Quedó aprobado.' : 'Listo, avisamos que pedís cambios.');
+    };
+    const bAprobar = document.createElement('button');
+    bAprobar.type = 'button'; bAprobar.className = 'btn primary small'; bAprobar.textContent = '✅ Aprobar';
+    bAprobar.addEventListener('click', ()=> marcar('aprobado'));
+    const bCambios = document.createElement('button');
+    bCambios.type = 'button'; bCambios.className = 'btn small'; bCambios.textContent = '✏️ Pedir cambios';
+    bCambios.addEventListener('click', ()=> marcar('cambios'));
+    btns.appendChild(bAprobar); btns.appendChild(bCambios);
+    box.appendChild(btns);
     return box;
   }
 
@@ -2180,7 +2379,9 @@
       card.appendChild(img);
     }
 
-    card.appendChild(buildClientNoteBox(key, item));
+    const etiqueta = (kindLabel || 'posteo').replace(/^[^\wÁÉÍÓÚáéíóúÑñ]+/, '').toLowerCase();
+    card.appendChild(buildAprobacionBox(key, item, etiqueta));
+    card.appendChild(buildClientNoteBox(key, item, etiqueta));
 
     return card;
   }
@@ -2445,6 +2646,7 @@
     thumbControls.appendChild(btnRow); thumbControls.appendChild(fileInput); thumbControls.appendChild(urlInput);
     thumbRow.appendChild(img); thumbRow.appendChild(thumbControls);
     card.appendChild(thumbRow);
+    card.appendChild(buildEstadoRow(key, item));
     card.appendChild(buildClientNoteBox(key, item));
 
     return card;
@@ -2583,6 +2785,7 @@
     scriptContainer.appendChild(scriptBtn);
     card.appendChild(scriptContainer);
 
+    card.appendChild(buildEstadoRow(key, item));
     card.appendChild(buildClientNoteBox(key, item));
 
     return card;
@@ -2918,6 +3121,231 @@
     renderCalendar();
   });
 
+  // ---------- notificaciones ----------
+  // No hay servidor escuchando, así que no son avisos en tiempo real: el navegador del
+  // cliente deja el evento escrito cuando aprueba o comenta, y vos lo ves al abrir el
+  // calendario. La lista va SIN el prefijo de marca (rawStorage) para que tengas una sola
+  // bandeja con todos tus clientes, en vez de tener que entrar marca por marca.
+  let notificaciones = [];
+  const MAX_NOTIFICACIONES = 200; // recorte para que la lista no crezca sin techo
+
+  async function loadNotificaciones(){
+    try{
+      const val = await rawStorageGet('notifications');
+      notificaciones = val ? JSON.parse(val) : [];
+    }catch(e){ notificaciones = []; }
+  }
+  async function saveNotificaciones(){
+    try{ await rawStorageSet('notifications', JSON.stringify(notificaciones)); }
+    catch(e){ /* si falla queda en el cache local y se reintenta en el próximo guardado */ }
+  }
+
+  // Relee la lista antes de agregar: si el cliente y vos tenían el calendario abierto a la
+  // vez, escribir sobre la copia vieja borraría lo que llegó en el medio.
+  async function registrarNotificacion(evento){
+    await loadNotificaciones();
+    notificaciones.unshift(Object.assign({
+      id: genId(),
+      fecha: new Date().toISOString(),
+      leida: false,
+      cliente: CLIENT_ID || ''
+    }, evento));
+    if(notificaciones.length > MAX_NOTIFICACIONES) notificaciones.length = MAX_NOTIFICACIONES;
+    await saveNotificaciones();
+  }
+
+  function sinLeer(){ return notificaciones.filter(n=>!n.leida).length; }
+
+  function actualizarCampanita(){
+    const btn = $('notifBtn');
+    if(!btn) return;
+    const n = sinLeer();
+    let globo = btn.querySelector('.notif-badge');
+    if(n > 0){
+      if(!globo){
+        globo = document.createElement('span');
+        globo.className = 'notif-badge';
+        btn.appendChild(globo);
+      }
+      globo.textContent = n > 99 ? '99+' : String(n);
+    }else if(globo){
+      globo.remove();
+    }
+  }
+
+  function cerrarPanelNotif(){
+    const p = document.querySelector('.notif-panel');
+    if(p) p.remove();
+  }
+
+  // Cierra un panel flotante al clickear fuera de él.
+  //
+  // Usa composedPath() y no panel.contains(e.target) por un motivo concreto: varios botones
+  // de adentro se borran a sí mismos (el "No" de la confirmación, o cualquiera cuando se
+  // redibuja la lista). Para cuando corre este detector, ese target ya no está en el
+  // documento y contains() responde "no está adentro", cerrando el panel de rebote.
+  // composedPath() se calcula al despachar el evento, así que conserva el recorrido real.
+  function cerrarAlClickearAfuera(panel, selectorDisparador){
+    setTimeout(()=>{
+      const alClickear = (e)=>{
+        const recorrido = typeof e.composedPath === 'function' ? e.composedPath() : [];
+        const fueAdentro = recorrido.includes(panel) || panel.contains(e.target);
+        const fueElBoton = selectorDisparador && e.target.closest && e.target.closest(selectorDisparador);
+        if(fueAdentro || fueElBoton) return;
+        panel.remove();
+        document.removeEventListener('click', alClickear);
+      };
+      document.addEventListener('click', alClickear);
+    }, 0);
+  }
+
+  function textoNotificacion(n){
+    if(n.tipo === 'aprobado') return 'Aprobó un ' + (n.etiqueta || 'posteo');
+    if(n.tipo === 'cambios')  return 'Pidió cambios en un ' + (n.etiqueta || 'posteo');
+    if(n.tipo === 'nota')     return 'Comentó un ' + (n.etiqueta || 'posteo');
+    return 'Novedad en un ' + (n.etiqueta || 'posteo');
+  }
+
+  function iconoNotificacion(n){
+    if(n.tipo === 'aprobado') return '✅';
+    if(n.tipo === 'cambios')  return '✏️';
+    return '💬';
+  }
+
+  async function irANotificacion(n){
+    if(!n.leida){
+      n.leida = true;
+      await saveNotificaciones();
+      actualizarCampanita();
+    }
+    if(!n.dia) return;
+    const [y, m] = n.dia.split('-').map(Number);
+    const marcaActual = CLIENT_ID || '';
+    if((n.cliente || '') !== marcaActual){
+      // Otra marca: hay que recargar con su ?cliente=. El ?dia= hace que se abra ese día solo.
+      const params = new URLSearchParams();
+      if(n.cliente) params.set('cliente', n.cliente);
+      params.set('dia', n.dia);
+      location.href = location.pathname + '?' + params.toString();
+      return;
+    }
+    cerrarPanelNotif();
+    await flushSave();
+    viewYear = y; viewMonth = m - 1;
+    await loadMonth();
+    renderCalendar();
+    openDayPanel(n.dia);
+  }
+
+  // Llena el panel ya existente. Está separado de abrirPanelNotif a propósito: borrar una
+  // novedad tiene que redibujar la lista, pero NO volver a registrar el detector de clicks
+  // de afuera. Cuando estaban juntos se acumulaba un detector por cada borrado, cada uno
+  // apuntando a un panel ya desechado.
+  function redibujarPanelNotif(){
+    const panel = document.querySelector('.notif-panel');
+    if(!panel) return;
+    panel.innerHTML = '';
+    llenarPanelNotif(panel);
+  }
+
+  function llenarPanelNotif(panel){
+    const cabecera = document.createElement('div');
+    cabecera.className = 'notif-head';
+    const titulo = document.createElement('h4');
+    titulo.textContent = 'Notificaciones' + (notificaciones.length ? ` (${notificaciones.length})` : '');
+    cabecera.appendChild(titulo);
+
+    if(notificaciones.length){
+      const vaciar = document.createElement('button');
+      vaciar.type = 'button'; vaciar.className = 'btn ghost small'; vaciar.textContent = 'Vaciar lista';
+      // Confirmación en dos pasos dentro del mismo botón: no hace falta otro modal y no se
+      // puede borrar todo de un click accidental.
+      vaciar.addEventListener('click', ()=>{
+        cabecera.querySelector('.notif-confirm')?.remove();
+        vaciar.style.display = 'none';
+        const conf = document.createElement('span');
+        conf.className = 'notif-confirm';
+        conf.innerHTML = '<span>¿Vaciar todo?</span>';
+        const si = document.createElement('button');
+        si.type = 'button'; si.className = 'btn small'; si.style.color = 'var(--danger)'; si.textContent = 'Sí, vaciar';
+        si.addEventListener('click', async ()=>{
+          notificaciones = [];
+          await saveNotificaciones();
+          actualizarCampanita();
+          redibujarPanelNotif();
+          showToast('Lista de notificaciones vaciada');
+        });
+        const no = document.createElement('button');
+        no.type = 'button'; no.className = 'btn ghost small'; no.textContent = 'No';
+        no.addEventListener('click', ()=>{ conf.remove(); vaciar.style.display = ''; });
+        conf.appendChild(si); conf.appendChild(no);
+        cabecera.appendChild(conf);
+      });
+      cabecera.appendChild(vaciar);
+    }
+    panel.appendChild(cabecera);
+
+    if(notificaciones.length === 0){
+      const vacio = document.createElement('div');
+      vacio.className = 'links-empty';
+      vacio.textContent = 'No hay novedades. Acá van a aparecer las aprobaciones y comentarios de tus clientes.';
+      panel.appendChild(vacio);
+      return;
+    }
+
+    const lista = document.createElement('div');
+    lista.className = 'notif-list';
+    notificaciones.forEach(n=>{
+      const fila = document.createElement('div');
+      fila.className = 'notif-row' + (n.leida ? ' leida' : '');
+
+      const cuerpo = document.createElement('button');
+      cuerpo.type = 'button'; cuerpo.className = 'notif-body';
+      const fecha = n.fecha ? new Date(n.fecha).toLocaleString('es-AR', {day:'numeric', month:'short', hour:'2-digit', minute:'2-digit'}) : '';
+      const marca = n.cliente ? n.cliente : 'calendario principal';
+      const detalle = (n.detalle || '').trim();
+      cuerpo.innerHTML =
+        '<span class="notif-ico">' + iconoNotificacion(n) + '</span>' +
+        '<span class="notif-txt">' +
+          '<strong>' + escapeHtml(textoNotificacion(n)) + '</strong>' +
+          (detalle ? '<span class="notif-detalle">“' + escapeHtml(detalle.slice(0,110)) + (detalle.length>110?'…':'') + '”</span>' : '') +
+          '<span class="notif-meta">' + escapeHtml(marca) + (n.dia ? ' · ' + n.dia : '') + ' · ' + fecha + '</span>' +
+        '</span>';
+      cuerpo.addEventListener('click', ()=> irANotificacion(n));
+      fila.appendChild(cuerpo);
+
+      const borrar = document.createElement('button');
+      borrar.type = 'button'; borrar.className = 'btn ghost small';
+      borrar.style.color = 'var(--danger)'; borrar.textContent = '🗑';
+      borrar.title = 'Eliminar esta notificación';
+      borrar.addEventListener('click', async (e)=>{
+        e.stopPropagation();
+        notificaciones = notificaciones.filter(x => x.id !== n.id);
+        await saveNotificaciones();
+        actualizarCampanita();
+        redibujarPanelNotif();
+      });
+      fila.appendChild(borrar);
+
+      lista.appendChild(fila);
+    });
+    panel.appendChild(lista);
+  }
+
+  function abrirPanelNotif(){
+    cerrarPanelNotif();
+    const panel = document.createElement('div');
+    panel.className = 'notif-panel';
+    llenarPanelNotif(panel);
+    $('notifBtn').parentElement.appendChild(panel);
+    cerrarAlClickearAfuera(panel, '#notifBtn');
+  }
+
+  $('notifBtn').addEventListener('click', ()=>{
+    if(document.querySelector('.notif-panel')) cerrarPanelNotif();
+    else abrirPanelNotif();
+  });
+
   // ---------- duplicar un post o story a otra fecha ----------
   // Distinto de mover: el original se queda donde está. Sirve para contenido que se repite
   // (un mismo recordatorio en dos semanas) sin volver a cargar copy, guion e imagen.
@@ -3013,10 +3441,16 @@
     if(abierto) abierto.remove();
   }
 
-  function construirPanelLinks(){
-    const panel = document.createElement('div');
-    panel.className = 'links-panel';
+  // Mismo criterio que en las notificaciones: redibujar la lista no debe volver a registrar
+  // el detector de clicks de afuera, o se acumula uno por cada alta y cada baja.
+  function redibujarPanelLinks(){
+    const panel = document.querySelector('.links-panel');
+    if(!panel) return;
+    panel.innerHTML = '';
+    llenarPanelLinks(panel);
+  }
 
+  function llenarPanelLinks(panel){
     const titulo = document.createElement('h4');
     titulo.textContent = 'Links útiles';
     panel.appendChild(titulo);
@@ -3050,7 +3484,7 @@
         borrar.addEventListener('click', async ()=>{
           quickLinks = quickLinks.filter(l => l.id !== link.id);
           await saveQuickLinks();
-          abrirPanelLinks(); // se redibuja para reflejar el borrado
+          redibujarPanelLinks();
         });
         fila.appendChild(borrar);
       }
@@ -3072,7 +3506,7 @@
         if(!urlLimpia){ showToast('Escribí la dirección del link'); return; }
         quickLinks.push({ id: genId(), label: nombre.value.trim() || urlLimpia, url: urlLimpia });
         await saveQuickLinks();
-        abrirPanelLinks();
+        redibujarPanelLinks();
       };
       agregar.addEventListener('click', guardar);
       // Enter en cualquiera de los dos campos agrega, para no obligar a ir al botón.
@@ -3089,17 +3523,11 @@
 
   function abrirPanelLinks(){
     cerrarPanelLinks();
-    const panel = construirPanelLinks();
+    const panel = document.createElement('div');
+    panel.className = 'links-panel';
+    llenarPanelLinks(panel);
     $('quickLinksBtn').parentElement.appendChild(panel);
-    // Se registra en el próximo tick para que este mismo click no lo cierre de inmediato.
-    setTimeout(()=>{
-      const cerrarSiEsAfuera = (e)=>{
-        if(panel.contains(e.target) || e.target.closest('#quickLinksBtn')) return;
-        panel.remove();
-        document.removeEventListener('click', cerrarSiEsAfuera);
-      };
-      document.addEventListener('click', cerrarSiEsAfuera);
-    }, 0);
+    cerrarAlClickearAfuera(panel, '#quickLinksBtn');
   }
 
   $('quickLinksBtn').addEventListener('click', ()=>{
@@ -4122,6 +4550,7 @@
       {name: 'Avatar', fn: loadClientPhoto},
       {name: 'Ideas', fn: loadIdeas},
       {name: 'Links', fn: loadQuickLinks},
+      {name: 'Novedades', fn: async ()=>{ await loadNotificaciones(); actualizarCampanita(); }},
       {name: 'Reglas', fn: loadRecurringRules},
       {name: 'Mes', fn: loadMonth}
     ];
@@ -4140,6 +4569,20 @@
     bar.style.display = 'none';
     updateFooterNote();
     renderCalendar();
+
+    // ?dia=YYYY-MM-DD abre ese día directamente. Lo usan las notificaciones cuando la
+    // novedad es de otra marca: no alcanza con cambiar de ?cliente=, hay que recargar, y
+    // sin esto caerías en el mes actual sin saber cuál era el posteo.
+    const diaPedido = new URLSearchParams(location.search).get('dia');
+    if(diaPedido && /^\d{4}-\d{2}-\d{2}$/.test(diaPedido)){
+      const [y, m] = diaPedido.split('-').map(Number);
+      if(y !== viewYear || (m-1) !== viewMonth){
+        viewYear = y; viewMonth = m - 1;
+        await loadMonth();
+        renderCalendar();
+      }
+      openDayPanel(diaPedido);
+    }
   })();
 })();
 </script>
