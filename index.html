@@ -709,10 +709,8 @@
 <div class="modal-back" id="settingsModal">
   <div class="modal">
     <h2>Configuración</h2>
-    <p class="hint"><strong>Los datos del calendario ya no se configuran acá.</strong> Se guardan solos en la base del sistema, así que tus marcas y tus links de solo lectura funcionan sin que nadie toque nada. Cada marca ve únicamente su propio calendario gracias al <span class="mono">?cliente=</span> de su link (armalo desde "🏷 Marcas").</p>
-    <p class="hint">Lo único que sigue necesitando esta URL es el botón "✨ Generar copy" de cada post, que le pide el texto a Gemini a través de tu Apps Script. Si no lo usás, podés dejar este campo vacío.</p>
-    <label class="field-label">URL de Apps Script (solo para "Generar copy")</label>
-    <input type="url" id="backendUrlInput" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px;margin-bottom:14px;" />
+    <p class="hint"><strong>No hay nada que configurar.</strong> Los datos se guardan solos en la base del sistema y el generador de copy funciona sin claves ni URLs, así que tus marcas y tus links de solo lectura andan sin que nadie toque nada acá. Cada marca ve únicamente su propio calendario gracias al <span class="mono">?cliente=</span> de su link (armalo desde "🏷 Marcas").</p>
+    <p class="hint">Lo que queda abajo son dos herramientas para cuando algo no cierre: una prueba de conexión con tiempos, y un botón para empujar a la base lo que hubiera quedado guardado solo en este navegador.</p>
     <div class="modal-close-row" style="margin-bottom:10px;">
       <button class="btn ghost" id="resyncBtn" style="width:100%;">↑ Subir todo lo local a la base</button>
     </div>
@@ -721,8 +719,7 @@
     </div>
     <pre id="diagOutput" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow-y:auto;margin-bottom:14px;"></pre>
     <div class="modal-close-row">
-      <button class="btn" id="testBackendBtn" style="margin-right:auto;">Probar conexión</button>
-      <button class="btn primary" id="saveBackendBtn">Guardar</button>
+      <button class="btn primary" id="closeSettingsBtn">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1185,26 +1182,24 @@
     }
   };
 
-  // ---------- generador de copy (Google Apps Script + Gemini) ----------
-  // Ya no guarda ningún dato: lo único que queda acá es el puente para que la llamada a
-  // Gemini pase por un servidor y la API key nunca llegue al navegador.
-  const Backend = {
-    get url(){ return localStorage.getItem('cc-backend-url') || ''; },
-    set url(v){ localStorage.setItem('cc-backend-url', v || ''); },
-    configured(){ return !!this.url; },
-    // Asks the Apps Script backend to call Gemini server-side (API key never touches the browser)
-    // and return a ready-to-use copy for one Reel/Carrusel/Story.
+  // ---------- generador de copy (Gemini) ----------
+  // Le pide el texto a /api/generar-copy, una función del propio sitio. La llamada pasa por
+  // el servidor —y no directo a Google desde acá— para que la API key de Gemini viva en las
+  // variables de entorno de Vercel y nunca llegue al navegador. Antes esto lo hacía un Apps
+  // Script cuya URL había que pegar a mano en cada navegador; ahora no se configura nada.
+  const AI = {
     async generateCopy({context, kind, angle}){
-      const res = await fetch(this.url, {
+      const res = await fetch('/api/generar-copy', {
         method:'POST',
-        headers:{'Content-Type':'text/plain;charset=utf-8'},
-        body: JSON.stringify({ action:'generate_copy', context: context||'', kind: kind||'', angle: angle||'' }),
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ context: context||'', kind: kind||'', angle: angle||'' }),
         cache: 'no-store'
       });
-      if(!res.ok) throw new Error('http '+res.status);
-      const json = await res.json();
-      if(json.error) throw new Error(json.error);
-      if(typeof json.text !== 'string') throw new Error('Respuesta inesperada del generador de copys');
+      let json = null;
+      try{ json = await res.json(); }catch(e){ /* respuesta sin JSON: se reporta abajo */ }
+      if(json && json.error) throw new Error(json.error);
+      if(!res.ok) throw new Error('El generador respondió con un error (' + res.status + ')');
+      if(!json || typeof json.text !== 'string') throw new Error('Respuesta inesperada del generador de copys');
       return json.text;
     }
   };
@@ -1951,13 +1946,12 @@
     });
 
     genBtn.addEventListener('click', async ()=>{
-      if(!Backend.configured()){ showToast('Primero configurá la URL de tu Apps Script en ⚙.'); return; }
       if(!ctxTextarea.value.trim()){ showToast('Escribí primero el contexto o la idea del copy'); return; }
       genBtn.disabled = true;
       genBtn.textContent = 'Generando…';
       try{
         const angleName = item.angle ? ((angleById(item.angle)||{}).name || '') : '';
-        const rawText = await Backend.generateCopy({context: item.context, kind: kindForPrompt, angle: angleName});
+        const rawText = await AI.generateCopy({context: item.context, kind: kindForPrompt, angle: angleName});
         const text = rawText.slice(0, COPY_MAX_LEN);
         pushUndo(key);
         item.text = text;
@@ -2167,12 +2161,11 @@
         scriptGenBtn.type = 'button'; scriptGenBtn.className = 'btn small ai-generate-btn'; scriptGenBtn.textContent = '✨ Generar con IA';
         scriptGenBtn.style.cssText = 'margin-top:8px;width:100%;';
         scriptGenBtn.addEventListener('click', async ()=>{
-          if(!Backend.configured()){ showToast('Primero configurá la URL de tu Apps Script en ⚙.'); return; }
           if(!item.context.trim()){ showToast('Escribí primero el contexto del copy'); return; }
           scriptGenBtn.disabled = true; scriptGenBtn.textContent = 'Generando…';
           try{
             const angleName = item.angle ? ((angleById(item.angle)||{}).name || '') : '';
-            const rawText = await Backend.generateCopy({context: `Guión para: ${item.context}`, kind: item.kind==='carrusel' ? 'carrusel' : 'reel', angle: angleName});
+            const rawText = await AI.generateCopy({context: `Guión para: ${item.context}`, kind: item.kind==='carrusel' ? 'carrusel' : 'reel', angle: angleName});
             scriptTextarea.value += (scriptTextarea.value ? '\n\n' : '') + rawText;
             item.script = scriptTextarea.value;
             scheduleSaveDay(key);
@@ -2365,12 +2358,11 @@
         scriptGenBtn.type = 'button'; scriptGenBtn.className = 'btn small ai-generate-btn'; scriptGenBtn.textContent = '✨ Generar con IA';
         scriptGenBtn.style.cssText = 'margin-top:8px;width:100%;';
         scriptGenBtn.addEventListener('click', async ()=>{
-          if(!Backend.configured()){ showToast('Primero configurá la URL de tu Apps Script en ⚙.'); return; }
           if(!item.context.trim()){ showToast('Escribí primero el contexto del copy'); return; }
           scriptGenBtn.disabled = true; scriptGenBtn.textContent = 'Generando…';
           try{
             const angleName = item.angle ? ((angleById(item.angle)||{}).name || '') : '';
-            const rawText = await Backend.generateCopy({context: `Guión para story: ${item.context}`, kind: 'story', angle: angleName});
+            const rawText = await AI.generateCopy({context: `Guión para story: ${item.context}`, kind: 'story', angle: angleName});
             scriptTextarea.value += (scriptTextarea.value ? '\n\n' : '') + rawText;
             item.script = scriptTextarea.value;
             scheduleSaveDay(key);
@@ -3596,8 +3588,14 @@
       return val ? String(val).slice(0,120) : '(no volvió nada — revisá las políticas RLS de la tabla kv)';
     });
 
+    await timed('Generador de copy (/api/generar-copy)', async ()=>{
+      // Manda un contexto mínimo real: es la única forma de comprobar que la clave de Gemini
+      // está bien configurada del lado del servidor, sin exponerla acá.
+      const texto = await AI.generateCopy({ context:'prueba de conexión', kind:'reel', angle:'' });
+      return 'respondió ' + texto.length + ' caracteres';
+    });
+
     lines.push('');
-    lines.push('URL de Apps Script (solo para "Generar copy"): ' + (Backend.url || '(vacía)'));
     lines.push('Mes en pantalla: ' + viewYear + ' / ' + (viewMonth+1));
     lines.push('Último resultado de migración automática: ' + (window.__migrateLog || '(todavía no corrió en esta carga de página)'));
 
@@ -3605,28 +3603,10 @@
   });
 
   $('settingsBtn').addEventListener('click', ()=>{
-    $('backendUrlInput').value = Backend.url;
     $('settingsModal').classList.add('open');
   });
-  // Guardar esta URL ya no toca los datos del calendario (viven en Supabase), así que no
-  // hace falta recargar nada: solo habilita o deshabilita el botón "Generar copy".
-  $('saveBackendBtn').addEventListener('click', ()=>{
-    Backend.url = $('backendUrlInput').value.trim();
+  $('closeSettingsBtn').addEventListener('click', ()=>{
     $('settingsModal').classList.remove('open');
-    showToast(Backend.configured() ? 'URL guardada — "Generar copy" habilitado' : 'URL borrada');
-  });
-  $('testBackendBtn').addEventListener('click', async ()=>{
-    const url = $('backendUrlInput').value.trim();
-    if(!url){ showToast('Pegá una URL primero'); return; }
-    showToast('Probando…');
-    try{
-      const res = await fetch(`${url}?key=__ping__`);
-      if(!res.ok) throw new Error('http '+res.status);
-      await res.json();
-      showToast('¡Conexión exitosa!');
-    }catch(e){
-      showToast('No se pudo conectar. Revisá la URL y que el despliegue sea "Cualquier usuario".');
-    }
   });
 
   // ---------- clients / admin panel ----------
