@@ -1,0 +1,10 @@
+{
+  "buildCommand": "exit 0",
+  "outputDirectory": ".",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/calendario-contenido.html"
+    }
+  ]
+}
