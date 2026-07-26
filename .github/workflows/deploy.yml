@@ -1,0 +1,34 @@
+# Publica el calendario en Vercel cada vez que se sube un cambio a la rama main.
+#
+# Existe porque el proyecto de Vercel no se puede vincular directamente a este
+# repositorio: la cuenta de GitHub asociada a Vercel (comunicacion-commits) no
+# tiene permiso de escritura acá (kobrareal). En vez de que Vercel venga a buscar
+# los cambios, es GitHub el que publica, y así la diferencia de cuentas no importa.
+#
+# Requiere un secret llamado VERCEL_TOKEN en:
+#   Settings > Secrets and variables > Actions > New repository secret
+
+name: Deploy a Vercel
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # permite lanzarlo a mano desde la pestaña Actions
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_ORG_ID: team_rYspqBCIJ1UWd87fJLQ07NJP
+      VERCEL_PROJECT_ID: prj_sYl024EcOyqKfts6HVyqnYTvUOwh
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Publicar en producción
+        run: npx --yes vercel@57 deploy --prod --yes --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}

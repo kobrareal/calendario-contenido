@@ -20,7 +20,18 @@
       "Bash(git ls-tree *)",
       "Bash(git hash-object *)",
       "Bash(rm -f vercel.json)",
-      "Bash(git commit -m 'Serve app from index.html; keep calendario-contenido.html as redirect stub *)"
+      "Bash(git commit -m 'Serve app from index.html; keep calendario-contenido.html as redirect stub *)",
+      "Bash(git remote *)",
+      "Bash(git fetch *)",
+      "Bash(gh auth *)",
+      "Bash(gh api *)",
+      "PowerShell($w = Get-Command winget -ErrorAction SilentlyContinue; if \\($w\\) { \"winget disponible: \" + $w.Source } else { \"winget NO disponible\" })",
+      "PowerShell(winget install OpenJS.NodeJS.LTS --accept-source-agreements --accept-package-agreements)",
+      "PowerShell(winget install OpenJS.NodeJS.LTS --source winget --accept-source-agreements --accept-package-agreements)",
+      "PowerShell($np = \"C:\\\\Program Files\\\\nodejs\"; if \\(Test-Path \"$np\\\\node.exe\"\\) { \"node: \" + \\(& \"$np\\\\node.exe\" -v\\) } else { \"node.exe NO encontrado\" }; if \\(Test-Path \"$np\\\\npx.cmd\"\\) { \"npx.cmd: presente\" } else { \"npx.cmd NO encontrado\" })",
+      "PowerShell(\"VERCEL_TOKEN env: \" + $\\(if \\($env:VERCEL_TOKEN\\) { \"PRESENTE \\(\" + $env:VERCEL_TOKEN.Length + \" chars\\)\" } else { \"no existe\" }\\); \"VERCEL_ORG_ID: \" + $\\(if \\($env:VERCEL_ORG_ID\\) { \"presente\" } else { \"no existe\" }\\); foreach \\($p in @\\(\"$env:APPDATA\\\\com.vercel.cli\",\"$env:LOCALAPPDATA\\\\com.vercel.cli\",\"$env:USERPROFILE\\\\.vercel\",\"E:\\\\Claude code\\\\.vercel\"\\)\\) { if \\(Test-Path $p\\) { \"EXISTE: $p\"; Get-ChildItem $p -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty FullName } else { \"no existe: $p\" } })",
+      "PowerShell(npx.cmd vercel git connect --yes)",
+      "PowerShell(& \"C:\\\\Program Files\\\\nodejs\\\\npx.cmd\" vercel git connect --yes)"
     ]
   }
 }
