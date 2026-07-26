@@ -709,11 +709,12 @@
 <div class="modal-back" id="settingsModal">
   <div class="modal">
     <h2>Configuración</h2>
-    <p class="hint">Este calendario guarda sus datos en una Google Sheet propia, a través de un pequeño script de Google (Apps Script). Pegá acá la URL de tu Apps Script una vez configurado — quedará guardada en este navegador. Podés usar la misma URL para todas tus marcas: cada una ve solo su propio calendario gracias al <span class="mono">?cliente=</span> de su link (armalo desde "🏷 Marcas"). Esta misma URL es la que usa el botón "✨ Generar copy" de cada post — para que funcione, tu Apps Script necesita tener agregada la función de Gemini (te la pasamos aparte).</p>
-    <label class="field-label">URL de la Aplicación Web de Apps Script</label>
+    <p class="hint"><strong>Los datos del calendario ya no se configuran acá.</strong> Se guardan solos en la base del sistema, así que tus marcas y tus links de solo lectura funcionan sin que nadie toque nada. Cada marca ve únicamente su propio calendario gracias al <span class="mono">?cliente=</span> de su link (armalo desde "🏷 Marcas").</p>
+    <p class="hint">Lo único que sigue necesitando esta URL es el botón "✨ Generar copy" de cada post, que le pide el texto a Gemini a través de tu Apps Script. Si no lo usás, podés dejar este campo vacío.</p>
+    <label class="field-label">URL de Apps Script (solo para "Generar copy")</label>
     <input type="url" id="backendUrlInput" placeholder="https://script.google.com/macros/s/.../exec" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:12px;margin-bottom:14px;" />
     <div class="modal-close-row" style="margin-bottom:10px;">
-      <button class="btn ghost" id="resyncBtn" style="width:100%;">↑ Subir todo lo local a la Sheet</button>
+      <button class="btn ghost" id="resyncBtn" style="width:100%;">↑ Subir todo lo local a la base</button>
     </div>
     <div class="modal-close-row" style="margin-bottom:10px;">
       <button class="btn ghost" id="diagBtn" style="width:100%;">🔍 Diagnóstico</button>
@@ -1091,7 +1092,14 @@
   // ---------- multi-client (each client gets ?cliente=slug in the URL) ----------
   // No ?cliente= in the URL keeps the original, unprefixed keys — so any calendar
   // already in production with no parameter keeps reading/writing the same data as before.
-  const CLIENT_ID = (new URLSearchParams(location.search).get('cliente') || '').trim();
+  // Sanitized down to [a-z0-9-] — the same shape slugify() produces for the links built in
+  // "Marcas" — so a hand-edited ?cliente= can't slip commas or quotes into a key and break
+  // the batched month lookup below.
+  // Runs the parameter through the very same slugify() used to build the links in "Marcas"
+  // (hoisted, so calling it here is fine), which keeps both sides in agreement for accented
+  // names and stops a hand-edited ?cliente= from slipping commas or quotes into a key and
+  // breaking the batched month lookup below.
+  const CLIENT_ID = slugify(new URLSearchParams(location.search).get('cliente') || '');
   function clientKey(key){ return CLIENT_ID ? `${CLIENT_ID}:${key}` : key; }
 
   // ---------- read-only client links (?vista=lectura) ----------
@@ -1126,27 +1134,64 @@
     t._timer = setTimeout(()=>t.classList.remove('show'), 2200);
   }
 
-  // ---------- backend (Google Apps Script + Google Sheets) ----------
+  // ---------- datos (Supabase) ----------
+  // Reemplaza al backend de Apps Script + Google Sheets. Apps Script tardaba entre 1 y 3
+  // segundos en responder porque Google levantaba el script de cero en cada pedido; acá la
+  // respuesta ronda los 150 ms y no hay arranque en frío.
+  //
+  // Estas dos constantes son públicas por diseño: viajan dentro del HTML y cualquiera que
+  // abra el calendario las ve. Lo que realmente controla el acceso son las políticas RLS de
+  // la tabla "kv" en Supabase. Por eso mismo no hace falta que nadie configure nada: los
+  // links de solo lectura funcionan tal cual, sin pasar por ⚙.
+  const SUPABASE_URL = 'https://vodpudtwogorlqikstcf.supabase.co';
+  const SUPABASE_ANON_KEY = 'sb_publishable_czva3OfAUAIDA4URy3ZXbw_Zyi4D4MZ';
+  const KV_ENDPOINT = SUPABASE_URL + '/rest/v1/kv';
+
+  const Data = {
+    headers(extra){
+      return Object.assign({
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json'
+      }, extra || {});
+    },
+    async get(key){
+      const res = await fetch(`${KV_ENDPOINT}?key=eq.${encodeURIComponent(key)}&select=value`,
+        { headers: this.headers(), cache: 'no-store' });
+      if(!res.ok) throw new Error('http '+res.status);
+      const rows = await res.json();
+      return rows.length ? rows[0].value : null;
+    },
+    // Un solo pedido para todo el mes en vez de 31. Los keys son [a-z0-9:-] (ver CLIENT_ID y
+    // dateKey), así que entran en el filtro in.() de PostgREST sin necesidad de escaparlos.
+    async getMany(keys){
+      if(!keys.length) return {};
+      const res = await fetch(`${KV_ENDPOINT}?key=in.(${keys.join(',')})&select=key,value`,
+        { headers: this.headers(), cache: 'no-store' });
+      if(!res.ok) throw new Error('http '+res.status);
+      const out = {};
+      (await res.json()).forEach(row => { out[row.key] = row.value; });
+      return out;
+    },
+    // Inserta o actualiza en una sola ida y vuelta (merge-duplicates = UPSERT sobre la PK).
+    async set(key, value){
+      const res = await fetch(KV_ENDPOINT, {
+        method:'POST',
+        headers: this.headers({ 'Prefer':'resolution=merge-duplicates,return=minimal' }),
+        body: JSON.stringify({ key, value, updated_at: new Date().toISOString() }),
+        cache: 'no-store'
+      });
+      if(!res.ok) throw new Error('http '+res.status+' '+(await res.text()).slice(0,200));
+    }
+  };
+
+  // ---------- generador de copy (Google Apps Script + Gemini) ----------
+  // Ya no guarda ningún dato: lo único que queda acá es el puente para que la llamada a
+  // Gemini pase por un servidor y la API key nunca llegue al navegador.
   const Backend = {
     get url(){ return localStorage.getItem('cc-backend-url') || ''; },
     set url(v){ localStorage.setItem('cc-backend-url', v || ''); },
     configured(){ return !!this.url; },
-    async get(key){
-      const res = await fetch(`${this.url}?key=${encodeURIComponent(key)}&_=${Date.now()}`, { cache: 'no-store' });
-      if(!res.ok) throw new Error('http '+res.status);
-      const json = await res.json();
-      return json.value;
-    },
-    async set(key, value){
-      const res = await fetch(this.url, {
-        method:'POST',
-        headers:{'Content-Type':'text/plain;charset=utf-8'}, // avoids CORS preflight on Apps Script
-        body: JSON.stringify({key, value}),
-        cache: 'no-store'
-      });
-      if(!res.ok) throw new Error('http '+res.status);
-      return res.json();
-    },
     // Asks the Apps Script backend to call Gemini server-side (API key never touches the browser)
     // and return a ready-to-use copy for one Reel/Carrusel/Story.
     async generateCopy({context, kind, angle}){
@@ -1169,44 +1214,54 @@
   // even though they can share the same Google Sheet / Apps Script backend.
   async function storageGet(key){
     const fullKey = clientKey(key);
-    if(Backend.configured()){
-      try{
-        const val = await Backend.get(fullKey);
-        if(val !== null && val !== undefined){
-          localStorage.setItem('cc-cache:'+fullKey, val);
-          return val;
-        }
-      }catch(e){ /* fall through to local cache */ }
-    }
+    try{
+      const val = await Data.get(fullKey);
+      if(val !== null && val !== undefined){
+        localStorage.setItem('cc-cache:'+fullKey, val);
+        return val;
+      }
+    }catch(e){ /* fall through to local cache */ }
     return localStorage.getItem('cc-cache:'+fullKey);
   }
-  // Writes: always cache locally immediately, then push to the Sheet if configured (throws on failure so callers can retry).
+  // Batched read for a whole month (or a search across months): one HTTP round trip instead
+  // of one per day. Anything the database doesn't have falls back to the local cache, key by
+  // key, so a half-populated month still paints whatever was seen before.
+  async function storageGetMany(keys){
+    const fullKeys = keys.map(clientKey);
+    let found = {};
+    try{ found = await Data.getMany(fullKeys); }
+    catch(e){ /* fall through to local cache for every key */ }
+    return keys.map((key, i) => {
+      const fullKey = fullKeys[i];
+      const val = found[fullKey];
+      if(val !== null && val !== undefined){
+        localStorage.setItem('cc-cache:'+fullKey, val);
+        return val;
+      }
+      return localStorage.getItem('cc-cache:'+fullKey);
+    });
+  }
+  // Writes: always cache locally immediately, then push to the database (throws on failure so callers can retry).
   async function storageSet(key, value){
     const fullKey = clientKey(key);
     localStorage.setItem('cc-cache:'+fullKey, value);
-    if(Backend.configured()){
-      await Backend.set(fullKey, value);
-    }
+    await Data.set(fullKey, value);
   }
   // Non-namespaced versions, used only for the shared clients registry (admin panel),
   // which by design has to be visible regardless of which ?cliente= is in the URL.
   async function rawStorageGet(key){
-    if(Backend.configured()){
-      try{
-        const val = await Backend.get(key);
-        if(val !== null && val !== undefined){
-          localStorage.setItem('cc-cache:'+key, val);
-          return val;
-        }
-      }catch(e){ /* fall through to local cache */ }
-    }
+    try{
+      const val = await Data.get(key);
+      if(val !== null && val !== undefined){
+        localStorage.setItem('cc-cache:'+key, val);
+        return val;
+      }
+    }catch(e){ /* fall through to local cache */ }
     return localStorage.getItem('cc-cache:'+key);
   }
   async function rawStorageSet(key, value){
     localStorage.setItem('cc-cache:'+key, value);
-    if(Backend.configured()){
-      await Backend.set(key, value);
-    }
+    await Data.set(key, value);
   }
   // Saves one day's data immediately (sequential/awaited), used for bulk operations
   // like duplicating a week or undo — the debounced scheduleSaveDay() only tracks one
@@ -1280,8 +1335,8 @@
     monthData = {};
 
     // Paint instantly from whatever's cached locally (from a previous visit), then
-    // refresh from the Sheet in the background — keeps the calendar from sitting
-    // blank every time the Apps Script backend is slow to respond.
+    // refresh from the database in the background — keeps the calendar from sitting
+    // blank while the network round trip is in flight.
     keys.forEach(k=>{
       const cached = localStorage.getItem('cc-cache:'+clientKey(k));
       if(cached){
@@ -1291,7 +1346,7 @@
     renderCalendar();
 
     try{
-      const results = await Promise.all(keys.map(k => storageGet(k).catch(()=>null)));
+      const results = await storageGetMany(keys);
       results.forEach((val, i)=>{
         if(val){
           try{ monthData[keys[i]] = normalizeEntry(JSON.parse(val)); }catch(e){ /* skip corrupt entry */ }
@@ -2894,7 +2949,7 @@
         const daysInMonth = new Date(year, month+1, 0).getDate();
         const dayKeys = [];
         for(let d=1; d<=daysInMonth; d++) dayKeys.push(dateKey(year, month, d));
-        const values = await Promise.all(dayKeys.map(k => storageGet(k).catch(()=>null)));
+        const values = await storageGetMany(dayKeys);
         values.forEach((val, i)=>{
           if(!val) return;
           let entry;
@@ -3474,18 +3529,14 @@
     executeClearRange($('confirmClearModal').dataset.val);
   });
 
-  // ---------- settings (Apps Script backend URL) ----------
+  // ---------- settings (Apps Script URL, ya solo para "Generar copy") ----------
   function updateFooterNote(){
-    const note = $('footerNote');
-    if(Backend.configured()){
-      note.textContent = 'Los cambios se guardan en tu Google Sheet y son visibles para todas las personas con la misma URL configurada.';
-    }else{
-      note.innerHTML = 'Todavía no configuraste tu Google Sheet — por ahora los cambios se guardan solo en este navegador. Tocá <strong>⚙</strong> para conectarlo.';
-    }
+    $('footerNote').textContent = 'Los cambios se guardan automáticamente y son visibles para todas las personas con acceso a este calendario.';
   }
 
+  // Sube a la base cualquier cosa que haya quedado guardada solo en este navegador — sirve
+  // para recuperar lo que se hubiera cargado sin conexión, o antes de mudar los datos.
   async function pushAllLocalToBackend(){
-    if(!Backend.configured()){ showToast('Primero guardá una URL válida'); return; }
     const prefix = 'cc-cache:';
     const keys = Object.keys(localStorage).filter(k => k.startsWith(prefix)).map(k => k.slice(prefix.length));
     if(keys.length === 0){ showToast('No hay datos locales para subir'); return; }
@@ -3494,12 +3545,12 @@
     for(let i=0;i<keys.length;i++){
       $('resyncBtn').textContent = `Subiendo ${i+1}/${keys.length}…`;
       const value = localStorage.getItem(prefix+keys[i]);
-      try{ await Backend.set(keys[i], value); ok++; }
+      try{ await Data.set(keys[i], value); ok++; }
       catch(e){ fail++; }
     }
-    $('resyncBtn').textContent = '↑ Subir todo lo local a la Sheet';
+    $('resyncBtn').textContent = '↑ Subir todo lo local a la base';
     $('resyncBtn').disabled = false;
-    showToast(fail === 0 ? `Listo: ${ok} datos subidos a la Sheet` : `${ok} subidos, ${fail} fallaron — probá de nuevo`);
+    showToast(fail === 0 ? `Listo: ${ok} datos subidos a la base` : `${ok} subidos, ${fail} fallaron — probá de nuevo`);
     await loadAngles(); await loadClientName(); await loadClientPhoto(); await loadIdeas(); await loadRecurringRules(); await loadMonth(); renderCalendar();
   }
   $('resyncBtn').addEventListener('click', pushAllLocalToBackend);
@@ -3509,62 +3560,45 @@
     out.style.display = 'block';
     out.textContent = 'Corriendo diagnóstico…';
     const lines = [];
-    const url = $('backendUrlInput').value.trim();
-    lines.push('URL usada: ' + (url || '(vacía)'));
-    lines.push('window.storage disponible: ' + (typeof window.storage !== 'undefined'));
+    lines.push('Base de datos: ' + SUPABASE_URL);
+    lines.push('Marca actual (?cliente=): ' + (CLIENT_ID || '(ninguna — calendario principal)'));
     lines.push('localStorage disponible: ' + (function(){ try{ localStorage.setItem('__t','1'); localStorage.removeItem('__t'); return true; }catch(e){ return e.message; } })());
 
-    async function tryFetch(label, key){
+    // Cada prueba mide también cuánto tardó, que es justamente lo que se vino a mejorar.
+    async function timed(label, fn){
+      const t0 = performance.now();
       try{
-        const res = await fetch(`${url}?key=${encodeURIComponent(key)}&_=${Date.now()}`, { cache:'no-store' });
-        const text = await res.text();
-        lines.push(`${label}: HTTP ${res.status} — ${text.slice(0,200)}`);
+        const result = await fn();
+        lines.push(`${label}: OK en ${Math.round(performance.now()-t0)} ms — ${result}`);
       }catch(e){
-        lines.push(`${label}: ERROR — ${e.message}`);
+        lines.push(`${label}: ERROR tras ${Math.round(performance.now()-t0)} ms — ${(e && e.message) ? e.message : String(e)}`);
       }
     }
 
-    async function tryPost(label, key, value){
-      try{
-        const res = await fetch(url, {
-          method:'POST',
-          headers:{'Content-Type':'text/plain;charset=utf-8'},
-          body: JSON.stringify({key, value}),
-          cache:'no-store'
-        });
-        const text = await res.text();
-        lines.push(`${label}: HTTP ${res.status} — ${text.slice(0,300)}`);
-      }catch(e){
-        lines.push(`${label}: ERROR — ${e.message}`);
-      }
-    }
+    const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
+    const monthKeys = [];
+    for(let d=1; d<=daysInMonth; d++) monthKeys.push(dateKey(viewYear, viewMonth, d));
 
-    const legacyKey = `month:${viewYear}-${String(viewMonth+1).padStart(2,'0')}`;
-    await tryFetch('VERSIÓN DEL SCRIPT', '__version__');
-    await tryFetch('GET angles', 'angles');
-    await tryFetch('GET ' + legacyKey, legacyKey);
-    await tryFetch('GET ' + dateKey(viewYear,viewMonth,1), dateKey(viewYear,viewMonth,1));
-    await tryPost('POST test-write', '__diag_test__', JSON.stringify({hola:'mundo'}));
-    await tryFetch('GET test-write (después de escribir)', '__diag_test__');
+    await timed('Leer ángulos', async ()=>{
+      const val = await Data.get(clientKey('angles'));
+      return val ? (String(val).slice(0,80) + '…') : '(sin guardar todavía)';
+    });
+    await timed(`Leer el mes completo (${daysInMonth} días, 1 solo pedido)`, async ()=>{
+      const found = await Data.getMany(monthKeys.map(clientKey));
+      return Object.keys(found).length + ' día(s) con contenido';
+    });
+    await timed('Escribir una prueba', async ()=>{
+      await Data.set(clientKey('__diag_test__'), JSON.stringify({hola:'mundo', cuando: new Date().toISOString()}));
+      return 'escrito';
+    });
+    await timed('Volver a leer la prueba', async ()=>{
+      const val = await Data.get(clientKey('__diag_test__'));
+      return val ? String(val).slice(0,120) : '(no volvió nada — revisá las políticas RLS de la tabla kv)';
+    });
 
-    // Force a real migration attempt for day 1, bypassing the "already looks migrated locally" shortcut
-    try{
-      const legacyRes = await fetch(`${url}?key=${encodeURIComponent(legacyKey)}&_=${Date.now()}`, { cache:'no-store' });
-      const legacyJson = await legacyRes.json();
-      const legacy = JSON.parse(legacyJson.value);
-      const day1Key = dateKey(viewYear, viewMonth, 1);
-      const day1Value = JSON.stringify(legacy[day1Key]);
-      lines.push('Forzando storageSet(' + day1Key + ', ' + day1Value.slice(0,120) + ')…');
-      await storageSet(day1Key, day1Value);
-      lines.push('storageSet forzado: OK (sin excepción)');
-    }catch(e){
-      lines.push('storageSet forzado: ERROR — ' + (e && e.message ? e.message : String(e)));
-    }
-    await tryFetch('GET ' + dateKey(viewYear,viewMonth,1) + ' (después de forzar)', dateKey(viewYear,viewMonth,1));
-
-    lines.push('Backend.configured(): ' + Backend.configured());
-    lines.push('Backend.url (guardada): ' + Backend.url);
-    lines.push('viewYear/viewMonth: ' + viewYear + ' / ' + (viewMonth+1));
+    lines.push('');
+    lines.push('URL de Apps Script (solo para "Generar copy"): ' + (Backend.url || '(vacía)'));
+    lines.push('Mes en pantalla: ' + viewYear + ' / ' + (viewMonth+1));
     lines.push('Último resultado de migración automática: ' + (window.__migrateLog || '(todavía no corrió en esta carga de página)'));
 
     out.textContent = lines.join('\n');
@@ -3574,14 +3608,12 @@
     $('backendUrlInput').value = Backend.url;
     $('settingsModal').classList.add('open');
   });
-  $('saveBackendBtn').addEventListener('click', async ()=>{
+  // Guardar esta URL ya no toca los datos del calendario (viven en Supabase), así que no
+  // hace falta recargar nada: solo habilita o deshabilita el botón "Generar copy".
+  $('saveBackendBtn').addEventListener('click', ()=>{
     Backend.url = $('backendUrlInput').value.trim();
     $('settingsModal').classList.remove('open');
-    updateFooterNote();
-    showToast(Backend.configured() ? 'URL guardada. Recargando datos…' : 'URL borrada');
-    if(Backend.configured()){
-      await loadAngles(); await loadClientName(); await loadClientPhoto(); await loadIdeas(); await loadRecurringRules(); await loadMonth(); renderCalendar();
-    }
+    showToast(Backend.configured() ? 'URL guardada — "Generar copy" habilitado' : 'URL borrada');
   });
   $('testBackendBtn').addEventListener('click', async ()=>{
     const url = $('backendUrlInput').value.trim();
