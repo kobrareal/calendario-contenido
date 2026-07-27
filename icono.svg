@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="fondo" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1a1a22"/>
+      <stop offset="1" stop-color="#0a0a0d"/>
+    </linearGradient>
+    <linearGradient id="acento" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4f8ef7"/>
+      <stop offset="1" stop-color="#8b5cf6"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#fondo)"/>
+  <!-- Anillas de la agenda -->
+  <rect x="150" y="72" width="26" height="62" rx="13" fill="#615c72"/>
+  <rect x="336" y="72" width="26" height="62" rx="13" fill="#615c72"/>
+  <!-- Hoja del calendario -->
+  <rect x="96" y="112" width="320" height="304" rx="44" fill="url(#acento)" opacity="0.14"/>
+  <rect x="96" y="112" width="320" height="304" rx="44" fill="none" stroke="url(#acento)" stroke-width="10"/>
+  <rect x="96" y="112" width="320" height="72" rx="44" fill="url(#acento)"/>
+  <rect x="96" y="160" width="320" height="24" fill="url(#acento)"/>
+  <!-- Grilla de días: la fila del medio marcada, como un plan de contenido armado -->
+  <g fill="#f4f2fb">
+    <rect x="140" y="222" width="52" height="40" rx="10" opacity="0.30"/>
+    <rect x="212" y="222" width="52" height="40" rx="10" opacity="0.30"/>
+    <rect x="284" y="222" width="52" height="40" rx="10" opacity="0.30"/>
+    <rect x="140" y="278" width="52" height="40" rx="10" fill="#4f8ef7"/>
+    <rect x="212" y="278" width="52" height="40" rx="10" fill="#8b5cf6"/>
+    <rect x="284" y="278" width="52" height="40" rx="10" opacity="0.30"/>
+    <rect x="140" y="334" width="52" height="40" rx="10" opacity="0.30"/>
+    <rect x="212" y="334" width="52" height="40" rx="10" fill="#3fd399"/>
+    <rect x="284" y="334" width="52" height="40" rx="10" opacity="0.30"/>
+  </g>
+</svg>

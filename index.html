@@ -3,7 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <title>Calendario de Contenido</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- viewport-fit=cover + los safe-area del CSS: en iPhone la barra inferior del sistema
+     tapaba los botones del pie del panel cuando se usa instalada. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0d">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Calendario">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icono.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icono.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -79,6 +89,21 @@
     -webkit-font-smoothing:antialiased;
   }
   ::selection{background:var(--accent-soft);}
+
+  /* Aviso de versión nueva cuando la app está instalada. */
+  .aviso-update{
+    position:fixed;left:50%;transform:translateX(-50%);
+    bottom:calc(16px + env(safe-area-inset-bottom));
+    z-index:1000;display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+    background:var(--card-bg);border:1px solid var(--border);border-radius:14px;
+    padding:10px 14px;box-shadow:0 18px 40px rgba(0,0,0,.6);
+    font-size:13px;max-width:calc(100vw - 24px);
+  }
+
+  /* Instalada en el teléfono no hay barra del navegador, así que el contenido llegaba
+     hasta el borde y quedaba debajo de la barra del sistema. */
+  .app{padding-bottom:calc(60px + env(safe-area-inset-bottom));}
+  .panel > .panel-footer{padding-bottom:calc(10px + env(safe-area-inset-bottom));}
   .mono{font-family:'IBM Plex Mono',monospace;}
   .display{font-family:'Inter',sans-serif;font-weight:800;letter-spacing:-.3px;}
   .glow-text{text-shadow:0 0 18px var(--glow);}
@@ -350,6 +375,11 @@
   /* Anotación del día (feriado, lanzamiento, lo que sea): se distingue del contenido
      con el color ámbar, para que no se confunda con una etiqueta de posteo. */
   .daynum-row{display:flex;align-items:center;gap:5px;min-width:0;}
+  /* Las automáticas (feriados) van más apagadas que las que escribís vos: están para
+     ubicarte, no para competir con tus propias marcas del mes. */
+  .anotacion-dia.automatica{
+    color:var(--muted);background:rgba(255,255,255,.04);border-color:var(--border);
+  }
   .anotacion-dia{
     flex:1;min-width:0;
     font-size:9.5px;line-height:1.25;color:#f0b849;
@@ -2198,11 +2228,12 @@
         ? String(fecha.getDate())
         : `${fecha.getDate()} ${MESES[fecha.getMonth()].slice(0,3)}`;
       cab.appendChild(nombreDia);
-      if(anotaciones[key]){
+      const anotSem = anotacionVisible(key);
+      if(anotSem){
         const nota = document.createElement('div');
-        nota.className = 'anotacion-dia';
-        nota.textContent = anotaciones[key];
-        nota.title = anotaciones[key];
+        nota.className = 'anotacion-dia' + (anotSem.automatica ? ' automatica' : '');
+        nota.textContent = anotSem.texto;
+        nota.title = anotSem.texto;
         cab.appendChild(nota); // queda entre el nombre del día y el número
       }
       cab.appendChild(numFecha);
@@ -2382,11 +2413,14 @@
       num.className = 'daynum';
       num.textContent = d;
       fila.appendChild(num);
-      if(anotaciones[key]){
+      const anot = anotacionVisible(key);
+      if(anot){
         const nota = document.createElement('div');
-        nota.className = 'anotacion-dia';
-        nota.textContent = anotaciones[key];
-        nota.title = anotaciones[key];
+        nota.className = 'anotacion-dia' + (anot.automatica ? ' automatica' : '');
+        nota.textContent = anot.texto;
+        nota.title = anot.automatica
+          ? anot.texto + ' — fecha del calendario argentino. Escribí una anotación propia si querés reemplazarla.'
+          : anot.texto;
         fila.appendChild(nota);
       }
       cell.appendChild(fila);
@@ -3841,6 +3875,99 @@
     }
     renderCalendar();
   });
+
+  // ---------- fechas del calendario argentino ----------
+  // Se calculan, no se dejan escritas: Carnaval y Semana Santa dependen de la Pascua y se
+  // mueven todos los años, y varias fechas comerciales son "el tercer domingo de tal mes".
+  //
+  // Ojo con lo que esto NO puede saber: los feriados puente que el Gobierno fija por decreto
+  // cada año, ni los cambios de fecha que se decidan más adelante. Para eso está la anotación
+  // manual, que siempre gana sobre la automática.
+  function domingoDePascua(anio){
+    // Algoritmo de Gauss/Meeus. Devuelve el domingo de Pascua de ese año.
+    const a = anio % 19, b = Math.floor(anio/100), c = anio % 100;
+    const d = Math.floor(b/4), e = b % 4, f = Math.floor((b+8)/25);
+    const g = Math.floor((b-f+1)/3), h = (19*a + b - d - g + 15) % 30;
+    const i = Math.floor(c/4), k = c % 4;
+    const l = (32 + 2*e + 2*i - h - k) % 7;
+    const m = Math.floor((a + 11*h + 22*l)/451);
+    const mes = Math.floor((h + l - 7*m + 114)/31);
+    const dia = ((h + l - 7*m + 114) % 31) + 1;
+    return new Date(anio, mes-1, dia);
+  }
+
+  function sumarDias(fecha, n){
+    const d = new Date(fecha); d.setDate(d.getDate() + n); return d;
+  }
+  // n-ésimo díaSemana del mes (0=domingo). Ej: tercer domingo de octubre.
+  function nEsimoDiaDelMes(anio, mes, diaSemana, n){
+    const primero = new Date(anio, mes, 1);
+    const desfase = (diaSemana - primero.getDay() + 7) % 7;
+    return new Date(anio, mes, 1 + desfase + (n-1)*7);
+  }
+
+  function fechasArgentinas(anio){
+    const out = {};
+    const poner = (fecha, texto)=>{
+      const k = dateKey(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
+      out[k] = out[k] ? out[k] + ' · ' + texto : texto;
+    };
+    const pascua = domingoDePascua(anio);
+
+    // Fijos
+    [
+      [0, 1,  'Año Nuevo'],
+      [2, 24, 'Memoria por la Verdad y la Justicia'],
+      [3, 2,  'Veteranos y Caídos en Malvinas'],
+      [4, 1,  'Día del Trabajador'],
+      [4, 25, 'Revolución de Mayo'],
+      [5, 20, 'Paso a la Inmortalidad de Belgrano'],
+      [6, 9,  'Día de la Independencia'],
+      [11, 8, 'Inmaculada Concepción'],
+      [11, 25,'Navidad'],
+      [7, 17, 'Paso a la Inmortalidad de San Martín'],
+      [9, 12, 'Día de la Diversidad Cultural'],
+      [10, 20,'Día de la Soberanía Nacional'],
+      [2, 8,  'Día de la Mujer'],
+      [3, 23, 'Día del Libro'],
+      [6, 20, 'Día del Amigo'],
+      [8, 11, 'Día del Maestro'],
+      [8, 21, 'Día del Estudiante / Primavera'],
+      [1, 14, 'San Valentín']
+    ].forEach(([m, d, texto])=> poner(new Date(anio, m, d), texto));
+
+    // Movibles atados a la Pascua
+    poner(sumarDias(pascua, -48), 'Carnaval');
+    poner(sumarDias(pascua, -47), 'Carnaval');
+    poner(sumarDias(pascua, -2),  'Viernes Santo');
+    poner(pascua, 'Pascua');
+
+    // Movibles por regla de "n-ésimo día de la semana"
+    poner(nEsimoDiaDelMes(anio, 7, 0, 3),  'Día del Niño');        // 3er domingo de agosto
+    poner(nEsimoDiaDelMes(anio, 9, 0, 3),  'Día de la Madre');     // 3er domingo de octubre
+    poner(nEsimoDiaDelMes(anio, 5, 0, 3),  'Día del Padre');       // 3er domingo de junio (mes 5)
+
+    // Black Friday es el día después del cuarto jueves de noviembre, no el cuarto viernes:
+    // en los años en que noviembre arranca viernes, esas dos fechas no coinciden.
+    const cuartoJueves = nEsimoDiaDelMes(anio, 10, 4, 4);
+    poner(sumarDias(cuartoJueves, 1), 'Black Friday');
+    poner(sumarDias(cuartoJueves, 4), 'Cyber Monday');
+    return out;
+  }
+
+  // Cache por año: recalcular en cada repintado del calendario no aporta nada.
+  const feriadosPorAnio = {};
+  function feriadosDe(anio){
+    if(!feriadosPorAnio[anio]) feriadosPorAnio[anio] = fechasArgentinas(anio);
+    return feriadosPorAnio[anio];
+  }
+  // Lo que se muestra en un día: la anotación que escribiste vos gana sobre la automática.
+  function anotacionVisible(dia){
+    if(anotaciones[dia]) return { texto: anotaciones[dia], automatica: false };
+    const anio = Number(dia.slice(0,4));
+    const auto = feriadosDe(anio)[dia];
+    return auto ? { texto: auto, automatica: true } : null;
+  }
 
   // ---------- anotaciones por día ----------
   // Van aparte del contenido del día (no dentro de feed/stories) porque no son posteos:
@@ -5582,6 +5709,44 @@
       '<h1 style="font-family:Inter,sans-serif;font-size:19px;margin:0 0 10px;">No pudimos abrir el calendario</h1>' +
       '<p style="color:#9a95ab;font-size:13.5px;line-height:1.6;margin:0;">' + mensaje + '</p>' +
       '</div></div>';
+  }
+
+  // ---------- app instalable ----------
+  // Registra el service worker, que es lo que permite instalar el calendario en el teléfono
+  // y que se actualice solo. Si aparece una versión nueva mientras la estás usando, se avisa
+  // en vez de recargar de prepo: recargar sin permiso podría perder lo que estabas tipeando.
+  if('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('sw.js').then(reg=>{
+        reg.addEventListener('updatefound', ()=>{
+          const nuevo = reg.installing;
+          if(!nuevo) return;
+          nuevo.addEventListener('statechange', ()=>{
+            // controller presente = ya había una versión corriendo, así que esto es una
+            // actualización y no la primera instalación.
+            if(nuevo.state === 'installed' && navigator.serviceWorker.controller){
+              mostrarAvisoActualizacion();
+            }
+          });
+        });
+      }).catch(()=>{ /* sin service worker el calendario funciona igual, solo no se instala */ });
+    });
+  }
+
+  function mostrarAvisoActualizacion(){
+    if(document.getElementById('avisoUpdate')) return;
+    const barra = document.createElement('div');
+    barra.id = 'avisoUpdate';
+    barra.className = 'aviso-update';
+    barra.innerHTML = '<span>Hay una versión nueva del calendario.</span>';
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'btn primary small'; btn.textContent = 'Actualizar';
+    btn.addEventListener('click', ()=> location.reload());
+    const cerrar = document.createElement('button');
+    cerrar.type = 'button'; cerrar.className = 'btn ghost small'; cerrar.textContent = 'Después';
+    cerrar.addEventListener('click', ()=> barra.remove());
+    barra.appendChild(btn); barra.appendChild(cerrar);
+    document.body.appendChild(barra);
   }
 
   // ---------- init ----------
