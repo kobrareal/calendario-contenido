@@ -744,6 +744,34 @@
     padding:7px 9px;font-size:12px;
   }
 
+  /* ---------- asistente ---------- */
+  .agente-ejemplos{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+  .agente-ejemplo{
+    background:var(--surface-2);border:1px solid var(--border);color:var(--muted);
+    border-radius:999px;padding:5px 11px;font-size:11.5px;cursor:pointer;text-align:left;
+  }
+  .agente-ejemplo:hover{background:var(--surface-3);color:var(--text);}
+  .agente-respuesta{
+    background:var(--ai-bg);border:1px solid var(--ai-border);border-radius:12px;
+    padding:14px;font-size:13.5px;line-height:1.6;white-space:pre-wrap;
+    max-height:300px;overflow-y:auto;
+  }
+  .cambio-row{
+    display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;
+    background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 11px;
+  }
+  .cambio-row input[type=checkbox]{margin-top:3px;flex:none;}
+  .cambio-info{flex:1;min-width:0;}
+  .cambio-titulo{font-size:12.5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+  .cambio-accion{
+    font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercase;
+    padding:2px 6px;border-radius:5px;font-weight:700;
+  }
+  .cambio-accion.agregar{background:rgba(63,211,153,.16);color:var(--ok);}
+  .cambio-accion.modificar{background:rgba(79,142,247,.16);color:var(--accent);}
+  .cambio-accion.eliminar{background:rgba(242,97,122,.16);color:var(--danger);}
+  .cambio-detalle{font-size:11.5px;color:var(--muted);margin-top:3px;}
+
   /* ---------- notificaciones ---------- */
   /* Puntito en el botón cuando el mes tiene notas escritas. */
   .btn.con-contenido{position:relative;}
@@ -1008,6 +1036,7 @@
       <button class="btn ghost icon-only" id="statsBtn" title="Estadísticas del mes"><i class="fa-solid fa-chart-pie"></i><span class="label">Ver estadísticas de este mes</span></button>
       <button class="btn ghost icon-only" id="searchBtn" title="Buscar posts por palabra clave o ángulo"><i class="fa-solid fa-magnifying-glass"></i><span class="label">Buscar posts por palabra o ángulo</span></button>
       <button class="btn ghost icon-only" id="exportBtn" title="Exportar mes como imagen"><i class="fa-solid fa-download"></i><span class="label">Descargar el mes como imagen</span></button>
+      <button class="btn ghost icon-only" id="agenteBtn" title="Asistente: analiza tu mes, da consejos y propone contenido"><i class="fa-solid fa-wand-magic-sparkles"></i><span class="label">Asistente de contenido</span></button>
       <button class="btn ghost icon-only" id="monthNotesBtn" title="Notas y observaciones de este mes"><i class="fa-solid fa-note-sticky"></i><span class="label">Notas generales de este mes</span></button>
       <button class="btn ghost icon-only admin-only" id="trashBtn" title="Papelera: lo eliminado en los últimos 7 días"><i class="fa-solid fa-trash-can"></i><span class="label">Papelera: lo borrado en 7 días</span></button>
       <button class="btn ghost icon-only admin-only" id="ideasBtn" title="Ideas de contenido para más adelante"><i class="fa-solid fa-lightbulb"></i><span class="label">Ideas guardadas para más adelante</span></button>
@@ -1234,6 +1263,40 @@
     <p class="hint">Distribución de ángulos asignados al Feed y a las Stories durante <span id="statsMonthLabel">—</span>.</p>
     <div id="statsBody"></div>
     <div class="modal-close-row"><button class="btn primary" id="closeStatsModal" title="Cerrar">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- ASISTENTE -->
+<div class="modal-back" id="agenteModal">
+  <div class="modal" style="width:680px;">
+    <h2>Asistente de contenido</h2>
+    <p class="hint">Pedile un análisis, consejos de producción o que arme contenido. Si su respuesta implica tocar el calendario, <strong>te muestra qué haría y vos decidís</strong> — nunca modifica nada por su cuenta.</p>
+
+    <div class="agente-ejemplos" id="agenteEjemplos"></div>
+
+    <textarea id="agentePedido" placeholder="Ej: analizá mi mes y decime honestamente qué ajustarías" style="width:100%;min-height:90px;"></textarea>
+    <div class="modal-close-row" style="margin:10px 0;">
+      <span class="hint" id="agenteEstado" style="margin:0;margin-right:auto;"></span>
+      <button class="btn ghost" id="closeAgenteModal" title="Cerrar el asistente">Cerrar</button>
+      <button class="btn primary" id="runAgenteBtn" title="Enviarle el pedido al asistente">✦ Preguntar</button>
+    </div>
+
+    <div id="agenteRespuesta" class="agente-respuesta" style="display:none;"></div>
+
+    <div id="agenteCambios" style="display:none;">
+      <div class="block-title-row" style="margin:14px 0 8px;">
+        <label class="field-label" style="margin-bottom:0;">Cambios propuestos</label>
+        <div style="display:flex;gap:6px;">
+          <button type="button" class="btn ghost small" id="agenteTodos" title="Marcar todos los cambios">Marcar todos</button>
+          <button type="button" class="btn ghost small" id="agenteNinguno" title="Desmarcar todos los cambios">Ninguno</button>
+        </div>
+      </div>
+      <div id="agenteListaCambios"></div>
+      <div class="modal-close-row" style="margin-top:12px;">
+        <button class="btn ghost" id="agenteDescartar" style="margin-right:auto;" title="Descartar la propuesta sin aplicar nada">Descartar</button>
+        <button class="btn primary" id="agenteAplicar" title="Aplicar al calendario solo los cambios marcados">Aplicar los marcados</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -4168,6 +4231,210 @@
     $('trashModal').classList.add('open');
   });
   $('closeTrashModal').addEventListener('click', ()=>{ $('trashModal').classList.remove('open'); });
+
+  // ---------- asistente de contenido ----------
+  // El agente nunca escribe: devuelve una propuesta y acá se muestra para que la persona
+  // decida. Aplicar usa exactamente los mismos caminos que editar a mano, así que pasa por
+  // los mismos permisos y lo eliminado va a la papelera igual que siempre.
+  let cambiosPropuestos = [];
+
+  const EJEMPLOS_AGENTE = [
+    'Analizá mi mes de contenido y decime honestamente qué ajustarías',
+    'Agregá cada 3 días una muestra de producto, alternando entre los productos principales',
+    'Este mes está muy cargado de promociones, equilibralo',
+    'Dame recomendaciones para filmar un reel estilo UGC',
+    'Faltan stories: proponeme una por día hábil que sostenga la comunidad'
+  ];
+
+  function renderEjemplosAgente(){
+    const cont = $('agenteEjemplos');
+    cont.innerHTML = '';
+    EJEMPLOS_AGENTE.forEach(t=>{
+      const b = document.createElement('button');
+      b.type='button'; b.className='agente-ejemplo'; b.textContent = t;
+      b.title = 'Usar este pedido';
+      b.addEventListener('click', ()=>{ $('agentePedido').value = t; $('agentePedido').focus(); });
+      cont.appendChild(b);
+    });
+  }
+
+  function limpiarAgente(){
+    cambiosPropuestos = [];
+    $('agenteRespuesta').style.display = 'none';
+    $('agenteCambios').style.display = 'none';
+    $('agenteListaCambios').innerHTML = '';
+    $('agenteEstado').textContent = '';
+  }
+
+  function describirCambio(c){
+    const [ , m, d] = c.dia.split('-');
+    const cuando = `${Number(d)} de ${MESES[Number(m)-1]}`;
+    if(c.accion === 'eliminar'){
+      const it = (monthData[c.dia] && [...(monthData[c.dia].feed||[]), ...(monthData[c.dia].stories||[])]
+        .find(x=>x.id===c.itemId)) || {};
+      return { titulo: `Eliminar del ${cuando}`, detalle: (it.title || it.text || it.context || 'ese posteo').slice(0,90) };
+    }
+    if(c.accion === 'modificar'){
+      const campos = ['titulo','texto','angulo'].filter(k=>c[k]).map(k=>k);
+      return { titulo: `Modificar un posteo del ${cuando}`, detalle: 'Cambia: ' + (campos.join(', ') || 'nada') + (c.titulo ? ' → “'+String(c.titulo).slice(0,60)+'”' : '') };
+    }
+    const tipo = c.lista === 'stories' ? 'story' : (c.kind === 'carrusel' ? 'carrusel' : 'reel');
+    return {
+      titulo: `Agregar un ${tipo} el ${cuando}`,
+      detalle: [c.angulo ? 'Ángulo: ' + c.angulo : null, (c.titulo || c.texto || '').slice(0,90) || null].filter(Boolean).join(' · ')
+    };
+  }
+
+  function renderCambiosAgente(){
+    const cont = $('agenteListaCambios');
+    cont.innerHTML = '';
+    cambiosPropuestos.forEach((c, i)=>{
+      const { titulo, detalle } = describirCambio(c);
+      const fila = document.createElement('label');
+      fila.className = 'cambio-row';
+      const chk = document.createElement('input');
+      chk.type='checkbox'; chk.checked = true; chk.dataset.idx = i;
+      chk.title = 'Incluir este cambio al aplicar';
+      const info = document.createElement('div');
+      info.className='cambio-info';
+      info.innerHTML = '<div class="cambio-titulo"><span class="cambio-accion ' + c.accion + '">' +
+        c.accion + '</span>' + escapeHtml(titulo) + '</div>' +
+        (detalle ? '<div class="cambio-detalle">' + escapeHtml(detalle) + '</div>' : '');
+      fila.appendChild(chk); fila.appendChild(info);
+      cont.appendChild(fila);
+    });
+    $('agenteCambios').style.display = cambiosPropuestos.length ? 'block' : 'none';
+  }
+
+  // Traduce el nombre de ángulo que devolvió el agente al id que usa el calendario.
+  function anguloPorNombre(nombre){
+    if(!nombre) return null;
+    const buscado = sinTildes(nombre).trim();
+    const a = angles.find(x => sinTildes(x.name).trim() === buscado);
+    return a ? a.id : null;
+  }
+
+  async function aplicarCambio(c){
+    const enMesVisible = c.dia.startsWith(`${viewYear}-${String(viewMonth+1).padStart(2,'0')}-`);
+
+    // Se trabaja siempre sobre el día real, esté cargado en memoria o no.
+    let entrada;
+    if(enMesVisible){ ensureEntry(c.dia); entrada = monthData[c.dia]; }
+    else{
+      const val = await storageGet(c.dia);
+      try{ entrada = normalizeEntry(val ? JSON.parse(val) : {}); }
+      catch(e){ entrada = { feed:[], stories:[] }; }
+    }
+
+    if(c.accion === 'agregar'){
+      const lista = c.lista === 'stories' ? 'stories' : 'feed';
+      const nuevo = {
+        id: genId(),
+        kind: lista === 'feed' ? (c.kind === 'carrusel' ? 'carrusel' : 'reel') : undefined,
+        angle: anguloPorNombre(c.angulo),
+        text: String(c.texto || '').slice(0, COPY_MAX_LEN),
+        thumb: '', hideFromPreview: false,
+        context: '', clientNote: '', time: '',
+        title: String(c.titulo || '').slice(0, 120),
+        script: '', status: 'pendiente', approval: 'sin-revisar', approvalAt: ''
+      };
+      if(lista === 'stories') delete nuevo.kind;
+      entrada[lista].push(nuevo);
+    }
+
+    if(c.accion === 'modificar'){
+      const it = [...entrada.feed, ...entrada.stories].find(x => x.id === c.itemId);
+      if(!it) return false; // el posteo ya no existe: se saltea sin romper el resto
+      if(c.titulo) it.title = String(c.titulo).slice(0, 120);
+      if(c.texto)  it.text  = String(c.texto).slice(0, COPY_MAX_LEN);
+      if(c.angulo) it.angle = anguloPorNombre(c.angulo);
+    }
+
+    if(c.accion === 'eliminar'){
+      const enFeed = entrada.feed.find(x => x.id === c.itemId);
+      const enStories = entrada.stories.find(x => x.id === c.itemId);
+      if(!enFeed && !enStories) return false;
+      // Va a la papelera como cualquier borrado: nada se pierde de una.
+      await mandarAPapelera(c.dia, enFeed ? 'feed' : 'stories', [enFeed || enStories]);
+      if(enFeed) entrada.feed = entrada.feed.filter(x => x.id !== c.itemId);
+      else entrada.stories = entrada.stories.filter(x => x.id !== c.itemId);
+    }
+
+    entrada.feed.sort(compareByTime);
+    entrada.stories.sort(compareByTime);
+    if(enMesVisible){ monthData[c.dia] = entrada; await saveDayNow(c.dia); }
+    else await storageSet(c.dia, JSON.stringify(entrada));
+    return true;
+  }
+
+  $('agenteBtn').addEventListener('click', ()=>{
+    renderEjemplosAgente();
+    limpiarAgente();
+    $('agenteModal').classList.add('open');
+    $('agentePedido').focus();
+  });
+  $('closeAgenteModal').addEventListener('click', ()=>{ $('agenteModal').classList.remove('open'); });
+  $('agenteDescartar').addEventListener('click', ()=>{ limpiarAgente(); showToast('Propuesta descartada'); });
+  $('agenteTodos').addEventListener('click', ()=>{
+    $('agenteListaCambios').querySelectorAll('input[type=checkbox]').forEach(c=> c.checked = true);
+  });
+  $('agenteNinguno').addEventListener('click', ()=>{
+    $('agenteListaCambios').querySelectorAll('input[type=checkbox]').forEach(c=> c.checked = false);
+  });
+
+  $('runAgenteBtn').addEventListener('click', async ()=>{
+    const pedido = $('agentePedido').value.trim();
+    if(!pedido){ showToast('Escribí qué querés pedirle'); return; }
+    const btn = $('runAgenteBtn');
+    btn.disabled = true; btn.textContent = 'Pensando…';
+    limpiarAgente();
+    $('agenteEstado').textContent = 'Leyendo tu mes y analizándolo…';
+    try{
+      const res = await fetch('/api/agente', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ token: TOKEN, pedido, anio: viewYear, mes: viewMonth, cliente: CLIENT_ID })
+      });
+      const json = await res.json().catch(()=>null);
+      if(!res.ok) throw new Error((json && json.error) || ('http ' + res.status));
+
+      $('agenteRespuesta').textContent = json.respuesta || '(sin respuesta)';
+      $('agenteRespuesta').style.display = 'block';
+      cambiosPropuestos = json.cambios || [];
+      renderCambiosAgente();
+      $('agenteEstado').textContent = cambiosPropuestos.length
+        ? `Propone ${cambiosPropuestos.length} cambio(s). Revisalos antes de aplicar.`
+        : 'Sin cambios propuestos.';
+      if(json.descartados > 0){
+        $('agenteEstado').textContent += ` (${json.descartados} descartado(s) por caer fuera del mes)`;
+      }
+    }catch(e){
+      $('agenteEstado').textContent = 'No se pudo: ' + (e.message || 'error desconocido');
+    }finally{
+      btn.disabled = false; btn.textContent = '✦ Preguntar';
+    }
+  });
+
+  $('agenteAplicar').addEventListener('click', async ()=>{
+    const marcados = [...$('agenteListaCambios').querySelectorAll('input[type=checkbox]')]
+      .filter(c => c.checked).map(c => cambiosPropuestos[Number(c.dataset.idx)]);
+    if(marcados.length === 0){ showToast('No marcaste ningún cambio'); return; }
+    const btn = $('agenteAplicar');
+    btn.disabled = true;
+    let hechos = 0, salteados = 0;
+    for(let i = 0; i < marcados.length; i++){
+      btn.textContent = `Aplicando ${i+1}/${marcados.length}…`;
+      try{ (await aplicarCambio(marcados[i])) ? hechos++ : salteados++; }
+      catch(e){ salteados++; }
+    }
+    btn.disabled = false; btn.textContent = 'Aplicar los marcados';
+    renderCalendar();
+    if(openDate) renderDayPanelItems(openDate);
+    limpiarAgente();
+    $('agenteModal').classList.remove('open');
+    showToast(salteados
+      ? `${hechos} cambio(s) aplicados, ${salteados} no se pudieron`
+      : `${hechos} cambio(s) aplicados`);
+  });
 
   // ---------- notas del mes ----------
   // Una nota por mes y por marca, aparte de la de cada posteo. La clave lleva el año y el
