@@ -1091,7 +1091,9 @@
         <div class="legend">
           <h3>Ángulos de contenido</h3>
           <div id="legendList"></div>
-          <button class="btn manage-btn admin-only solo-admin" id="manageAnglesBtn" title="Crear y editar los ángulos de contenido: su nombre, color y emoji">✎ Gestionar ángulos</button>
+          <!-- Sin solo-admin: los ángulos son de cada marca (se guardan en su propio espacio),
+               así que la marca puede definir los suyos sin tocar los de nadie más. -->
+          <button class="btn manage-btn admin-only" id="manageAnglesBtn" title="Crear y editar los ángulos de contenido: su nombre, color y emoji">✎ Gestionar ángulos</button>
           <button class="btn manage-btn admin-only" id="manageImagesBtn" style="margin-top:8px;" title="Ver y borrar todas las imágenes cargadas este mes">🗑 Gestionar imágenes</button>
           <button class="btn manage-btn admin-only" id="manageClearBtn" style="margin-top:8px;color:var(--danger);" title="Vaciar varios días de una vez (una semana, el mes entero)">🗑 Vaciar semana / mes</button>
         </div>
@@ -1714,9 +1716,21 @@
   const IS_READONLY = (new URLSearchParams(location.search).get('vista') === 'lectura');
   if(IS_READONLY) document.body.classList.add('read-only');
 
+  // El título que se escribe con el lápiz se guardaba pero no se volvía a leer: al abrir el
+  // calendario en otra computadora, updateBrandTitle() lo pisaba con el nombre de la marca.
+  // Ahora se carga junto con el resto y manda sobre el nombre.
+  let tituloPersonalizado = '';
+
+  async function loadCalendarTitle(){
+    try{
+      const val = await storageGet('calendar-title');
+      tituloPersonalizado = val ? JSON.parse(val) : '';
+    }catch(e){ tituloPersonalizado = ''; }
+    updateBrandTitle();
+  }
+
   function updateBrandTitle(){
-    const name = $('clientName').value.trim();
-    const base = name || 'Calendario de contenido';
+    const base = tituloPersonalizado.trim() || $('clientName').value.trim() || 'Calendario de contenido';
     $('brandTitle').textContent = IS_READONLY ? `${base} (solo lectura)` : base;
   }
 
@@ -3755,18 +3769,23 @@
     $('clientName')._t = setTimeout(saveClientName, 500);
   });
 
+  // Se guarda el título en crudo, sin el "(solo lectura)" que updateBrandTitle le agrega al
+  // mostrarlo: antes se guardaba lo que decía la pantalla y ese sufijo terminaba pegado al
+  // título de forma permanente.
   async function saveCalendarTitle(){
-    try{ await storageSet('calendar-title', $('brandTitle').textContent); }
+    try{ await storageSet('calendar-title', JSON.stringify(tituloPersonalizado)); }
     catch(e){ showToast('No se pudo guardar el título del calendario'); }
   }
 
   $('editTitleBtn').addEventListener('click', ()=>{
-    const current = $('brandTitle').textContent;
-    const newTitle = prompt('Editar título del calendario:', current);
-    if(newTitle !== null && newTitle.trim()){
-      $('brandTitle').textContent = newTitle.trim();
-      saveCalendarTitle();
-    }
+    const actual = tituloPersonalizado || $('clientName').value.trim() || 'Calendario de contenido';
+    const nuevo = prompt('Editar título del calendario:', actual);
+    if(nuevo === null) return;
+    // Vaciarlo lo devuelve al nombre de la marca, en vez de dejar el encabezado en blanco.
+    tituloPersonalizado = nuevo.trim();
+    updateBrandTitle();
+    saveCalendarTitle();
+    showToast(tituloPersonalizado ? 'Título guardado' : 'Título vuelto al nombre de la marca');
   });
 
   // ---------- client avatar upload ----------
@@ -6041,6 +6060,7 @@
     const steps = [
       {name: 'Ángulos', fn: loadAngles},
       {name: 'Marca', fn: loadClientName},
+      {name: 'Título', fn: loadCalendarTitle},
       {name: 'Avatar', fn: loadClientPhoto},
       {name: 'Ideas', fn: loadIdeas},
       {name: 'Links', fn: loadQuickLinks},
