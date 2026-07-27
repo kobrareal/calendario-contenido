@@ -409,9 +409,15 @@
   .tag[draggable="true"]:active{cursor:grabbing;}
   .tag.dragging{opacity:.35;}
   .tag .k{font-family:'IBM Plex Mono',monospace;font-size:9px;opacity:.75;text-transform:uppercase;}
-  /* Gris sólido y no transparente: sin fondo, un posteo sin ángulo casi no se distinguía del
-     hueco de la celda y costaba ver que ahí había contenido cargado. */
-  .tag.empty{
+  /* Dos cosas parecidas que NO son lo mismo:
+     - .tag.sin-contenido es el marcador R/S de un día al que todavía no se le cargó nada.
+       Va sin fondo y con borde punteado, justamente para que se lea como un hueco.
+     - .tag.tag-empty y .tag.empty son contenido REAL al que no se le asignó ángulo. Sin
+       fondo quedaban con el texto oscuro de .tag sobre nada y no se leían. */
+  .tag.sin-contenido{
+    background:transparent;border:1px dashed var(--border);color:var(--muted-2);font-weight:400;
+  }
+  .tag.tag-empty, .tag.empty{
     background:#4a4757;border:1px solid rgba(255,255,255,.14);color:#dedbe8;font-weight:500;
   }
   .tag-truncated{max-width:140px;}
@@ -538,13 +544,22 @@
      secciones llevaban flex:1: la que estaba abierta se estiraba hasta el pie aunque tuviera
      dos líneas adentro, y dejaba una caja alta y vacía —el hueco de la captura—. */
   .panel{overflow-y:auto;}
-  .panel > .panel-head{position:sticky;top:0;padding:14px 16px 0;z-index:50;background:var(--surface);}
+  /* Fondo opaco en las barras fijas de arriba y abajo. Con var(--surface) —blanco al 5,5%—
+     el contenido pasaba por detrás mientras scrolleaba y los textos se encimaban: el título
+     del día contra los botones "+ Reel", y los del pie contra los de la miniatura. */
+  .panel > .panel-head{
+    position:sticky;top:0;padding:14px 16px 10px;z-index:50;
+    background:#15141c;border-bottom:1px solid var(--border);
+  }
   .panel > .block{flex:0 0 auto;padding:6px 16px 0;}
-  .panel > .block:first-of-type{padding-top:0;}
+  .panel > .block:first-of-type{padding-top:8px;}
   /* Sin margin-top:auto: en un día corto el pie queda justo debajo del contenido en vez de
      empujado al fondo dejando un vacío en el medio. Cuando el día es largo, sticky lo pega
      abajo igual y sigue siempre a mano. */
-  .panel > .panel-footer{position:sticky;bottom:0;padding:8px 16px 10px;background:var(--surface);z-index:50;}
+  .panel > .panel-footer{
+    position:sticky;bottom:0;padding:10px 16px;z-index:50;
+    background:#15141c;border-top:1px solid var(--border);
+  }
   @keyframes slidein{from{transform:translateX(24px);opacity:0;}to{transform:translateX(0);opacity:1;}}
   .panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
   .panel-head h2{flex:none;}
@@ -2605,7 +2620,9 @@
   function appendItemTags(container, items, emptyLabel, key, listName){
     if(!items || items.length === 0){
       const tag = document.createElement('div');
-      tag.className = 'tag empty';
+      // Marcador de "todavía no hay nada acá": borde punteado y sin fondo, a diferencia de
+      // un posteo real sin ángulo, que sí lleva fondo gris para que se lea.
+      tag.className = 'tag sin-contenido';
       tag.textContent = emptyLabel;
       container.appendChild(tag);
       return;
