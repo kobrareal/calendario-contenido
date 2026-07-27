@@ -252,17 +252,30 @@
   }
 
   /* ---------- calendar ---------- */
-  .weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:8px;}
+  /* text-align:center: los nombres quedaban pegados al borde izquierdo de su columna en vez
+     de sobre el centro del recuadro del día. */
+  .weekdays{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin-bottom:8px;}
+  .weekdays > div{text-align:center;}
   .weekdays div{
     font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);
     text-align:center;font-family:'IBM Plex Mono',monospace;
   }
-  .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
+  /* minmax(0,1fr) y no 1fr: con 1fr una columna se ensancha si su contenido es largo (un
+     ángulo con nombre largo, una anotación), las siete quedan de distinto ancho y los
+     nombres de los días —que sí eran parejos— dejaban de caer sobre su columna. */
+  .grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;}
 
   /* ---------- selector Día / Semana / Mes ----------
-     Va como bloque propio del encabezado y no dentro de .month-nav: metido ahí se
-     amontonaba contra las flechas y el nombre del mes, y al envolver quedaba encimado. */
-  .view-toggle{display:flex;gap:4px;flex:none;}
+     Va sobre el calendario, junto al filtro de ángulos: es lo que decide qué se ve abajo. */
+  .view-toggle{display:flex;gap:4px;flex:none;margin-left:auto;}
+  .day-picker{
+    background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
+    color:var(--text);padding:5px 9px;font-family:'IBM Plex Mono',monospace;font-size:12px;
+    color-scheme:dark;cursor:pointer;display:none;
+  }
+  body.vista-dia .day-picker{display:inline-block;}
+  /* Los nombres de los días no aplican cuando se muestra uno solo. */
+  body.vista-dia #weekdaysHead{display:none;}
   .view-opt{
     background:var(--card-bg-2);border:1px solid var(--border);color:var(--muted);
     padding:5px 11px;border-radius:8px;font-size:12px;cursor:pointer;transition:all .15s;
@@ -274,7 +287,7 @@
   /* ---------- vista semanal ---------- */
   /* Siete columnas como el mes, pero con celdas altas: la semana existe para ver el detalle
      de cada posteo (horario, ángulo, estado) sin tener que abrir día por día. */
-  .grid.semana{grid-template-columns:repeat(7,1fr);align-items:stretch;}
+  .grid.semana{grid-template-columns:repeat(7,minmax(0,1fr));align-items:stretch;}
   .grid.semana .cell{min-height:320px;padding:9px;}
   /* Vista de un solo día: una columna a todo el ancho, sin alto mínimo forzado. */
   .grid.semana.un-dia{grid-template-columns:1fr;}
@@ -336,10 +349,12 @@
   .cell .daynum{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--muted);}
   /* Anotación del día (feriado, lanzamiento, lo que sea): se distingue del contenido
      con el color ámbar, para que no se confunda con una etiqueta de posteo. */
+  .daynum-row{display:flex;align-items:center;gap:5px;min-width:0;}
   .anotacion-dia{
-    font-size:10px;line-height:1.25;color:#f0b849;
+    flex:1;min-width:0;
+    font-size:9.5px;line-height:1.25;color:#f0b849;
     background:rgba(240,184,73,.1);border:1px solid rgba(240,184,73,.28);
-    border-radius:5px;padding:2px 5px;
+    border-radius:5px;padding:1px 4px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
   .cell.today .daynum{color:var(--accent);font-weight:600;}
@@ -389,8 +404,6 @@
     .swipe-hint{display:block;}
   }
   .swipe-hint{display:none;color:var(--muted-2);font-size:11px;font-family:'IBM Plex Mono',monospace;margin:-2px 0 10px;text-align:center;}
-  .dnd-hint{color:var(--muted-2);font-size:11px;font-family:'IBM Plex Mono',monospace;margin:-2px 0 10px;text-align:center;}
-  @media(max-width:700px){ .dnd-hint{display:none;} }
 
   /* ---------- sidebar / contact sheet ---------- */
   .sidebar{position:sticky;top:24px;}
@@ -501,11 +514,12 @@
      abajo igual y sigue siempre a mano. */
   .panel > .panel-footer{position:sticky;bottom:0;padding:8px 16px 10px;background:var(--surface);z-index:50;}
   @keyframes slidein{from{transform:translateX(24px);opacity:0;}to{transform:translateX(0);opacity:1;}}
-  .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
-  .panel > .anotacion-panel{padding:0 16px 6px;}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+  .panel-head h2{flex:none;}
   .anotacion-input{
-    width:100%;background:rgba(240,184,73,.07);border:1px dashed rgba(240,184,73,.35);
-    border-radius:8px;color:#f0b849;padding:7px 10px;font-size:12.5px;
+    flex:1;min-width:0;
+    background:rgba(240,184,73,.07);border:1px dashed rgba(240,184,73,.35);
+    border-radius:8px;color:#f0b849;padding:6px 9px;font-size:12px;
   }
   .anotacion-input::placeholder{color:rgba(240,184,73,.5);}
   .anotacion-input:focus{outline:none;border-color:rgba(240,184,73,.7);background:rgba(240,184,73,.12);}
@@ -937,7 +951,7 @@
           <button class="btn ghost icon-only admin-only" id="editTitleBtn" title="Editar título"><i class="fa-solid fa-pen"></i><span class="label">Editar</span></button>
           <!-- El panel de links se arma por JS al abrirlo, para no ocupar lugar en el encabezado. -->
           <div class="links-wrap">
-            <button class="btn ghost icon-only" id="quickLinksBtn" title="Links útiles de esta marca"><i class="fa-solid fa-link"></i><span class="label">Links</span></button>
+            <button class="btn ghost icon-only" id="quickLinksBtn" title="Links útiles de esta marca"><i class="fa-solid fa-link"></i><span class="label">Links útiles de esta marca</span></button>
           </div>
         </div>
         <div class="sub" id="clientName" style="display:none;"></div>
@@ -950,30 +964,25 @@
       <button id="nextMonth" aria-label="Siguiente" title="Ir al período siguiente">›</button>
     </div>
 
-    <div class="view-toggle" role="group" aria-label="Vista del calendario">
-      <button type="button" class="view-opt" id="viewDayBtn" title="Ver un solo día en detalle">Día</button>
-      <button type="button" class="view-opt" id="viewWeekBtn" title="Ver la semana completa, con el detalle de cada posteo">Semana</button>
-      <button type="button" class="view-opt active" id="viewMonthBtn" title="Ver el mes entero de un vistazo">Mes</button>
-    </div>
 
     <div class="top-actions">
       <div class="save-indicator"><span class="save-dot" id="saveDot"></span><span id="saveText">al día</span></div>
       <!-- El panel se arma al abrirlo; en la barra queda solo la campanita con su contador. -->
       <div class="notif-wrap admin-only">
-        <button class="btn ghost icon-only solo-admin" id="notifBtn" title="Novedades de tus clientes"><i class="fa-solid fa-bell"></i><span class="label">Notificaciones</span></button>
+        <button class="btn ghost icon-only solo-admin" id="notifBtn" title="Novedades de tus clientes"><i class="fa-solid fa-bell"></i><span class="label">Novedades de tus clientes</span></button>
       </div>
-      <button class="btn ghost icon-only admin-only" id="saveNowBtn" title="Forzar el guardado ahora, sin esperar"><i class="fa-solid fa-floppy-disk"></i><span class="label">Guardar ahora</span></button>
-      <button class="btn ghost icon-only admin-only" id="undoBtn" title="Deshacer último cambio" disabled><i class="fa-solid fa-undo"></i><span class="label">Deshacer</span></button>
-      <button class="btn ghost icon-only admin-only" id="redoBtn" title="Rehacer último cambio deshecho" disabled><i class="fa-solid fa-redo"></i><span class="label">Rehacer</span></button>
-      <button class="btn ghost icon-only admin-only solo-admin" id="generateMonthBtn" title="Rellenar el mes automáticamente con ángulos"><i class="fa-solid fa-dice"></i><span class="label">Generar mes</span></button>
-      <button class="btn ghost icon-only" id="statsBtn" title="Estadísticas del mes"><i class="fa-solid fa-chart-pie"></i><span class="label">Estadísticas</span></button>
-      <button class="btn ghost icon-only" id="searchBtn" title="Buscar posts por palabra clave o ángulo"><i class="fa-solid fa-magnifying-glass"></i><span class="label">Buscar</span></button>
-      <button class="btn ghost icon-only" id="exportBtn" title="Exportar mes como imagen"><i class="fa-solid fa-download"></i><span class="label">Exportar</span></button>
-      <button class="btn ghost icon-only" id="monthNotesBtn" title="Notas y observaciones de este mes"><i class="fa-solid fa-note-sticky"></i><span class="label">Notas del mes</span></button>
-      <button class="btn ghost icon-only admin-only" id="trashBtn" title="Papelera: lo eliminado en los últimos 7 días"><i class="fa-solid fa-trash-can"></i><span class="label">Papelera</span></button>
-      <button class="btn ghost icon-only admin-only" id="ideasBtn" title="Ideas de contenido para más adelante"><i class="fa-solid fa-lightbulb"></i><span class="label">Ideas</span></button>
-      <button class="btn ghost icon-only admin-only solo-admin" id="clientsBtn" title="Panel de marcas"><i class="fa-solid fa-users"></i><span class="label">Marcas</span></button>
-      <button class="btn ghost icon-only admin-only solo-admin" id="settingsBtn" aria-label="Configuración" title="Herramientas de diagnóstico y sincronización"><i class="fa-solid fa-gear"></i><span class="label">Configuración</span></button>
+      <button class="btn ghost icon-only admin-only" id="saveNowBtn" title="Forzar el guardado ahora, sin esperar"><i class="fa-solid fa-floppy-disk"></i><span class="label">Guardar ahora, sin esperar</span></button>
+      <button class="btn ghost icon-only admin-only" id="undoBtn" title="Deshacer último cambio" disabled><i class="fa-solid fa-undo"></i><span class="label">Deshacer el último cambio</span></button>
+      <button class="btn ghost icon-only admin-only" id="redoBtn" title="Rehacer último cambio deshecho" disabled><i class="fa-solid fa-redo"></i><span class="label">Rehacer lo que deshiciste</span></button>
+      <button class="btn ghost icon-only admin-only solo-admin" id="generateMonthBtn" title="Rellenar el mes automáticamente con ángulos"><i class="fa-solid fa-dice"></i><span class="label">Rellenar el mes automáticamente</span></button>
+      <button class="btn ghost icon-only" id="statsBtn" title="Estadísticas del mes"><i class="fa-solid fa-chart-pie"></i><span class="label">Ver estadísticas de este mes</span></button>
+      <button class="btn ghost icon-only" id="searchBtn" title="Buscar posts por palabra clave o ángulo"><i class="fa-solid fa-magnifying-glass"></i><span class="label">Buscar posts por palabra o ángulo</span></button>
+      <button class="btn ghost icon-only" id="exportBtn" title="Exportar mes como imagen"><i class="fa-solid fa-download"></i><span class="label">Descargar el mes como imagen</span></button>
+      <button class="btn ghost icon-only" id="monthNotesBtn" title="Notas y observaciones de este mes"><i class="fa-solid fa-note-sticky"></i><span class="label">Notas generales de este mes</span></button>
+      <button class="btn ghost icon-only admin-only" id="trashBtn" title="Papelera: lo eliminado en los últimos 7 días"><i class="fa-solid fa-trash-can"></i><span class="label">Papelera: lo borrado en 7 días</span></button>
+      <button class="btn ghost icon-only admin-only" id="ideasBtn" title="Ideas de contenido para más adelante"><i class="fa-solid fa-lightbulb"></i><span class="label">Ideas guardadas para más adelante</span></button>
+      <button class="btn ghost icon-only admin-only solo-admin" id="clientsBtn" title="Panel de marcas"><i class="fa-solid fa-users"></i><span class="label">Marcas y sus links de acceso</span></button>
+      <button class="btn ghost icon-only admin-only solo-admin" id="settingsBtn" aria-label="Configuración" title="Herramientas de diagnóstico y sincronización"><i class="fa-solid fa-gear"></i><span class="label">Diagnóstico y sincronización</span></button>
     </div>
   </header>
 
@@ -982,17 +991,26 @@
     <div id="calendarColumn">
       <div class="month-meta">
         <div class="unassigned-note" id="unassignedNote"></div>
+        <!-- El selector de vistas vive acá, sobre el calendario que gobierna, y no entre los
+             botones de herramientas del encabezado, donde no se relacionaba con nada. -->
+        <div class="view-toggle" role="group" aria-label="Vista del calendario">
+          <button type="button" class="view-opt" id="viewDayBtn" title="Ver un solo día en detalle">Día</button>
+          <button type="button" class="view-opt" id="viewWeekBtn" title="Ver la semana completa, con el detalle de cada posteo">Semana</button>
+          <button type="button" class="view-opt active" id="viewMonthBtn" title="Ver el mes entero de un vistazo">Mes</button>
+        </div>
+        <!-- Solo en vista de día: elegir cuál. Sin esto solo se llegaba al día de hoy o
+             avanzando de a uno con las flechas. -->
+        <input type="date" id="dayPicker" class="day-picker" title="Elegí qué día querés ver en detalle" />
         <div class="angle-filter">
           Filtrar:
-          <select id="angleFilterSelect">
+          <select id="angleFilterSelect" title="Mostrar solo los días que tengan contenido de un ángulo">
             <option value="">Todos los ángulos</option>
           </select>
         </div>
       </div>
       <div class="swipe-hint">← deslizá para ver todo el mes →</div>
-      <div class="dnd-hint admin-only">💡 Arrastrá un reel, carrusel o story a otro día para moverlo</div>
       <div class="calendar-scroll">
-        <div class="weekdays">
+        <div class="weekdays" id="weekdaysHead">
           <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
         </div>
         <div class="grid" id="calendarGrid"></div>
@@ -1049,14 +1067,12 @@
   <div class="panel">
     <div class="panel-head">
       <h2 id="panelDate">—</h2>
-      <button class="close-x" id="closePanel" title="Cerrar este día">✕</button>
-    </div>
-
-    <!-- Anotación del día: no es un posteo, es una marca del calendario (un feriado, un
-         lanzamiento). Por eso va en el encabezado y no dentro de Feed o Stories. -->
-    <div class="anotacion-panel">
+      <!-- La anotación va acá, en la misma línea que la fecha: abajo se comía un renglón
+           entero del scroll para un campo que casi siempre está vacío. -->
       <input type="text" id="dayNoteInput" class="anotacion-input" maxlength="60"
-             placeholder="📌 Anotación del día (feriado, lanzamiento, evento…)" />
+             title="Marcá este día: un feriado, un lanzamiento, un evento. Se ve en el calendario."
+             placeholder="📌 Anotar este día…" />
+      <button class="close-x" id="closePanel" title="Cerrar este día">✕</button>
     </div>
 
     <!-- Feed y Stories funcionan como acordeón: solo una queda abierta, para que la que
@@ -2181,16 +2197,16 @@
       numFecha.textContent = fecha.getMonth() === viewMonth
         ? String(fecha.getDate())
         : `${fecha.getDate()} ${MESES[fecha.getMonth()].slice(0,3)}`;
-      cab.appendChild(nombreDia); cab.appendChild(numFecha);
-      cell.appendChild(cab);
-
+      cab.appendChild(nombreDia);
       if(anotaciones[key]){
         const nota = document.createElement('div');
         nota.className = 'anotacion-dia';
         nota.textContent = anotaciones[key];
         nota.title = anotaciones[key];
-        cell.appendChild(nota);
+        cab.appendChild(nota); // queda entre el nombre del día y el número
       }
+      cab.appendChild(numFecha);
+      cell.appendChild(cab);
 
       const cuerpo = document.createElement('div');
       cuerpo.className = 'sem-lista';
@@ -2358,18 +2374,22 @@
       cell.setAttribute('role','button');
       cell.setAttribute('aria-label', `Editar contenido del día ${d}`);
 
+      // Número y anotación comparten renglón: puesta debajo, la anotación empujaba las
+      // etiquetas del día y estiraba toda la fila de la grilla.
+      const fila = document.createElement('div');
+      fila.className = 'daynum-row';
       const num = document.createElement('div');
       num.className = 'daynum';
       num.textContent = d;
-      cell.appendChild(num);
-
+      fila.appendChild(num);
       if(anotaciones[key]){
         const nota = document.createElement('div');
         nota.className = 'anotacion-dia';
         nota.textContent = anotaciones[key];
         nota.title = anotaciones[key];
-        cell.appendChild(nota);
+        fila.appendChild(nota);
       }
+      cell.appendChild(fila);
 
       if(isWeekStart && !IS_READONLY){
         const dup = document.createElement('button');
@@ -3566,6 +3586,7 @@
         await loadMonth();
       }
       await cargarSemana();
+      sincronizarSelectorDia();
     }else if(vistaActual === 'semana'){
       inicioSemana.setDate(inicioSemana.getDate() + 7*direccion);
       const jueves = new Date(inicioSemana);
@@ -3593,6 +3614,7 @@
     $('viewDayBtn').classList.toggle('active', vista === 'dia');
     $('viewWeekBtn').classList.toggle('active', vista === 'semana');
     $('viewMonthBtn').classList.toggle('active', vista === 'mes');
+    document.body.classList.toggle('vista-dia', vista === 'dia');
     if(vista !== 'mes'){
       // Al entrar se muestra hoy, si hoy cae en el mes visible; si no, el día 1. Es lo que
       // uno espera al cambiar de vista sin haber cambiado de mes.
@@ -3602,8 +3624,30 @@
       else inicioSemana = lunesDe(referencia);
       await cargarSemana();
     }
+    sincronizarSelectorDia();
     renderCalendar();
   }
+
+  // Mantiene el selector de fecha mostrando el día que se está viendo, se haya llegado con
+  // las flechas, cambiando de vista o eligiéndolo a mano.
+  function sincronizarSelectorDia(){
+    const sel = $('dayPicker');
+    if(sel) sel.value = dateKey(diaActual.getFullYear(), diaActual.getMonth(), diaActual.getDate());
+  }
+
+  $('dayPicker').addEventListener('change', async ()=>{
+    const val = $('dayPicker').value;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(val)) return;
+    await flushSave();
+    const [a, m, d] = val.split('-').map(Number);
+    diaActual = new Date(a, m-1, d);
+    if(a !== viewYear || (m-1) !== viewMonth){
+      viewYear = a; viewMonth = m-1;
+      await loadMonth();
+    }
+    await cargarSemana();
+    renderCalendar();
+  });
   $('viewDayBtn').addEventListener('click', ()=> cambiarVista('dia'));
   $('viewWeekBtn').addEventListener('click', ()=> cambiarVista('semana'));
   $('viewMonthBtn').addEventListener('click', ()=> cambiarVista('mes'));
