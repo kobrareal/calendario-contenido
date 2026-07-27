@@ -14,7 +14,7 @@
 const {
   SUPABASE_URL, SERVICE_KEY, KV, CLAVE_REGISTRO,
   cabeceras, leerRegistro, invalidarCache, resolverToken, puedeAcceder,
-  codigoAlAzar, leerClaves
+  codigoAlAzar, leerClaves, pinAlAzar
 } = require('../lib/acceso');
 
 module.exports = async (req, res) => {
@@ -81,7 +81,7 @@ module.exports = async (req, res) => {
 
     // Alta de marca, regeneración de su link y baja de acceso. Las tres reescriben el
     // registro, así que son exclusivas del administrador.
-    if (accion === 'crearMarca' || accion === 'regenerarMarca' || accion === 'borrarMarca') {
+    if (accion === 'crearMarca' || accion === 'regenerarMarca' || accion === 'borrarMarca' || accion === 'regenerarPin') {
       if (sesion.rol !== 'admin') return res.status(403).json({ error: 'Solo el administrador.' });
       const registro = await leerRegistro();
       const marcas = registro.marcas || [];
@@ -91,16 +91,27 @@ module.exports = async (req, res) => {
 
       if (accion === 'crearMarca') {
         if (marcas.some(m => m.slug === slug)) return res.status(409).json({ error: 'Ya existe una marca con ese identificador.' });
+        // El PIN se genera de entrada: es por donde va a entrar la marca todos los días.
+        // Se comprueba que no esté repetido, porque un PIN duplicado llevaría a dos
+        // calendarios distintos según el orden en que se recorra el registro.
+        let pin;
+        do { pin = pinAlAzar(); } while (marcas.some(m => m.pin === pin) || pin === registro.adminPin);
         marcas.push({
           slug,
           nombre: String((req.body || {}).nombre || slug).trim() || slug,
           token: slug + '-' + codigoAlAzar(12),
+          pin,
           rol: 'editor'
         });
       } else {
         const marca = marcas.find(m => m.slug === slug);
         if (!marca) return res.status(404).json({ error: 'No existe esa marca.' });
         if (accion === 'regenerarMarca') marca.token = slug + '-' + codigoAlAzar(12);
+        else if (accion === 'regenerarPin') {
+          let pin;
+          do { pin = pinAlAzar(); } while (marcas.some(m => m.pin === pin) || pin === registro.adminPin);
+          marca.pin = pin;
+        }
         // Dar de baja solo quita el acceso: el contenido queda en la base por si hay que
         // recuperarlo. Borrar los datos es otra cosa y no se hace desde acá.
         else marcas.splice(marcas.indexOf(marca), 1);

@@ -6177,13 +6177,27 @@
       row.innerHTML = `
         <div class="info">
           <div class="nm">${escapeHtml(m.nombre || m.slug)}</div>
-          <div class="lk">${escapeHtml(link)}</div>
+          <div class="lk">PIN <strong style="color:var(--accent);letter-spacing:2px;font-size:14px;">${escapeHtml(m.pin || '—')}</strong> · ${escapeHtml(link)}</div>
         </div>
-        <button class="btn" data-act="copy" title="Link privado de esta marca">Copiar link</button>
+        <button class="btn" data-act="copy-pin" title="Copiar el PIN para mandárselo a la marca">Copiar PIN</button>
+        <button class="btn ghost" data-act="copy" title="Link directo, por si preferís mandar el link en vez del PIN">Copiar link</button>
         <button class="btn ghost" data-act="ver" title="Abrir el calendario de esta marca con tu acceso">Ver</button>
-        <button class="btn ghost" data-act="regen" title="Genera un link nuevo y deja el anterior sin efecto">↻ Rehacer link</button>
+        <button class="btn ghost" data-act="regen-pin" title="Genera un PIN nuevo. El anterior deja de servir.">↻ PIN</button>
+        <button class="btn ghost" data-act="regen" title="Genera un link nuevo y deja el anterior sin efecto">↻ Link</button>
         <button class="btn ghost" data-act="del" style="color:var(--danger);">Quitar acceso</button>
       `;
+      row.querySelector('[data-act="copy-pin"]').addEventListener('click', async ()=>{
+        try{ await navigator.clipboard.writeText(m.pin || ''); showToast('PIN copiado'); }
+        catch(e){ showToast('PIN: ' + m.pin); }
+      });
+      row.querySelector('[data-act="regen-pin"]').addEventListener('click', async ()=>{
+        if(!confirm(`¿Generar un PIN nuevo para "${m.nombre || m.slug}"?\n\nEl anterior deja de funcionar al instante.`)) return;
+        try{
+          await Data.llamar({ accion:'regenerarPin', slug: m.slug });
+          renderClientsModal();
+          showToast('PIN nuevo generado');
+        }catch(e){ showToast('No se pudo: ' + e.message); }
+      });
       row.querySelector('[data-act=copy]').addEventListener('click', async ()=>{
         try{ await navigator.clipboard.writeText(link); showToast('Link copiado — es privado, mandáselo solo a esa marca'); }
         catch(e){ showToast(link); }
@@ -6241,16 +6255,52 @@
       '<p style="color:#9a95ab;font-size:13.5px;line-height:1.6;margin:0 0 18px;">' + mensaje + '</p>' +
       // Salida de emergencia: pegar el link acá evita quedar trabado en esta pantalla, que
       // es lo que pasaba si el navegador no tenía el link guardado.
-      '<label style="display:block;color:#615c72;font-size:11.5px;margin-bottom:6px;text-align:left;">Pegá tu link de acceso</label>' +
+      '<label style="display:block;color:#615c72;font-size:11.5px;margin-bottom:6px;text-align:left;">Tu PIN de acceso</label>' +
+      '<input id="pinInput" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="• • • • • •" ' +
+      'style="width:100%;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:10px;' +
+      'color:#f4f2fb;padding:13px 12px;font-size:22px;letter-spacing:6px;text-align:center;' +
+      "font-family:'IBM Plex Mono',monospace;margin-bottom:10px;\" />" +
+      '<button id="entrarPin" style="width:100%;background:linear-gradient(135deg,#4f8ef7,#8b5cf6);border:none;' +
+      'border-radius:10px;color:#fff;padding:13px;font-size:15px;font-weight:600;cursor:pointer;">Entrar</button>' +
+      '<p id="errorPin" style="color:#f2617a;font-size:12.5px;margin:10px 0 0;min-height:18px;line-height:1.45;"></p>' +
+      '<details style="margin-top:14px;text-align:left;">' +
+      '<summary style="color:#615c72;font-size:11.5px;cursor:pointer;">Tengo un link en vez de un PIN</summary>' +
       '<input id="pegarLink" type="text" placeholder="https://…/tu-marca-xxxx" ' +
       'style="width:100%;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:10px;' +
-      'color:#f4f2fb;padding:11px 12px;font-size:16px;margin-bottom:10px;" />' +
-      '<button id="entrarLink" style="width:100%;background:linear-gradient(135deg,#4f8ef7,#8b5cf6);border:none;' +
-      'border-radius:10px;color:#fff;padding:12px;font-size:14px;font-weight:600;cursor:pointer;">Entrar</button>' +
-      '<p id="errorLink" style="color:#f2617a;font-size:12px;margin:10px 0 0;min-height:16px;"></p>' +
+      'color:#f4f2fb;padding:10px 12px;font-size:16px;margin-top:8px;" />' +
+      '<button id="entrarLink" style="width:100%;background:none;border:1px solid rgba(255,255,255,.16);' +
+      'border-radius:10px;color:#f4f2fb;padding:10px;font-size:13px;cursor:pointer;margin-top:8px;">Entrar con el link</button>' +
+      '</details>' +
       '</div></div>';
 
-    const entrar = ()=>{
+    const error = (t)=>{ document.getElementById('errorPin').textContent = t; };
+
+    const entrarConPin = async ()=>{
+      const pin = (document.getElementById('pinInput').value || '').trim();
+      if(!pin){ error('Escribí tu PIN.'); return; }
+      const btn = document.getElementById('entrarPin');
+      btn.disabled = true; btn.textContent = 'Verificando…';
+      error('');
+      try{
+        const res = await fetch('/api/entrar', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ pin })
+        });
+        const json = await res.json().catch(()=>null);
+        if(!res.ok || !json || !json.token){
+          error((json && json.error) || 'No se pudo verificar el PIN.');
+          btn.disabled = false; btn.textContent = 'Entrar';
+          return;
+        }
+        try{ localStorage.setItem('cc-token', json.token); }catch(e){}
+        location.href = '/' + encodeURIComponent(json.token);
+      }catch(e){
+        error('No se pudo conectar. Revisá tu conexión.');
+        btn.disabled = false; btn.textContent = 'Entrar';
+      }
+    };
+
+    const entrarConLink = ()=>{
       const valor = (document.getElementById('pegarLink').value || '').trim();
       if(!valor) return;
       // Acepta el link entero o solo el código, que es lo que uno tiende a copiar de apuro.
@@ -6263,13 +6313,16 @@
       }catch(e){ /* no era una URL: se toma tal cual */ }
       codigo = decodeURIComponent(codigo || '').trim();
       if(!/^[a-z0-9-]{6,80}$/i.test(codigo)){
-        document.getElementById('errorLink').textContent = 'Ese link no tiene la forma esperada. Copialo completo desde donde te lo mandaron.';
+        error('Ese link no tiene la forma esperada. Copialo completo desde donde te lo mandaron.');
         return;
       }
       location.href = '/' + encodeURIComponent(codigo);
     };
-    document.getElementById('entrarLink').addEventListener('click', entrar);
-    document.getElementById('pegarLink').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') entrar(); });
+
+    document.getElementById('entrarPin').addEventListener('click', entrarConPin);
+    document.getElementById('pinInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') entrarConPin(); });
+    document.getElementById('entrarLink').addEventListener('click', entrarConLink);
+    document.getElementById('pinInput').focus();
   }
 
   // ---------- app instalable ----------
@@ -6325,7 +6378,7 @@
       // Se olvida el token guardado: si no, un link dado de baja dejaría el navegador
       // atascado en esta pantalla incluso al abrir un link nuevo y válido.
       try{ localStorage.removeItem('cc-token'); }catch(err){}
-      pantallaSinAcceso('Este link no es válido o fue dado de baja. Pedile a quien te lo compartió que te mande el actualizado.');
+      pantallaSinAcceso('Ingresá con el PIN que te dieron para entrar a tu calendario.');
       return;
     }
     ES_ADMIN = sesion.rol === 'admin';
