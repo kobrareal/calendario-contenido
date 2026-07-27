@@ -1800,6 +1800,14 @@
     }
     try{ return localStorage.getItem('cc-token') || ''; }catch(e){ return ''; }
   })();
+
+  // El manifiesto se pide con el token adentro, para que la app instalada abra en ESTE
+  // calendario. En iPhone la app instalada tiene un almacenamiento propio y no ve el link
+  // recordado por el navegador, así que sin esto abría la raíz sin llave.
+  (function(){
+    const link = document.querySelector('link[rel="manifest"]');
+    if(link && TOKEN) link.href = '/api/manifest?t=' + encodeURIComponent(TOKEN);
+  })();
   function clientKey(key){ return CLIENT_ID ? `${CLIENT_ID}:${key}` : key; }
 
   // ---------- read-only client links (?vista=lectura) ----------
@@ -6226,12 +6234,42 @@
   function pantallaSinAcceso(mensaje){
     document.body.innerHTML =
       '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">' +
-      '<div style="max-width:440px;text-align:center;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.16);' +
-      'border-radius:22px;padding:34px 30px;backdrop-filter:blur(22px);">' +
+      '<div style="width:100%;max-width:440px;text-align:center;background:rgba(255,255,255,.055);' +
+      'border:1px solid rgba(255,255,255,.16);border-radius:22px;padding:30px 24px;backdrop-filter:blur(22px);">' +
       '<div style="font-size:34px;margin-bottom:14px;">🔒</div>' +
       '<h1 style="font-family:Inter,sans-serif;font-size:19px;margin:0 0 10px;">No pudimos abrir el calendario</h1>' +
-      '<p style="color:#9a95ab;font-size:13.5px;line-height:1.6;margin:0;">' + mensaje + '</p>' +
+      '<p style="color:#9a95ab;font-size:13.5px;line-height:1.6;margin:0 0 18px;">' + mensaje + '</p>' +
+      // Salida de emergencia: pegar el link acá evita quedar trabado en esta pantalla, que
+      // es lo que pasaba si el navegador no tenía el link guardado.
+      '<label style="display:block;color:#615c72;font-size:11.5px;margin-bottom:6px;text-align:left;">Pegá tu link de acceso</label>' +
+      '<input id="pegarLink" type="text" placeholder="https://…/tu-marca-xxxx" ' +
+      'style="width:100%;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:10px;' +
+      'color:#f4f2fb;padding:11px 12px;font-size:16px;margin-bottom:10px;" />' +
+      '<button id="entrarLink" style="width:100%;background:linear-gradient(135deg,#4f8ef7,#8b5cf6);border:none;' +
+      'border-radius:10px;color:#fff;padding:12px;font-size:14px;font-weight:600;cursor:pointer;">Entrar</button>' +
+      '<p id="errorLink" style="color:#f2617a;font-size:12px;margin:10px 0 0;min-height:16px;"></p>' +
       '</div></div>';
+
+    const entrar = ()=>{
+      const valor = (document.getElementById('pegarLink').value || '').trim();
+      if(!valor) return;
+      // Acepta el link entero o solo el código, que es lo que uno tiende a copiar de apuro.
+      let codigo = valor;
+      try{
+        if(/^https?:\/\//i.test(valor)){
+          const u = new URL(valor);
+          codigo = u.searchParams.get('t') || u.pathname.replace(/^\/+|\/+$/g, '');
+        }
+      }catch(e){ /* no era una URL: se toma tal cual */ }
+      codigo = decodeURIComponent(codigo || '').trim();
+      if(!/^[a-z0-9-]{6,80}$/i.test(codigo)){
+        document.getElementById('errorLink').textContent = 'Ese link no tiene la forma esperada. Copialo completo desde donde te lo mandaron.';
+        return;
+      }
+      location.href = '/' + encodeURIComponent(codigo);
+    };
+    document.getElementById('entrarLink').addEventListener('click', entrar);
+    document.getElementById('pegarLink').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') entrar(); });
   }
 
   // ---------- app instalable ----------
