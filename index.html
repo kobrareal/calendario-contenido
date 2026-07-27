@@ -118,7 +118,7 @@
   }
   .client-row input:focus{outline:none;border-bottom-color:var(--accent);}
 
-  .month-nav{display:flex;align-items:center;gap:14px;}
+  .month-nav{display:flex;align-items:center;gap:12px;flex:none;}
   .month-nav button{
     background:var(--surface-2);border:1px solid var(--border);color:var(--text);
     width:32px;height:32px;border-radius:10px;cursor:pointer;
@@ -127,7 +127,7 @@
   }
   .month-nav button:hover{background:var(--surface-3);box-shadow:0 0 16px var(--glow);}
   .month-nav button:focus-visible, button:focus-visible, [tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
-  .month-label{font-family:'Inter',sans-serif;font-weight:700;font-size:18px;min-width:190px;text-align:center;text-transform:capitalize;}
+  .month-label{font-family:'Inter',sans-serif;font-weight:700;font-size:18px;min-width:170px;text-align:center;text-transform:capitalize;white-space:nowrap;}
 
   .top-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .btn{
@@ -254,8 +254,10 @@
   }
   .grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;}
 
-  /* ---------- selector Mes / Semana ---------- */
-  .view-toggle{display:flex;gap:4px;margin-left:8px;}
+  /* ---------- selector Día / Semana / Mes ----------
+     Va como bloque propio del encabezado y no dentro de .month-nav: metido ahí se
+     amontonaba contra las flechas y el nombre del mes, y al envolver quedaba encimado. */
+  .view-toggle{display:flex;gap:4px;flex:none;}
   .view-opt{
     background:var(--card-bg-2);border:1px solid var(--border);color:var(--muted);
     padding:5px 11px;border-radius:8px;font-size:12px;cursor:pointer;transition:all .15s;
@@ -269,6 +271,12 @@
      de cada posteo (horario, ángulo, estado) sin tener que abrir día por día. */
   .grid.semana{grid-template-columns:repeat(7,1fr);align-items:stretch;}
   .grid.semana .cell{min-height:320px;padding:9px;}
+  /* Vista de un solo día: una columna a todo el ancho, sin alto mínimo forzado. */
+  .grid.semana.un-dia{grid-template-columns:1fr;}
+  .grid.semana.un-dia .cell{min-height:0;padding:14px;}
+  .grid.semana.un-dia .sem-dia{font-size:14px;}
+  .grid.semana.un-dia .sem-item{padding:9px 11px;}
+  .grid.semana.un-dia .sem-texto{-webkit-line-clamp:4;}
   .sem-cabecera{
     display:flex;align-items:baseline;justify-content:space-between;gap:6px;
     padding-bottom:6px;margin-bottom:6px;border-bottom:1px solid var(--border);
@@ -386,10 +394,14 @@
   .sheet-head span{font-size:11px;color:var(--muted-2);font-family:'IBM Plex Mono',monospace;}
   .sprockets{display:flex;gap:6px;padding:8px 14px;background:var(--surface-3);backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);}
   .sprockets div{width:5px;height:5px;border-radius:50%;background:var(--bg-a);}
+  /* Tope de 1080x1920: es el tamaño de un lienzo de Instagram, y sin él la vista previa
+     se estiraba con la pantalla. En monitores comunes no llega a tocar el límite. */
   .frames-viewport{
     aspect-ratio:3/4;overflow-y:auto;overflow-x:hidden;
+    max-width:1080px;max-height:1920px;
     background:var(--surface-3);scrollbar-width:thin;
   }
+  .sheet{max-width:1080px;}
   /* Más angosta que la general porque la columna del preview es estrecha, pero con los
      mismos colores: antes era la única barra gris y desentonaba. */
   .frames-viewport::-webkit-scrollbar{width:6px;}
@@ -662,6 +674,13 @@
   }
 
   /* ---------- notificaciones ---------- */
+  /* Puntito en el botón cuando el mes tiene notas escritas. */
+  .btn.con-contenido{position:relative;}
+  .btn.con-contenido::after{
+    content:'';position:absolute;top:5px;right:5px;width:6px;height:6px;
+    border-radius:50%;background:var(--ok);box-shadow:0 0 0 2px var(--bg-a);
+  }
+
   .notif-wrap{position:relative;}
   .notif-badge{
     position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;padding:0 4px;
@@ -902,10 +921,12 @@
       <button id="prevMonth" aria-label="Anterior">‹</button>
       <div class="month-label mono" id="monthLabel">—</div>
       <button id="nextMonth" aria-label="Siguiente">›</button>
-      <div class="view-toggle" role="group" aria-label="Vista del calendario">
-        <button type="button" class="view-opt active" id="viewMonthBtn">Mes</button>
-        <button type="button" class="view-opt" id="viewWeekBtn">Semana</button>
-      </div>
+    </div>
+
+    <div class="view-toggle" role="group" aria-label="Vista del calendario">
+      <button type="button" class="view-opt" id="viewDayBtn">Día</button>
+      <button type="button" class="view-opt" id="viewWeekBtn">Semana</button>
+      <button type="button" class="view-opt active" id="viewMonthBtn">Mes</button>
     </div>
 
     <div class="top-actions">
@@ -914,13 +935,14 @@
       <div class="notif-wrap admin-only">
         <button class="btn ghost icon-only" id="notifBtn" title="Novedades de tus clientes"><i class="fa-solid fa-bell"></i><span class="label">Notificaciones</span></button>
       </div>
-      <button class="btn admin-only" id="saveNowBtn">Guardar ahora</button>
+      <button class="btn ghost icon-only admin-only" id="saveNowBtn" title="Forzar el guardado ahora, sin esperar"><i class="fa-solid fa-floppy-disk"></i><span class="label">Guardar ahora</span></button>
       <button class="btn ghost icon-only admin-only" id="undoBtn" title="Deshacer último cambio" disabled><i class="fa-solid fa-undo"></i><span class="label">Deshacer</span></button>
       <button class="btn ghost icon-only admin-only" id="redoBtn" title="Rehacer último cambio deshecho" disabled><i class="fa-solid fa-redo"></i><span class="label">Rehacer</span></button>
       <button class="btn ghost icon-only admin-only" id="generateMonthBtn" title="Rellenar el mes automáticamente con ángulos"><i class="fa-solid fa-dice"></i><span class="label">Generar mes</span></button>
       <button class="btn ghost icon-only" id="statsBtn" title="Estadísticas del mes"><i class="fa-solid fa-chart-pie"></i><span class="label">Estadísticas</span></button>
       <button class="btn ghost icon-only" id="searchBtn" title="Buscar posts por palabra clave o ángulo"><i class="fa-solid fa-magnifying-glass"></i><span class="label">Buscar</span></button>
       <button class="btn ghost icon-only" id="exportBtn" title="Exportar mes como imagen"><i class="fa-solid fa-download"></i><span class="label">Exportar</span></button>
+      <button class="btn ghost icon-only" id="monthNotesBtn" title="Notas y observaciones de este mes"><i class="fa-solid fa-note-sticky"></i><span class="label">Notas del mes</span></button>
       <button class="btn ghost icon-only admin-only" id="ideasBtn" title="Ideas de contenido para más adelante"><i class="fa-solid fa-lightbulb"></i><span class="label">Ideas</span></button>
       <button class="btn ghost icon-only admin-only" id="clientsBtn" title="Panel de marcas"><i class="fa-solid fa-users"></i><span class="label">Marcas</span></button>
       <button class="btn ghost icon-only admin-only" id="settingsBtn" aria-label="Configuración"><i class="fa-solid fa-gear"></i><span class="label">Configuración</span></button>
@@ -1131,6 +1153,19 @@
     <p class="hint">Distribución de ángulos asignados al Feed y a las Stories durante <span id="statsMonthLabel">—</span>.</p>
     <div id="statsBody"></div>
     <div class="modal-close-row"><button class="btn primary" id="closeStatsModal">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- NOTAS DEL MES -->
+<div class="modal-back" id="monthNotesModal">
+  <div class="modal" style="width:560px;">
+    <h2 id="monthNotesTitle">Notas del mes</h2>
+    <p class="hint">Observaciones generales del mes: la campaña que está corriendo, lo que hay que tener en cuenta, lo que quedó pendiente. Son de este mes y esta marca; cada mes tiene las suyas.</p>
+    <textarea id="monthNotesText" placeholder="Ej: mes de aniversario, priorizar contenido de comunidad. Falta confirmar la fecha del sorteo..." style="width:100%;min-height:200px;"></textarea>
+    <div class="modal-close-row" style="margin-top:12px;">
+      <span class="hint" id="monthNotesStatus" style="margin:0;margin-right:auto;"></span>
+      <button class="btn primary" id="closeMonthNotes">Cerrar</button>
+    </div>
   </div>
 </div>
 
@@ -1981,8 +2016,9 @@
   // ---------- vista semanal ----------
   // El mes sirve para la foto general; la semana es para trabajar el día a día, con menos
   // días en pantalla y el detalle de cada posteo a la vista.
-  let vistaActual = 'mes';          // 'mes' | 'semana'
-  let inicioSemana = lunesDe(today); // lunes de la semana mostrada
+  let vistaActual = 'mes';           // 'dia' | 'semana' | 'mes'
+  let inicioSemana = lunesDe(today);  // lunes de la semana mostrada
+  let diaActual = new Date(today);    // día mostrado en la vista de día
 
   function lunesDe(fecha){
     const d = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
@@ -1996,12 +2032,17 @@
       return d;
     });
   }
+  // Los días que la vista actual tiene que mostrar. La de día y la de semana usan el mismo
+  // renderizador: cambia cuántas fechas se le pasan, no cómo se dibuja cada una.
+  function diasDeLaVista(){
+    return vistaActual === 'dia' ? [new Date(diaActual)] : diasDeLaSemana();
+  }
 
   // La semana puede cruzar dos meses (la del 29 de junio al 5 de julio), y monthData solo
   // trae el mes visible. Se piden los 7 días y se mezclan: como monthData está indexado por
   // fecha completa, conviven sin pisarse con los del mes cargado.
   async function cargarSemana(){
-    const claves = diasDeLaSemana().map(d => dateKey(d.getFullYear(), d.getMonth(), d.getDate()));
+    const claves = diasDeLaVista().map(d => dateKey(d.getFullYear(), d.getMonth(), d.getDate()));
     setSaving('saving');
     claves.forEach(k=>{
       if(monthData[k]) return;
@@ -2022,9 +2063,11 @@
     const grid = $('calendarGrid');
     grid.innerHTML = '';
     grid.classList.add('semana');
+    grid.classList.toggle('un-dia', vistaActual === 'dia');
     const hoyKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
 
-    diasDeLaSemana().forEach((fecha, idx)=>{
+    diasDeLaVista().forEach((fecha)=>{
+      const idx = (fecha.getDay() + 6) % 7; // lunes=0, para el nombre del día
       const key = dateKey(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
       const entry = monthData[key];
       const cell = document.createElement('div');
@@ -2142,7 +2185,7 @@
       // a otro también desde acá.
       if(!IS_READONLY){
         fila.draggable = true;
-        fila.title = 'Arrastrá para mover este contenido a otro día';
+        fila.title = '';
         fila.addEventListener('dragstart', (e)=>{
           e.stopPropagation();
           fila.classList.add('dragging');
@@ -2159,6 +2202,10 @@
 
   // ---------- calendar render ----------
   function renderMonthLabel(){
+    if(vistaActual === 'dia'){
+      $('monthLabel').textContent = diaActual.toLocaleDateString('es-AR', {weekday:'long', day:'numeric', month:'long'});
+      return;
+    }
     if(vistaActual === 'semana'){
       const dias = diasDeLaSemana();
       const a = dias[0], b = dias[6];
@@ -2172,11 +2219,11 @@
   }
 
   function renderCalendar(){
-    if(vistaActual === 'semana'){
-      renderSemana();
-    }else{
-      $('calendarGrid').classList.remove('semana');
+    if(vistaActual === 'mes'){
+      $('calendarGrid').classList.remove('semana','un-dia');
       renderMes();
+    }else{
+      renderSemana();
     }
     renderMonthLabel();
     renderFeedPreview();
@@ -2307,8 +2354,8 @@
       if(key && listName && !IS_READONLY){
         tag.draggable = true;
         tag.title = it.hideFromPreview
-          ? 'No se muestra en el preview del feed · arrastrá para mover este contenido a otro día'
-          : 'Arrastrá para mover este contenido a otro día';
+          ? 'No se muestra en la vista previa del feed'
+          : '';
         tag.addEventListener('dragstart', (e)=>{
           e.stopPropagation();
           tag.classList.add('dragging');
@@ -2456,7 +2503,7 @@
     if(entry.feed.length === 0){
       const hint = document.createElement('div');
       hint.className = 'items-empty-hint';
-      hint.textContent = 'Todavía no hay reels ni carruseles este día. Agregá uno con los botones de arriba.';
+      hint.textContent = 'Sin reels ni carruseles.';
       feedList.appendChild(hint);
     }else{
       entry.feed.forEach(item => feedList.appendChild(createFeedItemCard(key, item)));
@@ -2467,7 +2514,7 @@
     if(entry.stories.length === 0){
       const hint = document.createElement('div');
       hint.className = 'items-empty-hint';
-      hint.textContent = 'Todavía no hay stories este día.';
+      hint.textContent = 'Sin stories.';
       storiesList.appendChild(hint);
     }else{
       entry.stories.forEach(item => storiesList.appendChild(createStoryItemCard(key, item)));
@@ -3387,7 +3434,14 @@
   // semana partida entre dos, y de él dependen la vista previa del feed y las estadísticas.
   async function moverPeriodo(direccion){
     await flushSave();
-    if(vistaActual === 'semana'){
+    if(vistaActual === 'dia'){
+      diaActual.setDate(diaActual.getDate() + direccion);
+      if(diaActual.getFullYear() !== viewYear || diaActual.getMonth() !== viewMonth){
+        viewYear = diaActual.getFullYear(); viewMonth = diaActual.getMonth();
+        await loadMonth();
+      }
+      await cargarSemana();
+    }else if(vistaActual === 'semana'){
       inicioSemana.setDate(inicioSemana.getDate() + 7*direccion);
       const jueves = new Date(inicioSemana);
       jueves.setDate(jueves.getDate() + 3);
@@ -3411,19 +3465,23 @@
     if(vista === vistaActual) return;
     await flushSave();
     vistaActual = vista;
-    $('viewMonthBtn').classList.toggle('active', vista === 'mes');
+    $('viewDayBtn').classList.toggle('active', vista === 'dia');
     $('viewWeekBtn').classList.toggle('active', vista === 'semana');
-    if(vista === 'semana'){
-      // Al entrar, mostrar la semana de hoy si hoy cae en el mes visible; si no, la primera
-      // del mes, que es lo que uno espera ver al cambiar de vista sin cambiar de mes.
+    $('viewMonthBtn').classList.toggle('active', vista === 'mes');
+    if(vista !== 'mes'){
+      // Al entrar se muestra hoy, si hoy cae en el mes visible; si no, el día 1. Es lo que
+      // uno espera al cambiar de vista sin haber cambiado de mes.
       const hoyEnVista = today.getFullYear() === viewYear && today.getMonth() === viewMonth;
-      inicioSemana = lunesDe(hoyEnVista ? today : new Date(viewYear, viewMonth, 1));
+      const referencia = hoyEnVista ? today : new Date(viewYear, viewMonth, 1);
+      if(vista === 'dia') diaActual = new Date(referencia);
+      else inicioSemana = lunesDe(referencia);
       await cargarSemana();
     }
     renderCalendar();
   }
-  $('viewMonthBtn').addEventListener('click', ()=> cambiarVista('mes'));
+  $('viewDayBtn').addEventListener('click', ()=> cambiarVista('dia'));
   $('viewWeekBtn').addEventListener('click', ()=> cambiarVista('semana'));
+  $('viewMonthBtn').addEventListener('click', ()=> cambiarVista('mes'));
 
   $('clientName').addEventListener('input', ()=>{
     updateBrandTitle();
@@ -3613,6 +3671,67 @@
       showToast('Ángulos guardados');
     }
     renderCalendar();
+  });
+
+  // ---------- notas del mes ----------
+  // Una nota por mes y por marca, aparte de la de cada posteo. La clave lleva el año y el
+  // mes, así cambiar de mes no pisa lo escrito en el anterior.
+  let temporizadorNotasMes = null;
+
+  function claveNotasMes(){
+    return `notas-mes:${viewYear}-${String(viewMonth+1).padStart(2,'0')}`;
+  }
+
+  async function abrirNotasMes(){
+    const modal = $('monthNotesModal');
+    const campo = $('monthNotesText');
+    $('monthNotesTitle').textContent = `Notas de ${MESES[viewMonth]} ${viewYear}`;
+    campo.value = '';
+    campo.disabled = true;
+    $('monthNotesStatus').textContent = 'Cargando…';
+    modal.classList.add('open');
+    try{
+      const val = await storageGet(claveNotasMes());
+      campo.value = val ? JSON.parse(val) : '';
+      $('monthNotesStatus').textContent = '';
+    }catch(e){
+      $('monthNotesStatus').textContent = 'No se pudieron cargar las notas.';
+    }
+    campo.disabled = IS_READONLY;
+    marcarBotonNotasMes();
+  }
+
+  // Guardado con retardo, igual que el resto: escribir no dispara una escritura por tecla.
+  $('monthNotesText').addEventListener('input', ()=>{
+    if(IS_READONLY) return;
+    $('monthNotesStatus').textContent = 'Guardando…';
+    clearTimeout(temporizadorNotasMes);
+    temporizadorNotasMes = setTimeout(async ()=>{
+      try{
+        await storageSet(claveNotasMes(), JSON.stringify($('monthNotesText').value));
+        $('monthNotesStatus').textContent = 'Guardado';
+        marcarBotonNotasMes();
+      }catch(e){
+        $('monthNotesStatus').textContent = 'No se pudo guardar. Se reintenta al cerrar.';
+      }
+    }, 600);
+  });
+
+  // Un puntito en el botón avisa que el mes tiene notas escritas, para que no queden olvidadas.
+  function marcarBotonNotasMes(){
+    const btn = $('monthNotesBtn');
+    if(!btn) return;
+    const hay = ($('monthNotesText').value || '').trim().length > 0;
+    btn.classList.toggle('con-contenido', hay);
+  }
+
+  $('monthNotesBtn').addEventListener('click', abrirNotasMes);
+  $('closeMonthNotes').addEventListener('click', ()=>{
+    clearTimeout(temporizadorNotasMes);
+    if(!IS_READONLY){
+      storageSet(claveNotasMes(), JSON.stringify($('monthNotesText').value)).catch(()=>{});
+    }
+    $('monthNotesModal').classList.remove('open');
   });
 
   // ---------- notificaciones ----------
