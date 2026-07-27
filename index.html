@@ -345,7 +345,7 @@
     font-size:11px;font-weight:600;color:#0c0812;border-radius:4px;padding:2px 5px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
-  .sem-angulo.sin{background:transparent;border:1px dashed var(--border);color:var(--muted-2);font-weight:400;}
+  .sem-angulo.sin{background:#4a4757;color:#dedbe8;font-weight:500;}
   .sem-texto{
     font-size:11px;color:var(--muted);line-height:1.35;
     display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
@@ -409,8 +409,10 @@
   .tag[draggable="true"]:active{cursor:grabbing;}
   .tag.dragging{opacity:.35;}
   .tag .k{font-family:'IBM Plex Mono',monospace;font-size:9px;opacity:.75;text-transform:uppercase;}
+  /* Gris sólido y no transparente: sin fondo, un posteo sin ángulo casi no se distinguía del
+     hueco de la celda y costaba ver que ahí había contenido cargado. */
   .tag.empty{
-    background:transparent;border:1px dashed var(--border);color:var(--muted-2);font-weight:400;
+    background:#4a4757;border:1px solid rgba(255,255,255,.14);color:#dedbe8;font-weight:500;
   }
   .tag-truncated{max-width:140px;}
   .tag-truncated span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -716,6 +718,12 @@
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
   .idea-link:hover{text-decoration:underline;}
+  .idea-thumb{
+    width:56px;height:56px;flex:none;object-fit:cover;border-radius:8px;
+    border:1px solid var(--border);background:var(--card-bg-2);
+  }
+  .idea-thumb.chico{width:40px;height:40px;}
+  .idea-img-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
 
   /* ---------- multilink del encabezado ---------- */
   .links-wrap{position:relative;}
@@ -743,6 +751,20 @@
     background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);
     padding:7px 9px;font-size:12px;
   }
+
+  /* ---------- notas del mes, debajo del calendario ---------- */
+  .notas-mes-box{
+    margin-top:14px;padding:12px 14px;
+    background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);
+  }
+  .notas-mes-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+  .notas-mes-box textarea{
+    width:100%;min-height:74px;resize:vertical;
+    background:var(--surface-2);border:1px solid var(--border);border-radius:10px;
+    color:var(--text);padding:9px 11px;font-family:'Inter',sans-serif;font-size:13px;line-height:1.55;
+  }
+  .notas-mes-box textarea:focus{outline:none;border-color:var(--accent);}
 
   /* ---------- asistente ---------- */
   .agente-ejemplos{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
@@ -1037,7 +1059,6 @@
       <button class="btn ghost icon-only" id="searchBtn" title="Buscar posts por palabra clave o ángulo"><i class="fa-solid fa-magnifying-glass"></i><span class="label">Buscar posts por palabra o ángulo</span></button>
       <button class="btn ghost icon-only" id="exportBtn" title="Exportar mes como imagen"><i class="fa-solid fa-download"></i><span class="label">Descargar el mes como imagen</span></button>
       <button class="btn ghost icon-only" id="agenteBtn" title="Asistente: analiza tu mes, da consejos y propone contenido"><i class="fa-solid fa-wand-magic-sparkles"></i><span class="label">Asistente de contenido</span></button>
-      <button class="btn ghost icon-only" id="monthNotesBtn" title="Notas y observaciones de este mes"><i class="fa-solid fa-note-sticky"></i><span class="label">Notas generales de este mes</span></button>
       <button class="btn ghost icon-only admin-only" id="trashBtn" title="Papelera: lo eliminado en los últimos 7 días"><i class="fa-solid fa-trash-can"></i><span class="label">Papelera: lo borrado en 7 días</span></button>
       <button class="btn ghost icon-only admin-only" id="ideasBtn" title="Ideas de contenido para más adelante"><i class="fa-solid fa-lightbulb"></i><span class="label">Ideas guardadas para más adelante</span></button>
       <button class="btn ghost icon-only admin-only solo-admin" id="clientsBtn" title="Panel de marcas"><i class="fa-solid fa-users"></i><span class="label">Marcas y sus links de acceso</span></button>
@@ -1073,6 +1094,17 @@
           <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
         </div>
         <div class="grid" id="calendarGrid"></div>
+      </div>
+
+      <!-- Notas del mes: antes vivían en una ventana aparte y había que acordarse de abrirla.
+           Acá quedan siempre a la vista, debajo del calendario que describen. -->
+      <div class="notas-mes-box" id="notasMesBox">
+        <div class="notas-mes-head">
+          <label class="field-label" for="monthNotesText" id="monthNotesTitle" style="margin-bottom:0;">📝 Notas del mes</label>
+          <span class="hint" id="monthNotesStatus" style="margin:0;"></span>
+        </div>
+        <textarea id="monthNotesText" title="Observaciones generales del mes: la campaña que corre, lo que hay que tener en cuenta, lo que quedó pendiente"
+          placeholder="Ej: mes de aniversario, priorizar contenido de comunidad. Falta confirmar la fecha del sorteo…"></textarea>
       </div>
     </div>
 
@@ -1314,19 +1346,6 @@
   </div>
 </div>
 
-<!-- NOTAS DEL MES -->
-<div class="modal-back" id="monthNotesModal">
-  <div class="modal" style="width:560px;">
-    <h2 id="monthNotesTitle">Notas del mes</h2>
-    <p class="hint">Observaciones generales del mes: la campaña que está corriendo, lo que hay que tener en cuenta, lo que quedó pendiente. Son de este mes y esta marca; cada mes tiene las suyas.</p>
-    <textarea id="monthNotesText" placeholder="Ej: mes de aniversario, priorizar contenido de comunidad. Falta confirmar la fecha del sorteo..." style="width:100%;min-height:200px;"></textarea>
-    <div class="modal-close-row" style="margin-top:12px;">
-      <span class="hint" id="monthNotesStatus" style="margin:0;margin-right:auto;"></span>
-      <button class="btn primary" id="closeMonthNotes" title="Guardar y cerrar">Cerrar</button>
-    </div>
-  </div>
-</div>
-
 <!-- DUPLICAR UN POST A OTRA FECHA -->
 <div class="modal-back" id="dupItemModal">
   <div class="modal" style="width:420px;">
@@ -1351,6 +1370,7 @@
       <label class="field-label">Nueva idea</label>
       <textarea id="newIdeaText" placeholder="Ej: colaboración con influencer local, video de detrás de escena en la cocina..."></textarea>
       <input type="url" id="newIdeaLink" class="idea-link-input" placeholder="🔗 Link de referencia (opcional): un reel, un artículo, una foto…" />
+      <div id="newIdeaImagen"></div>
       <div class="idea-add-row">
         <div class="angle-picker" id="newIdeaAnglePicker" style="flex:1;"></div>
         <button class="btn primary" id="addIdeaBtn" title="Guardar esta idea para usarla más adelante">+ Agregar</button>
@@ -1957,6 +1977,7 @@
       });
     }catch(e){ /* keep whatever was loaded */ }
     await loadAnotaciones(); // las marcas del mes (feriados, lanzamientos) viven aparte
+    await loadNotasMes();    // y las notas generales, que se ven debajo del calendario
     await migrateLegacyMonthBlob();
     setSaving('saved');
     setTimeout(()=>setSaving('idle'), 900);
@@ -2184,7 +2205,12 @@
     if(typeof html2canvas === 'undefined'){ showToast('No se pudo cargar el exportador de imágenes.'); return; }
     showToast('Generando imagen…');
     try{
-      const canvas = await html2canvas($('calendarColumn'), {backgroundColor:'#151420', scale:2});
+      // La caja de notas queda fuera de la imagen: es tu bloc de trabajo, no parte del
+      // calendario que le mostrás a alguien.
+      const canvas = await html2canvas($('calendarColumn'), {
+        backgroundColor:'#151420', scale:2,
+        ignoreElements: (el)=> el.id === 'notasMesBox'
+      });
       const link = document.createElement('a');
       const suffix = CLIENT_ID ? '-'+CLIENT_ID : '';
       link.download = `calendario-${MESES[viewMonth]}-${viewYear}${suffix}.png`;
@@ -2660,14 +2686,14 @@
       posts.forEach((p, idx)=>{
         const f = document.createElement('div');
         f.className = 'frame';
-        f.style.background = p.angle ? p.angle.color : '#444'; // fallback if the image link fails to load
+        f.style.background = p.angle ? p.angle.color : '#4a4757'; // fallback if the image link fails to load
         if(p.thumb){
           f.style.backgroundImage = `url('${p.thumb.replace(/'/g,"%27")}')`;
           f.style.backgroundSize = 'cover';
           f.style.backgroundPosition = 'center';
           f.classList.add('has-thumb');
         }
-        f.innerHTML = `<span class="fnum">${String(idx+1).padStart(2,'0')}</span><span class="fdate">${p.d}</span><span class="fover" style="background:${p.angle ? p.angle.color : '#444'}"></span><span class="flabel">${escapeHtml(p.angle ? p.angle.name : '')}</span>`;
+        f.innerHTML = `<span class="fnum">${String(idx+1).padStart(2,'0')}</span><span class="fdate">${p.d}</span><span class="fover" style="background:${p.angle ? p.angle.color : '#4a4757'}"></span><span class="flabel">${escapeHtml(p.angle ? p.angle.name : '')}</span>`;
         f.title = `${p.d} de ${MESES[viewMonth]} — ${p.angle ? p.angle.name : ''}`;
         f.addEventListener('click', ()=>openDayPanel(dateKey(viewYear, viewMonth, p.d)));
         frames.appendChild(f);
@@ -3677,6 +3703,34 @@
   }
   document.addEventListener('click', closeAllMenus);
 
+  // Cerrar cualquier ventana al clickear fuera de su recuadro.
+  //
+  // No alcanza con sacarle la clase "open": varias hacen cosas al cerrarse —el panel de
+  // ángulos guarda los cambios, el de notas fuerza el último guardado—. Por eso se busca su
+  // propio botón de cerrar y se lo dispara, así el cierre por afuera hace exactamente lo
+  // mismo que el botón.
+  document.querySelectorAll('.modal-back').forEach(fondo=>{
+    fondo.addEventListener('click', (e)=>{
+      if(e.target !== fondo) return; // el click fue adentro del recuadro
+      const boton = fondo.querySelector('[id^="close"], [id^="cancel"], [id$="Cancel"]');
+      if(boton) boton.click();
+      else fondo.classList.remove('open');
+    });
+  });
+
+  // Escape cierra la ventana que esté abierta, por el mismo camino.
+  document.addEventListener('keydown', (e)=>{
+    if(e.key !== 'Escape') return;
+    const abiertas = [...document.querySelectorAll('.modal-back.open')];
+    const ultima = abiertas[abiertas.length - 1]; // la de más arriba si hay varias
+    if(ultima){
+      const boton = ultima.querySelector('[id^="close"], [id^="cancel"], [id$="Cancel"]');
+      if(boton) boton.click(); else ultima.classList.remove('open');
+      return;
+    }
+    if($('dayOverlay').classList.contains('open')) $('closePanel').click();
+  });
+
   $('clearDay').addEventListener('click', async ()=>{
     if(!openDate) return;
     pushUndo(openDate);
@@ -4473,23 +4527,19 @@
     return `notas-mes:${viewYear}-${String(viewMonth+1).padStart(2,'0')}`;
   }
 
-  async function abrirNotasMes(){
-    const modal = $('monthNotesModal');
+  // Se cargan junto con el mes, porque ahora están siempre a la vista debajo del calendario.
+  async function loadNotasMes(){
     const campo = $('monthNotesText');
-    $('monthNotesTitle').textContent = `Notas de ${MESES[viewMonth]} ${viewYear}`;
+    $('monthNotesTitle').textContent = `📝 Notas de ${MESES[viewMonth]} ${viewYear}`;
     campo.value = '';
-    campo.disabled = true;
-    $('monthNotesStatus').textContent = 'Cargando…';
-    modal.classList.add('open');
+    $('monthNotesStatus').textContent = '';
     try{
       const val = await storageGet(claveNotasMes());
       campo.value = val ? JSON.parse(val) : '';
-      $('monthNotesStatus').textContent = '';
     }catch(e){
-      $('monthNotesStatus').textContent = 'No se pudieron cargar las notas.';
+      $('monthNotesStatus').textContent = 'No se pudieron cargar.';
     }
     campo.disabled = IS_READONLY;
-    marcarBotonNotasMes();
   }
 
   // Guardado con retardo, igual que el resto: escribir no dispara una escritura por tecla.
@@ -4501,28 +4551,12 @@
       try{
         await storageSet(claveNotasMes(), JSON.stringify($('monthNotesText').value));
         $('monthNotesStatus').textContent = 'Guardado';
-        marcarBotonNotasMes();
+        // El "Guardado" se borra solo: dejarlo fijo hace ruido en un campo siempre visible.
+        setTimeout(()=>{ if($('monthNotesStatus').textContent === 'Guardado') $('monthNotesStatus').textContent = ''; }, 2000);
       }catch(e){
-        $('monthNotesStatus').textContent = 'No se pudo guardar. Se reintenta al cerrar.';
+        $('monthNotesStatus').textContent = 'No se pudo guardar.';
       }
     }, 600);
-  });
-
-  // Un puntito en el botón avisa que el mes tiene notas escritas, para que no queden olvidadas.
-  function marcarBotonNotasMes(){
-    const btn = $('monthNotesBtn');
-    if(!btn) return;
-    const hay = ($('monthNotesText').value || '').trim().length > 0;
-    btn.classList.toggle('con-contenido', hay);
-  }
-
-  $('monthNotesBtn').addEventListener('click', abrirNotasMes);
-  $('closeMonthNotes').addEventListener('click', ()=>{
-    clearTimeout(temporizadorNotasMes);
-    if(!IS_READONLY){
-      storageSet(claveNotasMes(), JSON.stringify($('monthNotesText').value)).catch(()=>{});
-    }
-    $('monthNotesModal').classList.remove('open');
   });
 
   // ---------- notificaciones ----------
@@ -5008,8 +5042,92 @@
     buildPickerEl($('newIdeaAnglePicker'), newIdeaAngleId, (id)=>{ newIdeaAngleId = id; renderNewIdeaPicker(); });
   }
 
+  // Los controles de imagen del formulario de alta se vuelven a armar cada vez, para que
+  // reflejen si hay una miniatura elegida o si se acaba de limpiar tras crear la idea.
+  function renderNuevaIdeaImagen(){
+    const cont = $('newIdeaImagen');
+    cont.innerHTML = '';
+    const porta = { get thumb(){ return nuevaIdeaThumb; }, set thumb(v){ nuevaIdeaThumb = v; } };
+    cont.appendChild(construirImagenIdea(porta));
+  }
+
   let editingIdeaId = null;
   let editingIdeaAngle = null;
+  let nuevaIdeaThumb = ''; // miniatura de la idea que se está por crear
+
+  // Controles de imagen para una idea: subir, pegar o quitar. Reutiliza compressImageFile,
+  // la misma que usan los posteos, así una captura grande no se guarda entera.
+  // "porta" es un objeto con .thumb que esta función va modificando.
+  function construirImagenIdea(porta, alCambiar){
+    const fila = document.createElement('div');
+    fila.className = 'idea-img-row';
+
+    const vista = document.createElement('img');
+    vista.className = 'idea-thumb chico';
+    const pintar = ()=>{
+      if(porta.thumb){ vista.src = porta.thumb; vista.style.display = 'block'; }
+      else{ vista.removeAttribute('src'); vista.style.display = 'none'; }
+      quitar.style.display = porta.thumb ? '' : 'none';
+    };
+
+    const archivo = document.createElement('input');
+    archivo.type = 'file'; archivo.accept = 'image/*'; archivo.style.display = 'none';
+
+    const aplicar = async (blob)=>{
+      showToast('Procesando imagen…');
+      try{
+        porta.thumb = await compressImageFile(blob);
+        pintar();
+        if(alCambiar) alCambiar();
+      }catch(e){ showToast('No se pudo procesar esa imagen.'); }
+    };
+
+    const subir = document.createElement('button');
+    subir.type='button'; subir.className='btn ghost small'; subir.textContent='📷 Subir';
+    subir.title = 'Elegir una imagen de referencia desde tu computadora';
+    subir.addEventListener('click', ()=> archivo.click());
+    archivo.addEventListener('change', async (e)=>{
+      const f = e.target.files[0]; archivo.value = '';
+      if(f) await aplicar(f);
+    });
+
+    const pegar = document.createElement('button');
+    pegar.type='button'; pegar.className='btn ghost small'; pegar.textContent='📋 Pegar';
+    pegar.title = 'Pegar una imagen copiada (o Ctrl+V sobre esta fila)';
+    pegar.addEventListener('click', async ()=>{
+      if(!navigator.clipboard || !navigator.clipboard.read){
+        showToast('Tu navegador no permite leer el portapapeles. Probá con Ctrl+V acá.');
+        return;
+      }
+      try{
+        for(const elem of await navigator.clipboard.read()){
+          const tipo = elem.types.find(t => t.startsWith('image/'));
+          if(tipo){ await aplicar(await elem.getType(tipo)); return; }
+        }
+        showToast('No hay ninguna imagen copiada.');
+      }catch(e){ showToast('No pude leer el portapapeles. Probá con Ctrl+V acá.'); }
+    });
+
+    // Ctrl+V sobre la fila: funciona siempre y sin pedir permisos, a diferencia del botón.
+    fila.addEventListener('paste', async (e)=>{
+      const img = [...(e.clipboardData && e.clipboardData.items || [])]
+        .filter(it => it.type && it.type.startsWith('image/'))
+        .map(it => it.getAsFile()).find(Boolean);
+      if(!img) return;
+      e.preventDefault();
+      await aplicar(img);
+    });
+
+    const quitar = document.createElement('button');
+    quitar.type='button'; quitar.className='btn ghost small'; quitar.style.color='var(--danger)';
+    quitar.textContent='Quitar'; quitar.title='Sacar la imagen de referencia';
+    quitar.addEventListener('click', ()=>{ porta.thumb = ''; pintar(); if(alCambiar) alCambiar(); });
+
+    fila.appendChild(vista); fila.appendChild(subir); fila.appendChild(pegar);
+    fila.appendChild(quitar); fila.appendChild(archivo);
+    pintar();
+    return fila;
+  }
 
   function renderIdeasList(){
     const list = $('ideasList');
@@ -5031,6 +5149,18 @@
     const a = idea.angle ? angleById(idea.angle) : null;
     const info = document.createElement('div');
     info.className = 'info';
+
+    // Miniatura de referencia, si la idea tiene una.
+    if(idea.thumb){
+      const mini = document.createElement('img');
+      mini.className = 'idea-thumb';
+      mini.src = idea.thumb;
+      mini.alt = 'Referencia';
+      mini.title = 'Referencia visual de esta idea';
+      mini.onerror = ()=> mini.remove();
+      row.insertBefore(mini, row.firstChild);
+    }
+
     const txt = document.createElement('div');
     txt.className = 'txt';
     txt.textContent = idea.text;
@@ -5103,6 +5233,11 @@
     linkInput.placeholder = '🔗 Link de referencia (opcional)';
     linkInput.value = idea.link || '';
     row.appendChild(linkInput);
+
+    // Se edita sobre una copia: si cancelás, la idea original queda intacta.
+    const porta = { thumb: idea.thumb || '' };
+    row.appendChild(construirImagenIdea(porta));
+
     const pickerRow = document.createElement('div');
     pickerRow.style.cssText = 'display:flex;gap:8px;align-items:center;';
     const pickerContainer = document.createElement('div');
@@ -5118,6 +5253,7 @@
       if(!textarea.value.trim()){ showToast('La idea no puede quedar vacía'); return; }
       idea.text = textarea.value.trim();
       idea.link = normalizarUrl(linkInput.value);
+      idea.thumb = porta.thumb;
       idea.angle = editingIdeaAngle;
       editingIdeaId = null;
       await saveIdeas();
@@ -5131,10 +5267,18 @@
   $('addIdeaBtn').addEventListener('click', async ()=>{
     const text = $('newIdeaText').value.trim();
     if(!text){ showToast('Escribí una idea primero'); return; }
-    ideas.push({ id: genId(), text, link: normalizarUrl($('newIdeaLink').value), angle: newIdeaAngleId, createdAt: new Date().toISOString() });
+    ideas.push({
+      id: genId(), text,
+      link: normalizarUrl($('newIdeaLink').value),
+      thumb: nuevaIdeaThumb,
+      angle: newIdeaAngleId,
+      createdAt: new Date().toISOString()
+    });
     await saveIdeas();
     $('newIdeaText').value = '';
     $('newIdeaLink').value = '';
+    nuevaIdeaThumb = '';
+    renderNuevaIdeaImagen();
     newIdeaAngleId = null;
     renderNewIdeaPicker();
     renderIdeasList();
@@ -5147,6 +5291,7 @@
   $('ideasBtn').addEventListener('click', ()=>{
     populateIdeaFilterOptions();
     renderNewIdeaPicker();
+    renderNuevaIdeaImagen();
     renderIdeasList();
     $('ideasModal').classList.add('open');
   });
