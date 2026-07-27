@@ -84,6 +84,10 @@
   .glow-text{text-shadow:0 0 18px var(--glow);}
   /* Read-only client links (?vista=lectura) hide every editing/admin control. */
   body.read-only .admin-only{display:none !important;}
+  /* Una marca (rol editor) edita su calendario con normalidad, pero no ve los paneles que
+     son de la agencia: el listado de marcas, la configuración, las novedades de todos los
+     clientes, el generador masivo y la definición de ángulos. */
+  body.rol-editor .solo-admin{display:none !important;}
 
   /* ---------- shell ---------- */
   .app{max-width:1400px;margin:0 auto;padding:28px 28px 60px;}
@@ -948,20 +952,20 @@
       <div class="save-indicator"><span class="save-dot" id="saveDot"></span><span id="saveText">al día</span></div>
       <!-- El panel se arma al abrirlo; en la barra queda solo la campanita con su contador. -->
       <div class="notif-wrap admin-only">
-        <button class="btn ghost icon-only" id="notifBtn" title="Novedades de tus clientes"><i class="fa-solid fa-bell"></i><span class="label">Notificaciones</span></button>
+        <button class="btn ghost icon-only solo-admin" id="notifBtn" title="Novedades de tus clientes"><i class="fa-solid fa-bell"></i><span class="label">Notificaciones</span></button>
       </div>
       <button class="btn ghost icon-only admin-only" id="saveNowBtn" title="Forzar el guardado ahora, sin esperar"><i class="fa-solid fa-floppy-disk"></i><span class="label">Guardar ahora</span></button>
       <button class="btn ghost icon-only admin-only" id="undoBtn" title="Deshacer último cambio" disabled><i class="fa-solid fa-undo"></i><span class="label">Deshacer</span></button>
       <button class="btn ghost icon-only admin-only" id="redoBtn" title="Rehacer último cambio deshecho" disabled><i class="fa-solid fa-redo"></i><span class="label">Rehacer</span></button>
-      <button class="btn ghost icon-only admin-only" id="generateMonthBtn" title="Rellenar el mes automáticamente con ángulos"><i class="fa-solid fa-dice"></i><span class="label">Generar mes</span></button>
+      <button class="btn ghost icon-only admin-only solo-admin" id="generateMonthBtn" title="Rellenar el mes automáticamente con ángulos"><i class="fa-solid fa-dice"></i><span class="label">Generar mes</span></button>
       <button class="btn ghost icon-only" id="statsBtn" title="Estadísticas del mes"><i class="fa-solid fa-chart-pie"></i><span class="label">Estadísticas</span></button>
       <button class="btn ghost icon-only" id="searchBtn" title="Buscar posts por palabra clave o ángulo"><i class="fa-solid fa-magnifying-glass"></i><span class="label">Buscar</span></button>
       <button class="btn ghost icon-only" id="exportBtn" title="Exportar mes como imagen"><i class="fa-solid fa-download"></i><span class="label">Exportar</span></button>
       <button class="btn ghost icon-only" id="monthNotesBtn" title="Notas y observaciones de este mes"><i class="fa-solid fa-note-sticky"></i><span class="label">Notas del mes</span></button>
       <button class="btn ghost icon-only admin-only" id="trashBtn" title="Papelera: lo eliminado en los últimos 7 días"><i class="fa-solid fa-trash-can"></i><span class="label">Papelera</span></button>
       <button class="btn ghost icon-only admin-only" id="ideasBtn" title="Ideas de contenido para más adelante"><i class="fa-solid fa-lightbulb"></i><span class="label">Ideas</span></button>
-      <button class="btn ghost icon-only admin-only" id="clientsBtn" title="Panel de marcas"><i class="fa-solid fa-users"></i><span class="label">Marcas</span></button>
-      <button class="btn ghost icon-only admin-only" id="settingsBtn" aria-label="Configuración"><i class="fa-solid fa-gear"></i><span class="label">Configuración</span></button>
+      <button class="btn ghost icon-only admin-only solo-admin" id="clientsBtn" title="Panel de marcas"><i class="fa-solid fa-users"></i><span class="label">Marcas</span></button>
+      <button class="btn ghost icon-only admin-only solo-admin" id="settingsBtn" aria-label="Configuración"><i class="fa-solid fa-gear"></i><span class="label">Configuración</span></button>
     </div>
   </header>
 
@@ -1002,7 +1006,7 @@
         <div class="legend">
           <h3>Ángulos de contenido</h3>
           <div id="legendList"></div>
-          <button class="btn manage-btn admin-only" id="manageAnglesBtn">✎ Gestionar ángulos</button>
+          <button class="btn manage-btn admin-only solo-admin" id="manageAnglesBtn">✎ Gestionar ángulos</button>
           <button class="btn manage-btn admin-only" id="manageImagesBtn" style="margin-top:8px;">🗑 Gestionar imágenes</button>
           <button class="btn manage-btn admin-only" id="manageClearBtn" style="margin-top:8px;color:var(--danger);">🗑 Vaciar semana / mes</button>
         </div>
@@ -1524,7 +1528,14 @@
   // (hoisted, so calling it here is fine), which keeps both sides in agreement for accented
   // names and stops a hand-edited ?cliente= from slipping commas or quotes into a key and
   // breaking the batched month lookup below.
-  const CLIENT_ID = slugify(new URLSearchParams(location.search).get('cliente') || '');
+  // Ya no sale de la URL: lo decide el servidor a partir del token del link. Una marca no
+  // puede cambiarlo editando la dirección, porque el servidor rechaza cualquier clave que
+  // no empiece con el prefijo que le corresponde a su token. El administrador sí elige qué
+  // marca está mirando, y para eso sigue usando ?cliente=.
+  let CLIENT_ID = '';
+  let ES_ADMIN = false;
+  let NOMBRE_SESION = '';
+  const TOKEN = new URLSearchParams(location.search).get('t') || '';
   function clientKey(key){ return CLIENT_ID ? `${CLIENT_ID}:${key}` : key; }
 
   // ---------- read-only client links (?vista=lectura) ----------
@@ -1559,55 +1570,33 @@
     t._timer = setTimeout(()=>t.classList.remove('show'), 2200);
   }
 
-  // ---------- datos (Supabase) ----------
-  // Reemplaza al backend de Apps Script + Google Sheets. Apps Script tardaba entre 1 y 3
-  // segundos en responder porque Google levantaba el script de cero en cada pedido; acá la
-  // respuesta ronda los 150 ms y no hay arranque en frío.
-  //
-  // Estas dos constantes son públicas por diseño: viajan dentro del HTML y cualquiera que
-  // abra el calendario las ve. Lo que realmente controla el acceso son las políticas RLS de
-  // la tabla "kv" en Supabase. Por eso mismo no hace falta que nadie configure nada: los
-  // links de solo lectura funcionan tal cual, sin pasar por ⚙.
-  const SUPABASE_URL = 'https://vodpudtwogorlqikstcf.supabase.co';
-  const SUPABASE_ANON_KEY = 'sb_publishable_czva3OfAUAIDA4URy3ZXbw_Zyi4D4MZ';
-  const KV_ENDPOINT = SUPABASE_URL + '/rest/v1/kv';
-
+  // ---------- datos (a través del servidor) ----------
+  // Todo pasa por /api/datos, que verifica el token del link y solo deja tocar las claves de
+  // la marca que corresponde. Antes el navegador hablaba directo con la base con una clave
+  // pública incrustada acá, y por eso el ?cliente= no protegía nada: cualquiera podía pedir
+  // los datos de otra marca desde la consola. Ahora la clave de la base vive en el servidor.
   const Data = {
-    headers(extra){
-      return Object.assign({
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'Content-Type': 'application/json'
-      }, extra || {});
-    },
-    async get(key){
-      const res = await fetch(`${KV_ENDPOINT}?key=eq.${encodeURIComponent(key)}&select=value`,
-        { headers: this.headers(), cache: 'no-store' });
-      if(!res.ok) throw new Error('http '+res.status);
-      const rows = await res.json();
-      return rows.length ? rows[0].value : null;
-    },
-    // Un solo pedido para todo el mes en vez de 31. Los keys son [a-z0-9:-] (ver CLIENT_ID y
-    // dateKey), así que entran en el filtro in.() de PostgREST sin necesidad de escaparlos.
-    async getMany(keys){
-      if(!keys.length) return {};
-      const res = await fetch(`${KV_ENDPOINT}?key=in.(${keys.join(',')})&select=key,value`,
-        { headers: this.headers(), cache: 'no-store' });
-      if(!res.ok) throw new Error('http '+res.status);
-      const out = {};
-      (await res.json()).forEach(row => { out[row.key] = row.value; });
-      return out;
-    },
-    // Inserta o actualiza en una sola ida y vuelta (merge-duplicates = UPSERT sobre la PK).
-    async set(key, value){
-      const res = await fetch(KV_ENDPOINT, {
-        method:'POST',
-        headers: this.headers({ 'Prefer':'resolution=merge-duplicates,return=minimal' }),
-        body: JSON.stringify({ key, value, updated_at: new Date().toISOString() }),
+    async llamar(cuerpo){
+      const res = await fetch('/api/datos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(Object.assign({ token: TOKEN }, cuerpo)),
         cache: 'no-store'
       });
-      if(!res.ok) throw new Error('http '+res.status+' '+(await res.text()).slice(0,200));
-    }
+      let json = null;
+      try{ json = await res.json(); }catch(e){ /* sin JSON: se reporta abajo */ }
+      if(!res.ok) throw new Error((json && json.error) || ('http ' + res.status));
+      return json;
+    },
+    async sesion(){ return this.llamar({ accion:'sesion' }); },
+    async get(key){ return (await this.llamar({ accion:'get', key })).value; },
+    // Un solo pedido para todo el mes en vez de 31.
+    async getMany(keys){
+      if(!keys.length) return {};
+      return (await this.llamar({ accion:'getMany', keys })).values || {};
+    },
+    async set(key, value){ await this.llamar({ accion:'set', key, value }); },
+    async marcas(){ return (await this.llamar({ accion:'marcas' })).marcas || []; }
   };
 
   // ---------- generador de copy (Gemini) ----------
@@ -4019,15 +4008,56 @@
   let notificaciones = [];
   const MAX_NOTIFICACIONES = 200; // recorte para que la lista no crezca sin techo
 
+  // Las novedades se guardan dentro de cada marca ("marca:notifications") y no en una clave
+  // global: con el servidor filtrando por prefijo, una marca no puede escribir fuera de lo
+  // suyo. Para que vos sigas teniendo una sola bandeja, el administrador junta las listas de
+  // todas sus marcas en un pedido y las ordena por fecha.
   async function loadNotificaciones(){
     try{
-      const val = await rawStorageGet('notifications');
-      notificaciones = val ? JSON.parse(val) : [];
+      if(!ES_ADMIN){
+        const val = await storageGet('notifications');
+        notificaciones = val ? JSON.parse(val) : [];
+        return;
+      }
+      const marcas = await Data.marcas();
+      const claves = marcas.map(m => `${m.slug}:notifications`);
+      if(CLIENT_ID) claves.push(`${CLIENT_ID}:notifications`); // la marca que estés mirando
+      const propias = await storageGet('notifications'); // por si mirás sin ?cliente=
+      const encontradas = claves.length ? await Data.getMany([...new Set(claves)]) : {};
+      const juntas = [];
+      Object.entries(encontradas).forEach(([clave, val])=>{
+        const slug = clave.split(':')[0];
+        try{ (JSON.parse(val) || []).forEach(n => juntas.push(Object.assign({}, n, { cliente: n.cliente || slug }))); }
+        catch(e){ /* lista corrupta de esa marca: se ignora sin tumbar el resto */ }
+      });
+      if(propias && !CLIENT_ID){
+        try{ (JSON.parse(propias) || []).forEach(n => juntas.push(n)); }catch(e){}
+      }
+      juntas.sort((a,b)=> String(b.fecha||'').localeCompare(String(a.fecha||'')));
+      notificaciones = juntas;
     }catch(e){ notificaciones = []; }
   }
+
+  // Guardar es al revés: se separan por marca y se escribe la lista de cada una.
   async function saveNotificaciones(){
-    try{ await rawStorageSet('notifications', JSON.stringify(notificaciones)); }
-    catch(e){ /* si falla queda en el cache local y se reintenta en el próximo guardado */ }
+    try{
+      if(!ES_ADMIN){
+        await storageSet('notifications', JSON.stringify(notificaciones));
+        return;
+      }
+      const marcas = await Data.marcas();
+      const porMarca = {};
+      marcas.forEach(m => { porMarca[m.slug] = []; });
+      const sueltas = [];
+      notificaciones.forEach(n=>{
+        if(n.cliente && porMarca[n.cliente]) porMarca[n.cliente].push(n);
+        else sueltas.push(n);
+      });
+      for(const [slug, lista] of Object.entries(porMarca)){
+        await Data.set(`${slug}:notifications`, JSON.stringify(lista));
+      }
+      if(!CLIENT_ID) await storageSet('notifications', JSON.stringify(sueltas));
+    }catch(e){ /* queda en el cache local y se reintenta en el próximo guardado */ }
   }
 
   // Relee la lista antes de agregar: si el cliente y vos tenían el calendario abierto a la
@@ -5293,7 +5323,7 @@
     out.style.display = 'block';
     out.textContent = 'Corriendo diagnóstico…';
     const lines = [];
-    lines.push('Base de datos: ' + SUPABASE_URL);
+    lines.push('Acceso: ' + (ES_ADMIN ? 'administrador' : 'editor de una marca') + (NOMBRE_SESION ? ' (' + NOMBRE_SESION + ')' : ''));
     lines.push('Marca actual (?cliente=): ' + (CLIENT_ID || '(ninguna — calendario principal)'));
     lines.push('localStorage disponible: ' + (function(){ try{ localStorage.setItem('__t','1'); localStorage.removeItem('__t'); return true; }catch(e){ return e.message; } })());
 
@@ -5353,64 +5383,69 @@
   // ---------- clients / admin panel ----------
   // Stored under a fixed, non-namespaced key so the registry is the same regardless of
   // which ?cliente= happens to be in the current URL — it's an internal tool, not per-client data.
-  const CLIENTS_REGISTRY_KEY = 'clients-registry';
   function slugify(s){
     return (s||'').toString().trim().toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
       .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'');
   }
-  async function loadClientsRegistry(){
-    try{
-      const val = await rawStorageGet(CLIENTS_REGISTRY_KEY);
-      return val ? JSON.parse(val) : [];
-    }catch(e){ return []; }
+  // El registro viejo de marcas ("clients-registry") y los links ?cliente= quedaron sin uso:
+  // ahora las marcas y sus tokens viven en el registro del servidor. Se eliminaron esas
+  // funciones para que no queden dos listados que puedan quedar desincronizados.
+  // El panel de marcas ahora trabaja contra el registro del servidor, que es donde viven los
+  // tokens. Ese registro no lo puede leer ningún navegador: se pide por /api/datos y el
+  // servidor lo devuelve solo si quien pregunta es el administrador.
+  function linkDeMarca(token){
+    return `${location.origin}${location.pathname}?t=${encodeURIComponent(token)}`;
   }
-  async function saveClientsRegistry(list){
-    try{ await rawStorageSet(CLIENTS_REGISTRY_KEY, JSON.stringify(list)); }
-    catch(e){ showToast('No se pudo guardar el panel de marcas'); }
-  }
-  function clientLinkFor(slug){
-    return `${location.origin}${location.pathname}?cliente=${encodeURIComponent(slug)}`;
-  }
-  function clientReadOnlyLinkFor(slug){
-    return `${clientLinkFor(slug)}&vista=lectura`;
-  }
+
   async function renderClientsModal(){
     const list = $('clientsList');
     list.innerHTML = '<div class="clients-empty">Cargando…</div>';
-    const registry = await loadClientsRegistry();
-    if(registry.length === 0){
+    let marcas = [];
+    try{ marcas = await Data.marcas(); }
+    catch(e){ list.innerHTML = '<div class="clients-empty">No se pudo cargar el listado.</div>'; return; }
+    if(marcas.length === 0){
       list.innerHTML = '<div class="clients-empty">Todavía no creaste ninguna marca.</div>';
       return;
     }
     list.innerHTML = '';
-    registry.forEach((c, idx)=>{
-      const link = clientLinkFor(c.slug);
-      const readOnlyLink = clientReadOnlyLinkFor(c.slug);
+    marcas.forEach(m=>{
+      const link = linkDeMarca(m.token);
       const row = document.createElement('div');
       row.className = 'client-row-admin';
       row.innerHTML = `
         <div class="info">
-          <div class="nm">${escapeHtml(c.label || c.slug)}</div>
-          <div class="lk">${link}</div>
+          <div class="nm">${escapeHtml(m.nombre || m.slug)}</div>
+          <div class="lk">${escapeHtml(link)}</div>
         </div>
-        <button class="btn" data-act="copy" title="Link de edición completo">Copiar link</button>
-        <button class="btn ghost" data-act="copy-ro" title="La marca ve todo (días, ángulos, copys, estadísticas) pero no puede editar nada">👁 Solo lectura</button>
-        <button class="btn ghost" data-act="del" style="color:var(--danger);">Quitar</button>
+        <button class="btn" data-act="copy" title="Link privado de esta marca">Copiar link</button>
+        <button class="btn ghost" data-act="ver" title="Abrir el calendario de esta marca con tu acceso">Ver</button>
+        <button class="btn ghost" data-act="regen" title="Genera un link nuevo y deja el anterior sin efecto">↻ Rehacer link</button>
+        <button class="btn ghost" data-act="del" style="color:var(--danger);">Quitar acceso</button>
       `;
       row.querySelector('[data-act=copy]').addEventListener('click', async ()=>{
-        try{ await navigator.clipboard.writeText(link); showToast('Link de edición copiado'); }
+        try{ await navigator.clipboard.writeText(link); showToast('Link copiado — es privado, mandáselo solo a esa marca'); }
         catch(e){ showToast(link); }
       });
-      row.querySelector('[data-act="copy-ro"]').addEventListener('click', async ()=>{
-        try{ await navigator.clipboard.writeText(readOnlyLink); showToast('Link solo lectura copiado'); }
-        catch(e){ showToast(readOnlyLink); }
+      row.querySelector('[data-act=ver]').addEventListener('click', ()=>{
+        // Con tu token y ?cliente=: seguís siendo admin, mirando esa marca.
+        location.href = `${location.pathname}?t=${encodeURIComponent(TOKEN)}&cliente=${encodeURIComponent(m.slug)}`;
+      });
+      row.querySelector('[data-act=regen]').addEventListener('click', async ()=>{
+        if(!confirm(`¿Generar un link nuevo para "${m.nombre || m.slug}"?\n\nEl link anterior deja de funcionar al instante. Usalo si se filtró o si lo perdieron.`)) return;
+        try{
+          await Data.llamar({ accion:'regenerarMarca', slug: m.slug });
+          renderClientsModal();
+          showToast('Link nuevo generado — acordate de mandárselo');
+        }catch(e){ showToast('No se pudo: ' + e.message); }
       });
       row.querySelector('[data-act=del]').addEventListener('click', async ()=>{
-        if(!confirm(`¿Quitar "${c.label || c.slug}" de esta lista? Esto no borra su contenido, solo lo saca del panel.`)) return;
-        registry.splice(idx,1);
-        await saveClientsRegistry(registry);
-        renderClientsModal();
+        if(!confirm(`¿Quitarle el acceso a "${m.nombre || m.slug}"?\n\nSu link deja de funcionar. El contenido NO se borra: queda guardado por si hay que recuperarlo.`)) return;
+        try{
+          await Data.llamar({ accion:'borrarMarca', slug: m.slug });
+          renderClientsModal();
+          showToast('Acceso dado de baja');
+        }catch(e){ showToast('No se pudo: ' + e.message); }
       });
       list.appendChild(row);
     });
@@ -5422,21 +5457,52 @@
   $('closeClientsModal').addEventListener('click', ()=>{ $('clientsModal').classList.remove('open'); });
   $('addClientBtn').addEventListener('click', async ()=>{
     const slug = slugify($('newClientSlug').value);
-    const label = $('newClientLabel').value.trim();
+    const nombre = $('newClientLabel').value.trim();
     if(!slug){ showToast('Escribí un identificador para la marca'); return; }
-    const registry = await loadClientsRegistry();
-    if(registry.some(c=>c.slug===slug)){ showToast('Ya existe una marca con ese identificador'); return; }
-    registry.push({slug, label: label || slug});
-    await saveClientsRegistry(registry);
-    $('newClientSlug').value = ''; $('newClientLabel').value = '';
-    renderClientsModal();
-    showToast('Marca creada — ya podés copiarle el link');
+    try{
+      await Data.llamar({ accion:'crearMarca', slug, nombre });
+      $('newClientSlug').value = ''; $('newClientLabel').value = '';
+      renderClientsModal();
+      showToast('Marca creada — copiale el link y mandáselo');
+    }catch(e){ showToast('No se pudo crear: ' + e.message); }
   });
+
+  // Pantalla de acceso: reemplaza el calendario entero cuando el link no sirve. Es a
+  // propósito que no distinga "falta el token" de "el token no existe": no le confirma a
+  // nadie qué links son válidos.
+  function pantallaSinAcceso(mensaje){
+    document.body.innerHTML =
+      '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">' +
+      '<div style="max-width:440px;text-align:center;background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.16);' +
+      'border-radius:22px;padding:34px 30px;backdrop-filter:blur(22px);">' +
+      '<div style="font-size:34px;margin-bottom:14px;">🔒</div>' +
+      '<h1 style="font-family:Inter,sans-serif;font-size:19px;margin:0 0 10px;">No pudimos abrir el calendario</h1>' +
+      '<p style="color:#9a95ab;font-size:13.5px;line-height:1.6;margin:0;">' + mensaje + '</p>' +
+      '</div></div>';
+  }
 
   // ---------- init ----------
   (async function init(){
     const bar = $('loadingBar');
     const progress = $('loadingProgress');
+
+    // Primero el acceso: sin saber qué marca es, no tiene sentido pedir ningún dato.
+    let sesion;
+    try{
+      sesion = await Data.sesion();
+    }catch(e){
+      pantallaSinAcceso('Este link no es válido o fue dado de baja. Pedile a quien te lo compartió que te mande el actualizado.');
+      return;
+    }
+    ES_ADMIN = sesion.rol === 'admin';
+    NOMBRE_SESION = sesion.nombre || '';
+    // El administrador elige con ?cliente= qué marca mira; una marca no elige nada, y aunque
+    // edite la URL el servidor le sigue devolviendo únicamente lo suyo.
+    CLIENT_ID = ES_ADMIN
+      ? slugify(new URLSearchParams(location.search).get('cliente') || '')
+      : (sesion.slug || '');
+    document.body.classList.toggle('rol-editor', !ES_ADMIN);
+
     const steps = [
       {name: 'Ángulos', fn: loadAngles},
       {name: 'Marca', fn: loadClientName},

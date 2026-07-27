@@ -44,6 +44,16 @@ async function leerRegistro() {
   return registro;
 }
 
+// Sin vocales ni caracteres que se confundan al leerlos (0/O, 1/l/I), y con randomBytes y no
+// Math.random: este código es la llave del calendario, tiene que ser impredecible de verdad.
+const ALFABETO = 'abcdefghjkmnpqrstuvwxyz23456789';
+function codigoAlAzar(largo) {
+  const bytes = require('crypto').randomBytes(largo);
+  let out = '';
+  for (let i = 0; i < largo; i++) out += ALFABETO[bytes[i] % ALFABETO.length];
+  return out;
+}
+
 // Compara en tiempo constante para que no se pueda adivinar un token midiendo cuánto tarda
 // la respuesta según cuántos caracteres acertó.
 function igualSeguro(a, b) {
@@ -147,6 +157,39 @@ module.exports = async (req, res) => {
       if (sesion.rol !== 'admin') return res.status(403).json({ error: 'Solo el administrador.' });
       const registro = await leerRegistro();
       return res.status(200).json({ marcas: registro.marcas || [] });
+    }
+
+    // Alta de marca y regeneración de su link. Las dos reescriben el registro, así que son
+    // exclusivas del administrador y limpian el cache para que el cambio valga enseguida.
+    if (accion === 'crearMarca' || accion === 'regenerarMarca' || accion === 'borrarMarca') {
+      if (sesion.rol !== 'admin') return res.status(403).json({ error: 'Solo el administrador.' });
+      const registro = await leerRegistro();
+      const marcas = registro.marcas || [];
+      const slug = String((req.body || {}).slug || '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+      if (!slug) return res.status(400).json({ error: 'Falta el identificador de la marca.' });
+
+      if (accion === 'crearMarca') {
+        if (marcas.some(m => m.slug === slug)) return res.status(409).json({ error: 'Ya existe una marca con ese identificador.' });
+        marcas.push({ slug, nombre: String((req.body || {}).nombre || slug).trim() || slug, token: slug + '-' + codigoAlAzar(12), rol: 'editor' });
+      } else {
+        const marca = marcas.find(m => m.slug === slug);
+        if (!marca) return res.status(404).json({ error: 'No existe esa marca.' });
+        if (accion === 'regenerarMarca') marca.token = slug + '-' + codigoAlAzar(12);
+        // Dar de baja solo saca el acceso: el contenido de la marca queda en la base, por si
+        // hay que recuperarlo. Borrar los datos es otra cosa y no se hace desde acá.
+        else marcas.splice(marcas.indexOf(marca), 1);
+      }
+
+      const nuevo = Object.assign({}, registro, { marcas });
+      const r = await fetch(KV(), {
+        method: 'POST',
+        headers: cabeceras({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
+        body: JSON.stringify({ key: CLAVE_REGISTRO, value: JSON.stringify(nuevo), updated_at: new Date().toISOString() })
+      });
+      if (!r.ok) throw new Error('http ' + r.status);
+      registroCache = nuevo;
+      registroCacheHasta = Date.now() + CACHE_MS;
+      return res.status(200).json({ marcas });
     }
 
     return res.status(400).json({ error: 'Acción desconocida.' });
