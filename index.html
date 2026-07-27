@@ -6245,13 +6245,17 @@
   // Pantalla de acceso: reemplaza el calendario entero cuando el link no sirve. Es a
   // propósito que no distinga "falta el token" de "el token no existe": no le confirma a
   // nadie qué links son válidos.
-  function pantallaSinAcceso(mensaje){
+  // huboIntento distingue dos situaciones que no son lo mismo: alguien que llega por primera
+  // vez a la dirección —no falló nada, simplemente tiene que identificarse— y alguien cuyo
+  // link dejó de servir. Encabezar la primera con un error es confundir a quien recién llega.
+  function pantallaSinAcceso(mensaje, huboIntento){
     document.body.innerHTML =
       '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">' +
       '<div style="width:100%;max-width:440px;text-align:center;background:rgba(255,255,255,.055);' +
       'border:1px solid rgba(255,255,255,.16);border-radius:22px;padding:30px 24px;backdrop-filter:blur(22px);">' +
-      '<div style="font-size:34px;margin-bottom:14px;">🔒</div>' +
-      '<h1 style="font-family:Inter,sans-serif;font-size:19px;margin:0 0 10px;">No pudimos abrir el calendario</h1>' +
+      '<div style="font-size:34px;margin-bottom:14px;">' + (huboIntento ? '🔒' : '📅') + '</div>' +
+      '<h1 style="font-family:Inter,sans-serif;font-size:19px;margin:0 0 10px;">' +
+      (huboIntento ? 'Ese acceso ya no funciona' : 'Calendario de Contenido') + '</h1>' +
       '<p style="color:#9a95ab;font-size:13.5px;line-height:1.6;margin:0 0 18px;">' + mensaje + '</p>' +
       // Salida de emergencia: pegar el link acá evita quedar trabado en esta pantalla, que
       // es lo que pasaba si el navegador no tenía el link guardado.
@@ -6378,7 +6382,12 @@
       // Se olvida el token guardado: si no, un link dado de baja dejaría el navegador
       // atascado en esta pantalla incluso al abrir un link nuevo y válido.
       try{ localStorage.removeItem('cc-token'); }catch(err){}
-      pantallaSinAcceso('Ingresá con el PIN que te dieron para entrar a tu calendario.');
+      pantallaSinAcceso(
+        TOKEN
+          ? 'El link con el que entraste ya no sirve. Ingresá tu PIN para volver a entrar.'
+          : 'Ingresá tu PIN para entrar a tu calendario.',
+        !!TOKEN
+      );
       return;
     }
     ES_ADMIN = sesion.rol === 'admin';
