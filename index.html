@@ -440,6 +440,7 @@
     .cell{min-height:88px;min-width:76px;padding:6px;}
     .tag{font-size:9.5px;padding:2px 5px;}
     .swipe-hint{display:block;}
+
   }
   .swipe-hint{display:none;color:var(--muted-2);font-size:11px;font-family:'IBM Plex Mono',monospace;margin:-2px 0 10px;text-align:center;}
 
@@ -1021,6 +1022,41 @@
     line-height:1;
   }
   .avatar-edit-btn:hover{border-color:var(--accent);}
+
+  /* ---------- ajustes para teléfono ----------
+     Va al final de la hoja a propósito. El bloque móvil de más arriba está antes que las
+     reglas base de .panel y .modal, así que cualquier ajuste de ancho que pusiera ahí
+     quedaba pisado por ellas. Acá, siendo lo último, mandan estas. */
+  @media(max-width:700px){
+    /* El bloque de la marca no encogía y se salía del encabezado. Con min-width:0 el título
+       puede recortarse en vez de empujar todo hacia afuera. */
+    .brand{min-width:0;flex:1;gap:9px;}
+    .brand > div{min-width:0;}
+    .brand h1{font-size:17px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+    /* La barra de herramientas se apilaba en seis filas y ocupaba 240px, un tercio de la
+       pantalla. Botones más chicos, menos separación y alineados a la izquierda: con
+       space-between las filas se estiran y suman alto sin necesidad.
+       Sin scroll horizontal a propósito: recortaría los paneles de notificaciones y de
+       links, que cuelgan de estos mismos botones. */
+    .top-actions{justify-content:flex-start;gap:6px;}
+    .btn.icon-only{width:38px;height:38px;}
+    .btn.icon-only .label{display:none;}  /* el cartel al pasar el mouse no aplica al tacto */
+    #saveText{display:none;}               /* alcanza con el puntito de estado */
+
+    .month-meta{flex-wrap:wrap;gap:8px;}
+    .view-toggle{margin-left:0;}
+
+    /* El panel del día y las ventanas ocupan toda la pantalla: con márgenes, el contenido
+       queda en una columna impracticable. */
+    .panel{width:100%;max-width:100%;}
+    .modal{width:100% !important;max-width:100%;padding:16px;}
+    .modal-back{padding:8px;}
+    .notas-mes-box textarea{min-height:64px;}
+    .agente-ejemplo{font-size:11px;}
+    /* Los campos a 16px evitan que el teléfono haga zoom solo al tocarlos. */
+    textarea, input[type=text], input[type=url], input[type=date], select{font-size:16px;}
+  }
 </style>
 </head>
 <body>
