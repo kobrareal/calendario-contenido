@@ -1149,7 +1149,9 @@
       <button class="btn ghost" id="diagBtn" style="width:100%;" title="Prueba la conexión y muestra cuánto tarda cada operación">🔍 Diagnóstico</button>
     </div>
     <pre id="diagOutput" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow-y:auto;margin-bottom:14px;"></pre>
+    <p class="hint" style="margin-top:14px;">Este navegador recuerda tu link para que la app instalada abra directo. Si estás en una computadora compartida, cerrá la sesión al terminar.</p>
     <div class="modal-close-row">
+      <button class="btn ghost" id="cerrarSesionBtn" style="margin-right:auto;color:var(--danger);" title="Olvida el link en este navegador. Vas a necesitarlo de nuevo para volver a entrar.">Cerrar sesión en este navegador</button>
       <button class="btn primary" id="closeSettingsBtn" title="Cerrar">Cerrar</button>
     </div>
   </div>
@@ -1725,7 +1727,28 @@
   let CLIENT_ID = '';
   let ES_ADMIN = false;
   let NOMBRE_SESION = '';
-  const TOKEN = new URLSearchParams(location.search).get('t') || '';
+
+  // El token se busca en tres lugares, en este orden:
+  //  1. La dirección: calendario.../wayfarer-xxxx  (la forma linda, la que se reparte)
+  //  2. ?t=wayfarer-xxxx                           (la vieja, se sigue aceptando)
+  //  3. Lo guardado en este navegador
+  //
+  // El punto 3 existe por la app instalada: al abrirla desde el ícono del teléfono arranca
+  // en la raíz, sin el token en la dirección, y sin esto quedaría afuera de su propio
+  // calendario. Como contrapartida, quien use este navegador queda dentro hasta que se
+  // cierre sesión — es el mismo trato que "mantener sesión iniciada".
+  const TOKEN = (function(){
+    const params = new URLSearchParams(location.search);
+    // /algo → "algo". Se descartan rutas conocidas para no confundir un archivo con un token.
+    const delPath = decodeURIComponent(location.pathname.replace(/^\/+|\/+$/g, ''));
+    const reservadas = ['', 'index.html', 'sw.js', 'manifest.json', 'icono.svg', 'api'];
+    const candidato = params.get('t') || (reservadas.includes(delPath) ? '' : delPath);
+    if(candidato){
+      try{ localStorage.setItem('cc-token', candidato); }catch(e){ /* modo privado: no se recuerda */ }
+      return candidato;
+    }
+    try{ return localStorage.getItem('cc-token') || ''; }catch(e){ return ''; }
+  })();
   function clientKey(key){ return CLIENT_ID ? `${CLIENT_ID}:${key}` : key; }
 
   // ---------- read-only client links (?vista=lectura) ----------
@@ -6046,6 +6069,12 @@
   $('settingsBtn').addEventListener('click', ()=>{
     $('settingsModal').classList.add('open');
   });
+  $('cerrarSesionBtn').addEventListener('click', ()=>{
+    if(!confirm('¿Cerrar sesión en este navegador?\n\nVas a necesitar tu link para volver a entrar. Asegurate de tenerlo guardado.')) return;
+    try{ localStorage.removeItem('cc-token'); }catch(e){}
+    location.href = '/';
+  });
+
   $('closeSettingsBtn').addEventListener('click', ()=>{
     $('settingsModal').classList.remove('open');
   });
@@ -6064,8 +6093,9 @@
   // El panel de marcas ahora trabaja contra el registro del servidor, que es donde viven los
   // tokens. Ese registro no lo puede leer ningún navegador: se pide por /api/datos y el
   // servidor lo devuelve solo si quien pregunta es el administrador.
+  // Link corto: el token va en la dirección en vez de colgado con ?t=.
   function linkDeMarca(token){
-    return `${location.origin}${location.pathname}?t=${encodeURIComponent(token)}`;
+    return `${location.origin}/${encodeURIComponent(token)}`;
   }
 
   async function renderClientsModal(){
@@ -6098,8 +6128,8 @@
         catch(e){ showToast(link); }
       });
       row.querySelector('[data-act=ver]').addEventListener('click', ()=>{
-        // Con tu token y ?cliente=: seguís siendo admin, mirando esa marca.
-        location.href = `${location.pathname}?t=${encodeURIComponent(TOKEN)}&cliente=${encodeURIComponent(m.slug)}`;
+        // Con tu propio token y ?cliente=: seguís siendo admin, mirando esa marca.
+        location.href = `/${encodeURIComponent(TOKEN)}?cliente=${encodeURIComponent(m.slug)}`;
       });
       row.querySelector('[data-act=regen]').addEventListener('click', async ()=>{
         if(!confirm(`¿Generar un link nuevo para "${m.nombre || m.slug}"?\n\nEl link anterior deja de funcionar al instante. Usalo si se filtró o si lo perdieron.`)) return;
@@ -6157,7 +6187,9 @@
   // en vez de recargar de prepo: recargar sin permiso podría perder lo que estabas tipeando.
   if('serviceWorker' in navigator){
     window.addEventListener('load', ()=>{
-      navigator.serviceWorker.register('sw.js').then(reg=>{
+      // Rutas absolutas: la página puede servirse desde /wayfarer-xxxx, y una ruta relativa
+      // buscaría el archivo dentro de esa carpeta inexistente.
+      navigator.serviceWorker.register('/sw.js', { scope: '/' }).then(reg=>{
         reg.addEventListener('updatefound', ()=>{
           const nuevo = reg.installing;
           if(!nuevo) return;
@@ -6199,6 +6231,9 @@
     try{
       sesion = await Data.sesion();
     }catch(e){
+      // Se olvida el token guardado: si no, un link dado de baja dejaría el navegador
+      // atascado en esta pantalla incluso al abrir un link nuevo y válido.
+      try{ localStorage.removeItem('cc-token'); }catch(err){}
       pantallaSinAcceso('Este link no es válido o fue dado de baja. Pedile a quien te lo compartió que te mande el actualizado.');
       return;
     }
