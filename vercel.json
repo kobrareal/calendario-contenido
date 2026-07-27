@@ -5,10 +5,6 @@
     }
   },
   "rewrites": [
-    {
-      "comment": "El token puede venir como parte de la dirección (/wayfarer-xxxx) en vez de ?t=. Vercel busca primero un archivo real, así que /sw.js, /manifest.json, /icono.svg y /api/* se sirven normalmente y solo las direcciones que no existen caen acá.",
-      "source": "/:token",
-      "destination": "/index.html"
-    }
+    { "source": "/:token", "destination": "/index.html" }
   ]
 }
