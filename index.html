@@ -1722,10 +1722,19 @@
   let tituloPersonalizado = '';
 
   async function loadCalendarTitle(){
+    let val = '';
+    try{ val = await storageGet('calendar-title') || ''; }catch(e){ val = ''; }
+    // La versión anterior guardaba el título como texto plano y la nueva lo codifica. Se
+    // aceptan los dos: si no, el título que ya tenías guardado se descartaría al no poder
+    // decodificarlo, que es justamente el problema que vino a resolver esto.
     try{
-      const val = await storageGet('calendar-title');
-      tituloPersonalizado = val ? JSON.parse(val) : '';
-    }catch(e){ tituloPersonalizado = ''; }
+      const decodificado = JSON.parse(val);
+      tituloPersonalizado = typeof decodificado === 'string' ? decodificado : String(val);
+    }catch(e){
+      tituloPersonalizado = String(val);
+    }
+    // El sufijo de solo lectura pudo haber quedado pegado al guardarse lo que se mostraba.
+    tituloPersonalizado = tituloPersonalizado.replace(/\s*\(solo lectura\)\s*$/i, '').trim();
     updateBrandTitle();
   }
 
