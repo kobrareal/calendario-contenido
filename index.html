@@ -172,7 +172,8 @@
      por igual y la plegada seguía reclamando su mitad aunque estuviera vacía. Con
      flex:0 0 auto se encoge a la altura de su encabezado y la abierta se queda con el resto. */
   .block.collapsed > div[id$="Content"]{display:none;}
-  .panel > .block.collapsed{flex:0 0 auto;overflow:hidden;padding:9px 12px;margin-bottom:9px;}
+  .panel > .block.collapsed{overflow:hidden;margin-bottom:7px;}
+  .block.collapsed{padding:8px 10px;}
   .block.collapsed .block-title-row{margin-bottom:0;}
   .item-card{
     border:1px solid var(--border);border-radius:12px;background:var(--card-bg);
@@ -488,13 +489,20 @@
   /* Márgenes ajustados: los originales dejaban una franja vacía arriba, otra entre las dos
      secciones y otra sobre los botones, que sumadas obligaban a scrollear para ver el
      posteo que se está editando. */
-  .panel > .panel-head{position:sticky;top:0;padding:16px 18px 0;z-index:50;background:var(--surface);}
-  .panel > .block{flex:1;padding:8px 18px 0;overflow-y:auto;}
+  /* El panel entero scrollea, y cada sección mide lo que su contenido necesita. Antes las
+     secciones llevaban flex:1: la que estaba abierta se estiraba hasta el pie aunque tuviera
+     dos líneas adentro, y dejaba una caja alta y vacía —el hueco de la captura—. */
+  .panel{overflow-y:auto;}
+  .panel > .panel-head{position:sticky;top:0;padding:14px 16px 0;z-index:50;background:var(--surface);}
+  .panel > .block{flex:0 0 auto;padding:6px 16px 0;}
   .panel > .block:first-of-type{padding-top:0;}
-  .panel > .panel-footer{position:sticky;bottom:0;padding:6px 18px 14px;background:var(--surface);z-index:50;}
+  /* Sin margin-top:auto: en un día corto el pie queda justo debajo del contenido en vez de
+     empujado al fondo dejando un vacío en el medio. Cuando el día es largo, sticky lo pega
+     abajo igual y sigue siempre a mano. */
+  .panel > .panel-footer{position:sticky;bottom:0;padding:8px 16px 10px;background:var(--surface);z-index:50;}
   @keyframes slidein{from{transform:translateX(24px);opacity:0;}to{transform:translateX(0);opacity:1;}}
-  .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
-  .panel > .anotacion-panel{padding:0 18px 8px;}
+  .panel-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .panel > .anotacion-panel{padding:0 16px 6px;}
   .anotacion-input{
     width:100%;background:rgba(240,184,73,.07);border:1px dashed rgba(240,184,73,.35);
     border-radius:8px;color:#f0b849;padding:7px 10px;font-size:12.5px;
@@ -508,7 +516,7 @@
   }
   .close-x:hover{background:var(--surface-2);color:var(--text);}
 
-  .block{margin-bottom:12px;border:1px solid var(--border);border-radius:10px;padding:12px;background:var(--surface-2);backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);}
+  .block{margin-bottom:8px;border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--surface-2);backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);}
   .block-title{
     display:flex;align-items:center;gap:8px;margin-bottom:8px;
     font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:600;
@@ -937,15 +945,15 @@
     </div>
 
     <div class="month-nav">
-      <button id="prevMonth" aria-label="Anterior">‹</button>
+      <button id="prevMonth" aria-label="Anterior" title="Ir al período anterior">‹</button>
       <div class="month-label mono" id="monthLabel">—</div>
-      <button id="nextMonth" aria-label="Siguiente">›</button>
+      <button id="nextMonth" aria-label="Siguiente" title="Ir al período siguiente">›</button>
     </div>
 
     <div class="view-toggle" role="group" aria-label="Vista del calendario">
-      <button type="button" class="view-opt" id="viewDayBtn">Día</button>
-      <button type="button" class="view-opt" id="viewWeekBtn">Semana</button>
-      <button type="button" class="view-opt active" id="viewMonthBtn">Mes</button>
+      <button type="button" class="view-opt" id="viewDayBtn" title="Ver un solo día en detalle">Día</button>
+      <button type="button" class="view-opt" id="viewWeekBtn" title="Ver la semana completa, con el detalle de cada posteo">Semana</button>
+      <button type="button" class="view-opt active" id="viewMonthBtn" title="Ver el mes entero de un vistazo">Mes</button>
     </div>
 
     <div class="top-actions">
@@ -965,7 +973,7 @@
       <button class="btn ghost icon-only admin-only" id="trashBtn" title="Papelera: lo eliminado en los últimos 7 días"><i class="fa-solid fa-trash-can"></i><span class="label">Papelera</span></button>
       <button class="btn ghost icon-only admin-only" id="ideasBtn" title="Ideas de contenido para más adelante"><i class="fa-solid fa-lightbulb"></i><span class="label">Ideas</span></button>
       <button class="btn ghost icon-only admin-only solo-admin" id="clientsBtn" title="Panel de marcas"><i class="fa-solid fa-users"></i><span class="label">Marcas</span></button>
-      <button class="btn ghost icon-only admin-only solo-admin" id="settingsBtn" aria-label="Configuración"><i class="fa-solid fa-gear"></i><span class="label">Configuración</span></button>
+      <button class="btn ghost icon-only admin-only solo-admin" id="settingsBtn" aria-label="Configuración" title="Herramientas de diagnóstico y sincronización"><i class="fa-solid fa-gear"></i><span class="label">Configuración</span></button>
     </div>
   </header>
 
@@ -1006,9 +1014,9 @@
         <div class="legend">
           <h3>Ángulos de contenido</h3>
           <div id="legendList"></div>
-          <button class="btn manage-btn admin-only solo-admin" id="manageAnglesBtn">✎ Gestionar ángulos</button>
-          <button class="btn manage-btn admin-only" id="manageImagesBtn" style="margin-top:8px;">🗑 Gestionar imágenes</button>
-          <button class="btn manage-btn admin-only" id="manageClearBtn" style="margin-top:8px;color:var(--danger);">🗑 Vaciar semana / mes</button>
+          <button class="btn manage-btn admin-only solo-admin" id="manageAnglesBtn" title="Crear y editar los ángulos de contenido: su nombre, color y emoji">✎ Gestionar ángulos</button>
+          <button class="btn manage-btn admin-only" id="manageImagesBtn" style="margin-top:8px;" title="Ver y borrar todas las imágenes cargadas este mes">🗑 Gestionar imágenes</button>
+          <button class="btn manage-btn admin-only" id="manageClearBtn" style="margin-top:8px;color:var(--danger);" title="Vaciar varios días de una vez (una semana, el mes entero)">🗑 Vaciar semana / mes</button>
         </div>
       </div>
     </div>
@@ -1024,14 +1032,14 @@
     <p class="hint"><strong>No hay nada que configurar.</strong> Los datos se guardan solos en la base del sistema y el generador de copy funciona sin claves ni URLs, así que tus marcas y tus links de solo lectura andan sin que nadie toque nada acá. Cada marca ve únicamente su propio calendario gracias al <span class="mono">?cliente=</span> de su link (armalo desde "🏷 Marcas").</p>
     <p class="hint">Lo que queda abajo son dos herramientas para cuando algo no cierre: una prueba de conexión con tiempos, y un botón para empujar a la base lo que hubiera quedado guardado solo en este navegador.</p>
     <div class="modal-close-row" style="margin-bottom:10px;">
-      <button class="btn ghost" id="resyncBtn" style="width:100%;">↑ Subir todo lo local a la base</button>
+      <button class="btn ghost" id="resyncBtn" style="width:100%;" title="Sube a la base lo que haya quedado guardado solo en este navegador">↑ Subir todo lo local a la base</button>
     </div>
     <div class="modal-close-row" style="margin-bottom:10px;">
-      <button class="btn ghost" id="diagBtn" style="width:100%;">🔍 Diagnóstico</button>
+      <button class="btn ghost" id="diagBtn" style="width:100%;" title="Prueba la conexión y muestra cuánto tarda cada operación">🔍 Diagnóstico</button>
     </div>
     <pre id="diagOutput" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow-y:auto;margin-bottom:14px;"></pre>
     <div class="modal-close-row">
-      <button class="btn primary" id="closeSettingsBtn">Cerrar</button>
+      <button class="btn primary" id="closeSettingsBtn" title="Cerrar">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1041,7 +1049,7 @@
   <div class="panel">
     <div class="panel-head">
       <h2 id="panelDate">—</h2>
-      <button class="close-x" id="closePanel">✕</button>
+      <button class="close-x" id="closePanel" title="Cerrar este día">✕</button>
     </div>
 
     <!-- Anotación del día: no es un posteo, es una marca del calendario (un feriado, un
@@ -1055,13 +1063,13 @@
          estás editando ocupe todo el alto del panel en vez de repartirlo entre las dos. -->
     <div class="block" id="feedBlock">
       <div class="block-title-row">
-        <button type="button" class="section-toggle" id="feedToggleBtn" aria-expanded="true" aria-controls="feedContent">
+        <button type="button" class="section-toggle" id="feedToggleBtn" aria-expanded="true" aria-controls="feedContent" title="Desplegar los reels y carruseles de este día">
           <span class="section-arrow">▼</span>
           <span class="block-title"><span class="dot-icon" style="background:var(--accent)"></span>Feed<span class="section-count" id="feedCount"></span></span>
         </button>
         <div style="display:flex;gap:6px;">
-          <button type="button" class="btn ghost small admin-only" id="addReelBtn">+ Reel</button>
-          <button type="button" class="btn ghost small admin-only" id="addCarruselBtn">+ Carrusel</button>
+          <button type="button" class="btn ghost small admin-only" id="addReelBtn" title="Agregar un reel a este día">+ Reel</button>
+          <button type="button" class="btn ghost small admin-only" id="addCarruselBtn" title="Agregar un carrusel a este día">+ Carrusel</button>
         </div>
       </div>
       <div id="feedContent">
@@ -1071,12 +1079,12 @@
 
     <div class="block" id="storiesBlock">
       <div class="block-title-row">
-        <button type="button" class="section-toggle" id="storiesToggleBtn" aria-expanded="false" aria-controls="storiesContent">
+        <button type="button" class="section-toggle" id="storiesToggleBtn" aria-expanded="false" aria-controls="storiesContent" title="Desplegar las stories de este día">
           <span class="section-arrow">▶</span>
           <span class="block-title"><span class="dot-icon" style="background:var(--accent-2)"></span>Stories<span class="section-count" id="storiesCount"></span></span>
         </button>
         <div style="display:flex;gap:6px;">
-          <button type="button" class="btn ghost small admin-only" id="addStoryBtn">+ Story</button>
+          <button type="button" class="btn ghost small admin-only" id="addStoryBtn" title="Agregar una story a este día">+ Story</button>
         </div>
       </div>
       <div id="storiesContent">
@@ -1085,11 +1093,11 @@
     </div>
 
     <div class="panel-footer" style="flex-wrap:wrap;gap:8px;">
-      <button class="clear-day admin-only" id="clearDay">Vaciar este día</button>
+      <button class="btn ghost admin-only" id="clearDay" title="Manda todo el contenido de este día a la papelera. Podés restaurarlo durante 7 días.">🧹 Vaciar día</button>
       <div style="display:flex;gap:8px;">
-        <button class="btn ghost admin-only" id="copyDayBtn" title="Copiar este día">📋 Copiar</button>
-        <button class="btn ghost admin-only" id="pasteDayBtn" title="Pegar día copiado" disabled>📌 Pegar</button>
-        <button class="btn primary" id="doneBtn">Listo</button>
+        <button class="btn ghost admin-only" id="copyDayBtn" title="Copia el contenido de este día para pegarlo en otro">📋 Copiar</button>
+        <button class="btn ghost admin-only" id="pasteDayBtn" title="Reemplaza el contenido de este día por el que copiaste antes" disabled>📌 Pegar</button>
+        <button class="btn primary" id="doneBtn" title="Guarda y cierra este día">Listo</button>
       </div>
     </div>
   </div>
@@ -1101,8 +1109,8 @@
     <h2>Ángulos de contenido</h2>
     <p class="hint">Cada ángulo tiene un color propio que se ve en el calendario y en la vista previa del feed. Podés renombrarlos, cambiar su color, agregar nuevos o eliminarlos.</p>
     <div id="anglesList"></div>
-    <button class="btn add-angle-btn" id="addAngleBtn">+ Agregar ángulo</button>
-    <div class="modal-close-row"><button class="btn primary" id="closeAnglesModal">Guardar y cerrar</button></div>
+    <button class="btn add-angle-btn" id="addAngleBtn" title="Crear un ángulo de contenido nuevo">+ Agregar ángulo</button>
+    <div class="modal-close-row"><button class="btn primary" id="closeAnglesModal" title="Guardar los cambios y cerrar">Guardar y cerrar</button></div>
   </div>
 </div>
 
@@ -1114,7 +1122,7 @@
     <div class="block-title" style="margin-bottom:8px;">Reglas recurrentes (opcional)</div>
     <p class="hint" style="margin-top:0;">Agregá reglas fijas (ej: todos los viernes una story, cada 2 días un posteo de feed) — se aplican antes que el reparto aleatorio de abajo, y se recuerdan para la próxima vez.</p>
     <div style="margin-bottom:14px;">
-      <button type="button" class="btn ghost" id="addRuleManualBtn">+ Agregar regla</button>
+      <button type="button" class="btn ghost" id="addRuleManualBtn" title="Agregar una regla para repetir contenido de forma automática">+ Agregar regla</button>
     </div>
     <div id="rulesList" style="margin-bottom:20px;"></div>
 
@@ -1129,8 +1137,8 @@
       Sobrescribir días que ya tienen contenido
     </label>
     <div class="modal-close-row">
-      <button class="btn ghost" id="closeGenerateModal">Cancelar</button>
-      <button class="btn primary" id="runGenerateBtn">🎲 Generar</button>
+      <button class="btn ghost" id="closeGenerateModal" title="Cerrar sin generar nada">Cancelar</button>
+      <button class="btn primary" id="runGenerateBtn" title="Rellenar el mes con la configuración de arriba">🎲 Generar</button>
     </div>
   </div>
 </div>
@@ -1143,8 +1151,8 @@
     <label class="field-label">Rango a vaciar</label>
     <select id="clearRangeSelect" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:'Inter',sans-serif;font-size:13px;margin-bottom:6px;"></select>
     <div class="modal-close-row">
-      <button class="btn ghost" id="closeClearModal">Cancelar</button>
-      <button class="btn primary" id="runClearBtn" style="background:linear-gradient(135deg,var(--danger),#a9515b);">🗑 Vaciar</button>
+      <button class="btn ghost" id="closeClearModal" title="Cerrar sin borrar nada">Cancelar</button>
+      <button class="btn primary" id="runClearBtn" style="background:linear-gradient(135deg,var(--danger),#a9515b);" title="Vaciar el rango elegido">🗑 Vaciar</button>
     </div>
   </div>
 </div>
@@ -1154,8 +1162,8 @@
     <h2>¿Estás seguro?</h2>
     <p class="hint" id="confirmClearText"></p>
     <div class="modal-close-row">
-      <button class="btn ghost" id="cancelConfirmClearBtn">Cancelar</button>
-      <button class="btn primary" id="confirmClearBtn" style="background:linear-gradient(135deg,var(--danger),#a9515b);">Sí, vaciar</button>
+      <button class="btn ghost" id="cancelConfirmClearBtn" title="No vaciar, volver atrás">Cancelar</button>
+      <button class="btn primary" id="confirmClearBtn" style="background:linear-gradient(135deg,var(--danger),#a9515b);" title="Confirmar: manda ese contenido a la papelera">Sí, vaciar</button>
     </div>
   </div>
 </div>
@@ -1167,8 +1175,8 @@
     <p class="hint">Las miniaturas que subís se guardan directo en tu Google Sheet. Si querés liberar espacio, podés eliminarlas de acá sin perder el resto del contenido de cada día.</p>
     <div id="imagesList"></div>
     <div class="modal-close-row">
-      <button class="btn ghost" id="deleteAllImagesBtn" style="margin-right:auto;color:var(--danger);">Eliminar todas las de este mes</button>
-      <button class="btn primary" id="closeImagesModal">Cerrar</button>
+      <button class="btn ghost" id="deleteAllImagesBtn" style="margin-right:auto;color:var(--danger);" title="Quita todas las imágenes de este mes, dejando el resto del contenido">Eliminar todas las de este mes</button>
+      <button class="btn primary" id="closeImagesModal" title="Cerrar">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1179,7 +1187,7 @@
     <h2>Estadísticas del mes</h2>
     <p class="hint">Distribución de ángulos asignados al Feed y a las Stories durante <span id="statsMonthLabel">—</span>.</p>
     <div id="statsBody"></div>
-    <div class="modal-close-row"><button class="btn primary" id="closeStatsModal">Cerrar</button></div>
+    <div class="modal-close-row"><button class="btn primary" id="closeStatsModal" title="Cerrar">Cerrar</button></div>
   </div>
 </div>
 
@@ -1190,7 +1198,7 @@
     <p class="hint">Lo que eliminás sale del calendario pero queda acá <strong>7 días</strong>, por si te arrepentís. Pasado ese plazo se borra solo. "Restaurar" lo devuelve al día del que salió.</p>
     <div id="trashList" style="max-height:420px;overflow-y:auto;"></div>
     <div class="modal-close-row" style="margin-top:12px;">
-      <button class="btn primary" id="closeTrashModal">Cerrar</button>
+      <button class="btn primary" id="closeTrashModal" title="Cerrar">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1203,7 +1211,7 @@
     <textarea id="monthNotesText" placeholder="Ej: mes de aniversario, priorizar contenido de comunidad. Falta confirmar la fecha del sorteo..." style="width:100%;min-height:200px;"></textarea>
     <div class="modal-close-row" style="margin-top:12px;">
       <span class="hint" id="monthNotesStatus" style="margin:0;margin-right:auto;"></span>
-      <button class="btn primary" id="closeMonthNotes">Cerrar</button>
+      <button class="btn primary" id="closeMonthNotes" title="Guardar y cerrar">Cerrar</button>
     </div>
   </div>
 </div>
@@ -1217,8 +1225,8 @@
     <input type="date" id="dupItemDate" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:13px;" />
     <p class="hint" style="margin-top:10px;">Se crea una copia con el mismo ángulo, copy, guion e imagen. El post original queda donde está.</p>
     <div class="modal-close-row" style="margin-top:6px;">
-      <button class="btn ghost" id="dupItemCancel" style="margin-right:auto;">Cancelar</button>
-      <button class="btn primary" id="dupItemConfirm">Duplicar</button>
+      <button class="btn ghost" id="dupItemCancel" style="margin-right:auto;" title="Cancelar, no duplicar">Cancelar</button>
+      <button class="btn primary" id="dupItemConfirm" title="Crear la copia en la fecha elegida">Duplicar</button>
     </div>
   </div>
 </div>
@@ -1234,7 +1242,7 @@
       <input type="url" id="newIdeaLink" class="idea-link-input" placeholder="🔗 Link de referencia (opcional): un reel, un artículo, una foto…" />
       <div class="idea-add-row">
         <div class="angle-picker" id="newIdeaAnglePicker" style="flex:1;"></div>
-        <button class="btn primary" id="addIdeaBtn">+ Agregar</button>
+        <button class="btn primary" id="addIdeaBtn" title="Guardar esta idea para usarla más adelante">+ Agregar</button>
       </div>
     </div>
     <div class="ideas-filter-row">
@@ -1242,7 +1250,7 @@
       <select id="ideaFilterSelect"><option value="">Todos los ángulos</option></select>
     </div>
     <div id="ideasList"></div>
-    <div class="modal-close-row"><button class="btn primary" id="closeIdeasModal">Cerrar</button></div>
+    <div class="modal-close-row"><button class="btn primary" id="closeIdeasModal" title="Cerrar">Cerrar</button></div>
   </div>
 </div>
 
@@ -1260,14 +1268,14 @@
     <div class="block-title-row" style="margin-bottom:8px;">
       <label class="field-label" style="margin-bottom:0;">Meses a buscar</label>
       <div style="display:flex;gap:6px;">
-        <button type="button" class="btn ghost small" id="searchOnlyThisMonthBtn">Solo este mes</button>
-        <button type="button" class="btn ghost small" id="searchThisYearBtn">Este año</button>
+        <button type="button" class="btn ghost small" id="searchOnlyThisMonthBtn" title="Buscar únicamente en el mes que estás viendo">Solo este mes</button>
+        <button type="button" class="btn ghost small" id="searchThisYearBtn" title="Buscar en los doce meses de este año">Este año</button>
       </div>
     </div>
     <div id="searchMonthsList" class="search-months-list"></div>
     <div class="modal-close-row" style="margin-top:14px;">
-      <button class="btn ghost" id="closeSearchModal">Cerrar</button>
-      <button class="btn primary" id="runSearchBtn">🔎 Buscar</button>
+      <button class="btn ghost" id="closeSearchModal" title="Cerrar el buscador">Cerrar</button>
+      <button class="btn primary" id="runSearchBtn" title="Buscar en los meses marcados">🔎 Buscar</button>
     </div>
     <div id="searchResultsList" class="search-results-list"></div>
   </div>
@@ -1281,10 +1289,10 @@
     <div class="add-client-row">
       <input type="text" id="newClientSlug" placeholder="identificador (ej: marca-x, sin espacios)" />
       <input type="text" id="newClientLabel" placeholder="nombre a mostrar (ej: Marca X)" />
-      <button class="btn primary" id="addClientBtn">+ Crear</button>
+      <button class="btn primary" id="addClientBtn" title="Crear la marca y generarle su link privado">+ Crear</button>
     </div>
     <div id="clientsList"></div>
-    <div class="modal-close-row"><button class="btn primary" id="closeClientsModal">Cerrar</button></div>
+    <div class="modal-close-row"><button class="btn primary" id="closeClientsModal" title="Cerrar">Cerrar</button></div>
   </div>
 </div>
 
@@ -1297,18 +1305,59 @@
   const DIAS_SEMANA = ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"];
   const COPY_MAX_LEN = 499; // keeps generated/typed copy under 500 characters
 
-  const EMOJI_PICKER_EMOJIS = [
-    '😊', '😍', '🥰', '😘', '😂', '🤣', '😎', '🤩', '😍', '🥳', '🎉', '🎊', '🎈', '🎁', '💝', '💖', '💗', '💓', '💕', '❤️',
-    '🔥', '⚡', '✨', '⭐', '🌟', '💫', '💥', '👍', '👏', '🙌', '🤝', '🏆', '🥇', '🥈', '🥉', '💯', '💪', '🚀', '📈', '💰',
-    '🛍️', '🎯', '📢', '📣', '📡', '💬', '🗨️', '💭', '🔔', '📳', '📲', '💻', '📱', '⌚', '🎬', '🎥', '📹', '📷', '📸', '🎨',
-    '🍔', '🍕', '🍜', '🍱', '🍰', '🎂', '🍪', '☕', '🥤', '🍷', '🍾', '🥂', '🍻', '🥃', '🍳', '🥘', '🌮', '🌯', '🥙', '🍲',
-    '✈️', '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '⛵', '🚤', '🛳️', '⛴️', '🛥️',
-    '🏠', '🏡', '🏢', '🏣', '🏤', '🏥', '🏦', '🏨', '🏪', '🏫', '🏬', '🏭', '🏯', '🏰', '💒', '🗼', '🗽', '🗿', '⛩️', '🕌',
-    '📚', '📖', '📝', '✏️', '✒️', '🖊️', '🖋️', '📐', '📏', '📌', '📍', '📎', '🖇️', '📏', '📐', '🧮', '🎓', '⚗️', '🔬', '🔭',
-    '🌈', '☀️', '🌤️', '⛅', '🌥️', '☁️', '🌦️', '🌧️', '⛈️', '🌩️', '🌨️', '❄️', '☃️', '⛄', '🌬️', '💨', '💧', '💦', '☔', '🌊',
-    '🎪', '🎭', '🎨', '🎬', '🎤', '🎧', '🎼', '🎹', '🎸', '🎺', '🎷', '🥁', '🎻', '🎲', '🎯', '🎳', '🎮', '🎰', '♠️', '♥️',
-    '🍀', '🌸', '🌺', '🌻', '🌼', '🌷', '🌹', '🥀', '🌱', '🌲', '🌳', '🌴', '🌵', '🌾', '🌿', '☘️', '🍁', '🍂', '🍃', '⚽'
+  // Cada emoji va con las palabras por las que uno lo buscaría. Antes la lista eran solo los
+  // dibujos y el buscador comparaba el emoji contra el texto tecleado, así que no encontraba
+  // nunca nada. Las palabras están en español y sin tildes, que es como se escribe al buscar.
+  const EMOJI_GRUPOS = [
+    { palabras:'cara feliz sonrisa alegre risa amor beso enamorado', emojis:['😊','😍','🥰','😘','😂','🤣','😎','🤩','🥳'] },
+    { palabras:'fiesta celebracion festejo cumpleanos regalo sorteo', emojis:['🎉','🎊','🎈','🎁','🥳','🎂','🍰'] },
+    { palabras:'corazon amor cariño romantico', emojis:['❤️','💝','💖','💗','💓','💕','♥️'] },
+    { palabras:'fuego destacado tendencia energia brillo estrella nuevo', emojis:['🔥','⚡','✨','⭐','🌟','💫','💥'] },
+    { palabras:'aplauso pulgar like manos gracias acuerdo apoyo', emojis:['👍','👏','🙌','🤝','💪'] },
+    { palabras:'premio ganador trofeo medalla logro exito calidad', emojis:['🏆','🥇','🥈','🥉','💯'] },
+    { palabras:'crecimiento ventas dinero plata precio negocio grafico subir', emojis:['🚀','📈','💰','🛍️'] },
+    { palabras:'objetivo meta foco anuncio aviso megafono comunicado promocion', emojis:['🎯','📢','📣','📡','🔔'] },
+    { palabras:'mensaje comentario charla opinion idea pensamiento', emojis:['💬','🗨️','💭'] },
+    { palabras:'telefono celular computadora pantalla tecnologia reloj', emojis:['📲','📳','💻','📱','⌚'] },
+    { palabras:'video camara filmar foto reel grabar produccion cine', emojis:['🎬','🎥','📹','📷','📸'] },
+    { palabras:'arte diseño creatividad pintura color', emojis:['🎨','🎭','🎪'] },
+    { palabras:'comida hamburguesa pizza plato almuerzo cena restaurante', emojis:['🍔','🍕','🍜','🍱','🥘','🍲','🌮','🌯','🥙','🍳'] },
+    { palabras:'postre dulce torta galleta cafe bebida jugo', emojis:['🍪','☕','🥤'] },
+    { palabras:'vino brindis alcohol cerveza trago bar champagne', emojis:['🍷','🍾','🥂','🍻','🥃'] },
+    { palabras:'viaje avion auto vehiculo transporte camioneta camion', emojis:['✈️','🚗','🚕','🚙','🚌','🏎️','🛻','🚚','🚛'] },
+    { palabras:'barco mar navegar velero lancha crucero', emojis:['⛵','🚤','🛳️','⛴️','🛥️'] },
+    { palabras:'casa hogar edificio oficina local tienda negocio fabrica', emojis:['🏠','🏡','🏢','🏪','🏬','🏭'] },
+    { palabras:'hotel banco hospital escuela monumento turismo iglesia castillo', emojis:['🏨','🏦','🏥','🏫','🏰','🗼','🗽','💒'] },
+    { palabras:'libro leer estudio educacion curso aprender escuela titulo', emojis:['📚','📖','🎓','🧮'] },
+    { palabras:'escribir nota lapiz lapicera anotar redaccion copy', emojis:['📝','✏️','✒️','🖊️','🖋️'] },
+    { palabras:'marcar pin ubicacion clip regla medir importante', emojis:['📌','📍','📎','🖇️','📐','📏'] },
+    { palabras:'ciencia laboratorio investigacion microscopio telescopio', emojis:['⚗️','🔬','🔭'] },
+    { palabras:'clima sol soleado nube nublado arcoiris verano', emojis:['🌈','☀️','🌤️','⛅','🌥️','☁️'] },
+    { palabras:'lluvia tormenta paraguas mojado agua invierno nieve frio', emojis:['🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','⛄','☔','💧','💦'] },
+    { palabras:'viento aire playa mar ola', emojis:['🌬️','💨','🌊'] },
+    { palabras:'musica cancion audio microfono podcast auriculares instrumento', emojis:['🎤','🎧','🎼','🎹','🎸','🎺','🎷','🥁','🎻'] },
+    { palabras:'juego jugar sorteo azar dado ruleta videojuego bowling', emojis:['🎲','🎳','🎮','🎰','♠️'] },
+    { palabras:'suerte trebol flor flores primavera planta naturaleza verde', emojis:['🍀','🌸','🌺','🌻','🌼','🌷','🌹','🥀','🌱','🌿','☘️'] },
+    { palabras:'arbol bosque palmera cactus campo trigo otoño hoja', emojis:['🌲','🌳','🌴','🌵','🌾','🍁','🍂','🍃'] },
+    { palabras:'deporte futbol pelota partido', emojis:['⚽'] }
   ];
+
+  // Lista plana {emoji, palabras} que usa el buscador. Un mismo emoji puede aparecer en dos
+  // grupos (🥳 es fiesta y es cara), así que se juntan las palabras y se muestra una sola vez.
+  const EMOJI_PICKER_EMOJIS = (()=>{
+    const porEmoji = new Map();
+    EMOJI_GRUPOS.forEach(g=>{
+      g.emojis.forEach(e=>{
+        porEmoji.set(e, (porEmoji.get(e) ? porEmoji.get(e) + ' ' : '') + g.palabras);
+      });
+    });
+    return [...porEmoji].map(([emoji, palabras]) => ({ emoji, palabras }));
+  })();
+
+  // Quita tildes para que "corazon" encuentre "corazón" y al revés.
+  function sinTildes(s){
+    return (s||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  }
 
   // Completa el "https://" que uno nunca escribe al pegar un link a mano. Sin esto el
   // navegador interpreta "instagram.com/marca" como una ruta del propio calendario y el
@@ -1362,10 +1411,14 @@
 
     function renderEmojis(filter=''){
       emojiGrid.innerHTML = '';
-      EMOJI_PICKER_EMOJIS.forEach(emoji=>{
-        if(!filter || emoji.match(filter)){
+      const buscado = sinTildes(filter).trim();
+      let encontrados = 0;
+      EMOJI_PICKER_EMOJIS.forEach(({emoji, palabras})=>{
+        if(!buscado || sinTildes(palabras).includes(buscado)){
+          encontrados++;
           const btn = document.createElement('button');
           btn.type = 'button'; btn.textContent = emoji;
+          btn.title = palabras.split(' ').slice(0,5).join(', ');
           btn.style.cssText = 'background:none;border:1px solid var(--border);cursor:pointer;font-size:16px;padding:4px;border-radius:4px;';
           btn.addEventListener('click', ()=>{
             targetInput.value = reemplazar ? emoji : (targetInput.value + emoji);
@@ -1375,9 +1428,15 @@
           emojiGrid.appendChild(btn);
         }
       });
+      if(encontrados === 0){
+        const vacio = document.createElement('div');
+        vacio.style.cssText = 'grid-column:1/-1;color:var(--muted-2);font-size:11.5px;font-style:italic;padding:10px 4px;text-align:center;';
+        vacio.textContent = 'Ningún emoji con “' + filter + '”. Probá con: fiesta, comida, video, fuego…';
+        emojiGrid.appendChild(vacio);
+      }
     }
 
-    searchInput.addEventListener('input', ()=>renderEmojis(searchInput.value.toLowerCase()));
+    searchInput.addEventListener('input', ()=>renderEmojis(searchInput.value));
     renderEmojis();
 
     container.appendChild(header);
