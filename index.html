@@ -6159,17 +6159,65 @@
     return `${location.origin}/${encodeURIComponent(token)}`;
   }
 
+  // Pide un PIN de 6 dígitos. Devuelve null si se cancela, '' si se deja vacío (= generar
+  // uno al azar). La validación se repite en el servidor; esta es solo para no ir y volver.
+  function pedirPin(titulo, actual){
+    const valor = prompt(titulo + '\n\n6 dígitos. Dejalo vacío para que se genere uno al azar.', actual || '');
+    if(valor === null) return null;
+    const limpio = valor.trim();
+    if(limpio === '') return '';
+    if(!/^\d{6}$/.test(limpio)){
+      showToast('El PIN tiene que ser de 6 dígitos');
+      return null;
+    }
+    return limpio;
+  }
+
   async function renderClientsModal(){
     const list = $('clientsList');
     list.innerHTML = '<div class="clients-empty">Cargando…</div>';
     let marcas = [];
     try{ marcas = await Data.marcas(); }
     catch(e){ list.innerHTML = '<div class="clients-empty">No se pudo cargar el listado.</div>'; return; }
+
+    list.innerHTML = '';
+
+    // Tu propio acceso primero: es el que usás todos los días y el que no querés perder.
+    const propio = document.createElement('div');
+    propio.className = 'client-row-admin';
+    propio.style.cssText = 'border-color:var(--accent);background:rgba(79,142,247,.06);';
+    let miPin = '';
+    try{ miPin = (await Data.llamar({ accion:'miPin' })).adminPin || ''; }catch(e){}
+    propio.innerHTML = `
+      <div class="info">
+        <div class="nm">Tu acceso de administrador</div>
+        <div class="lk">PIN <strong style="color:var(--accent);letter-spacing:2px;font-size:14px;">${escapeHtml(miPin || '—')}</strong> · ves todas las marcas</div>
+      </div>
+      <button class="btn" data-act="copiar-mi-pin" title="Copiar tu PIN">Copiar PIN</button>
+      <button class="btn ghost" data-act="cambiar-mi-pin" title="Elegir vos mismo tu PIN de 6 dígitos">✎ Cambiar PIN</button>
+    `;
+    propio.querySelector('[data-act="copiar-mi-pin"]').addEventListener('click', async ()=>{
+      try{ await navigator.clipboard.writeText(miPin); showToast('Tu PIN fue copiado'); }
+      catch(e){ showToast('PIN: ' + miPin); }
+    });
+    propio.querySelector('[data-act="cambiar-mi-pin"]').addEventListener('click', async ()=>{
+      const pin = pedirPin('Tu PIN de administrador', miPin);
+      if(pin === null) return;
+      try{
+        await Data.llamar({ accion:'definirPin', slug:'__admin__', pin }); // vacío = al azar
+        renderClientsModal();
+        showToast('Tu PIN quedó actualizado');
+      }catch(e){ showToast('No se pudo: ' + e.message); }
+    });
+    list.appendChild(propio);
+
     if(marcas.length === 0){
-      list.innerHTML = '<div class="clients-empty">Todavía no creaste ninguna marca.</div>';
+      const vacio = document.createElement('div');
+      vacio.className = 'clients-empty';
+      vacio.textContent = 'Todavía no creaste ninguna marca.';
+      list.appendChild(vacio);
       return;
     }
-    list.innerHTML = '';
     marcas.forEach(m=>{
       const link = linkDeMarca(m.token);
       const row = document.createElement('div');
@@ -6182,7 +6230,7 @@
         <button class="btn" data-act="copy-pin" title="Copiar el PIN para mandárselo a la marca">Copiar PIN</button>
         <button class="btn ghost" data-act="copy" title="Link directo, por si preferís mandar el link en vez del PIN">Copiar link</button>
         <button class="btn ghost" data-act="ver" title="Abrir el calendario de esta marca con tu acceso">Ver</button>
-        <button class="btn ghost" data-act="regen-pin" title="Genera un PIN nuevo. El anterior deja de servir.">↻ PIN</button>
+        <button class="btn ghost" data-act="regen-pin" title="Elegir el PIN de esta marca, o dejar que se genere uno al azar">✎ PIN</button>
         <button class="btn ghost" data-act="regen" title="Genera un link nuevo y deja el anterior sin efecto">↻ Link</button>
         <button class="btn ghost" data-act="del" style="color:var(--danger);">Quitar acceso</button>
       `;
@@ -6191,11 +6239,12 @@
         catch(e){ showToast('PIN: ' + m.pin); }
       });
       row.querySelector('[data-act="regen-pin"]').addEventListener('click', async ()=>{
-        if(!confirm(`¿Generar un PIN nuevo para "${m.nombre || m.slug}"?\n\nEl anterior deja de funcionar al instante.`)) return;
+        const pin = pedirPin(`PIN de "${m.nombre || m.slug}"`, m.pin);
+        if(pin === null) return;
         try{
-          await Data.llamar({ accion:'regenerarPin', slug: m.slug });
+          await Data.llamar({ accion:'definirPin', slug: m.slug, pin }); // vacío = al azar
           renderClientsModal();
-          showToast('PIN nuevo generado');
+          showToast(pin ? 'PIN actualizado — avisale a la marca' : 'PIN nuevo generado');
         }catch(e){ showToast('No se pudo: ' + e.message); }
       });
       row.querySelector('[data-act=copy]').addEventListener('click', async ()=>{

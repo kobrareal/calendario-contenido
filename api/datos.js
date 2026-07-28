@@ -79,6 +79,58 @@ module.exports = async (req, res) => {
       return res.status(200).json({ marcas: registro.marcas || [] });
     }
 
+    // Definir un PIN a mano, propio o de una marca. Se exigen 6 dígitos: con menos, el
+    // millón de combinaciones que hace viable este esquema se desarma.
+    if (accion === 'definirPin') {
+      if (sesion.rol !== 'admin') return res.status(403).json({ error: 'Solo el administrador.' });
+      const cuerpo = req.body || {};
+      const pedido = String(cuerpo.pin || '').trim();
+      const destino = String(cuerpo.slug || '').trim(); // vacío o "__admin__" = el tuyo
+      if (pedido && !/^\d{6}$/.test(pedido)) {
+        return res.status(400).json({ error: 'El PIN tiene que ser de 6 dígitos.' });
+      }
+
+      const registro = await leerRegistro();
+      const marcas = registro.marcas || [];
+      const esAdmin = !destino || destino === '__admin__';
+
+      // Un PIN repetido llevaría a dos calendarios distintos según el orden del registro.
+      const enUso = (esAdmin ? [] : [registro.adminPin])
+        .concat(marcas.filter(m => esAdmin || m.slug !== destino).map(m => m.pin))
+        .filter(Boolean);
+
+      // Sin PIN pedido se genera uno al azar, evitando los que ya están tomados.
+      let pin = pedido;
+      if (!pin) { do { pin = pinAlAzar(); } while (enUso.includes(pin)); }
+      if (enUso.includes(pin)) return res.status(409).json({ error: 'Ese PIN ya está en uso por otro acceso.' });
+
+      let nuevo;
+      if (esAdmin) {
+        nuevo = Object.assign({}, registro, { adminPin: pin, marcas });
+      } else {
+        const marca = marcas.find(m => m.slug === destino);
+        if (!marca) return res.status(404).json({ error: 'No existe esa marca.' });
+        marca.pin = pin;
+        nuevo = Object.assign({}, registro, { marcas });
+      }
+
+      const r = await fetch(KV(), {
+        method: 'POST',
+        headers: cabeceras({ Prefer: 'resolution=merge-duplicates,return=minimal' }),
+        body: JSON.stringify({ key: CLAVE_REGISTRO, value: JSON.stringify(nuevo), updated_at: new Date().toISOString() })
+      });
+      if (!r.ok) throw new Error('http ' + r.status);
+      invalidarCache(nuevo);
+      return res.status(200).json({ marcas: nuevo.marcas, adminPin: nuevo.adminPin });
+    }
+
+    // Devuelve el PIN del administrador para mostrarlo en su propio panel.
+    if (accion === 'miPin') {
+      if (sesion.rol !== 'admin') return res.status(403).json({ error: 'Solo el administrador.' });
+      const registro = await leerRegistro();
+      return res.status(200).json({ adminPin: registro.adminPin || '' });
+    }
+
     // Alta de marca, regeneración de su link y baja de acceso. Las tres reescriben el
     // registro, así que son exclusivas del administrador.
     if (accion === 'crearMarca' || accion === 'regenerarMarca' || accion === 'borrarMarca' || accion === 'regenerarPin') {
