@@ -20,3 +20,8 @@ node_modules/
 
 # Links de acceso de cada marca: son la llave del calendario, no van al repositorio.
 LINKS-PRIVADOS.txt
+
+# Archivos del entorno de trabajo, no del proyecto
+.agents/
+.claude/skills/
+skills-lock.json
