@@ -43,6 +43,14 @@
     --card-bg-2:#121218;
     --ai-bg:#1c1730;
     --ai-border:rgba(139,92,246,.4);
+
+    /* Curvas propias en vez de las de fábrica del navegador (ease/ease-out estándar), que
+       se sienten débiles y sin intención. ease-out fuerte para lo que entra o sale de
+       pantalla; ease-in-out para lo que se mueve dentro de la pantalla; la de cajón para el
+       panel lateral, que se comporta como una hoja que se desliza. */
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   }
   *{box-sizing:border-box;}
 
@@ -162,10 +170,16 @@
   .btn{
     background:var(--surface-2);border:1px solid var(--border);color:var(--text);
     padding:9px 16px;border-radius:999px;cursor:pointer;font-size:13px;font-family:'Inter',sans-serif;
-    display:flex;align-items:center;gap:6px;transition:background .15s,border-color .15s,box-shadow .15s;
+    display:flex;align-items:center;gap:6px;
+    transition:background .15s var(--ease-out), border-color .15s var(--ease-out),
+               box-shadow .15s var(--ease-out), transform 100ms var(--ease-out);
   }
   .btn:hover{background:var(--surface-3);border-color:var(--muted-2);}
+  /* Todo botón responde al toque: ninguno de los 66 lo hacía antes. Sutil (0.97) y rápido
+     (100ms), para que se sienta escuchado sin llamar la atención por sí mismo. */
+  .btn:active{transform:scale(.97);}
   .btn:disabled{opacity:.4;cursor:not-allowed;}
+  .btn:disabled:active{transform:none;}
   .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;font-weight:600;box-shadow:0 0 24px rgba(79,142,247,.35);}
   .btn.primary:hover{filter:brightness(1.08);}
   .btn.ghost{background:rgba(255,255,255,.05);}
@@ -210,7 +224,18 @@
   .item-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;cursor:pointer;}
   .item-card.colapsada{padding:7px 9px;}
   .item-card.colapsada .item-card-head{margin-bottom:0;}
-  .item-card.colapsada .item-body{display:none;}
+  /* Fundido en vez de corte seco con display:none. Deliberadamente NO uso una animación
+     de alto (max-height o grid-rows): el ángulo y el selector de emojis viven adentro de
+     item-body como menús position:absolute, y cualquier técnica de alto necesita
+     overflow:hidden en algún punto de la cadena — eso les recortaría el menú apenas
+     asomara fuera del recuadro. Un fundido de opacidad no tiene ese problema y alcanza
+     para una interacción que se usa varias veces por sesión (no hace falta más). */
+  .item-body{
+    display:block; opacity:1;
+    transition:opacity 140ms var(--ease-out), display 140ms allow-discrete;
+  }
+  .item-card.colapsada .item-body{display:none; opacity:0;}
+  @starting-style{ .item-card:not(.colapsada) .item-body{opacity:0;} }
   /* Plegada, la tarjeta muestra el resumen en vez de los controles de tipo y horario:
      así entra en un solo renglón, que es el punto de plegarla. */
   .item-card.colapsada .kind-toggle,
@@ -218,8 +243,10 @@
   .item-toggle{
     background:none;border:none;color:var(--muted);cursor:pointer;
     font-size:10px;padding:2px 4px;border-radius:5px;flex:none;line-height:1;
+    transition:color .15s var(--ease-out), background .15s var(--ease-out), transform 100ms var(--ease-out);
   }
   .item-toggle:hover{color:var(--text);background:var(--surface-2);}
+  .item-toggle:active{transform:scale(.9);}
   .item-resumen{
     display:none;font-size:12px;color:var(--muted);min-width:0;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
@@ -228,8 +255,13 @@
   .kind-toggle{display:flex;gap:6px;}
   .kind-opt{
     background:var(--card-bg-2);border:1px solid var(--border);color:var(--muted);
-    padding:6px 10px;border-radius:8px;font-size:12px;cursor:pointer;transition:all .15s;
+    padding:6px 10px;border-radius:8px;font-size:12px;cursor:pointer;
+    /* Propiedades puntuales, no "all": animar todo de más recalcula estilos que ni
+       cambian y en algún momento se lleva puesto algo que no debería animarse. */
+    transition:background .15s var(--ease-out), border-color .15s var(--ease-out),
+               color .15s var(--ease-out), transform 120ms var(--ease-out);
   }
+  .kind-opt:active{transform:scale(.96);}
   .kind-opt.active{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;font-weight:600;}
   .kind-opt:hover:not(.active){border-color:var(--muted-2);}
   .item-kind-label{font-size:12.5px;font-weight:600;color:var(--muted);}
@@ -305,10 +337,13 @@
   body.vista-dia #weekdaysHead{display:none;}
   .view-opt{
     background:var(--card-bg-2);border:1px solid var(--border);color:var(--muted);
-    padding:5px 11px;border-radius:8px;font-size:12px;cursor:pointer;transition:all .15s;
+    padding:5px 11px;border-radius:8px;font-size:12px;cursor:pointer;
     font-family:'Inter',sans-serif;
+    transition:background .15s var(--ease-out), border-color .15s var(--ease-out),
+               color .15s var(--ease-out), transform 120ms var(--ease-out);
   }
   .view-opt:hover{color:var(--text);}
+  .view-opt:active{transform:scale(.96);}
   .view-opt.active{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;font-weight:600;}
 
   /* ---------- vista semanal ---------- */
@@ -366,9 +401,14 @@
     backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);
     min-height:74px;padding:7px;cursor:pointer;position:relative;
     display:flex;flex-direction:column;gap:2px;
-    transition:border-color .15s, background .15s, opacity .15s, box-shadow .15s;
+    transition:border-color .15s var(--ease-out), background .15s var(--ease-out),
+               opacity .15s var(--ease-out), box-shadow .15s var(--ease-out),
+               transform 100ms var(--ease-out);
   }
   .cell:hover{border-color:var(--muted-2);background:var(--surface-2);box-shadow:0 0 20px rgba(168,120,255,.18);}
+  /* Escala apenas perceptible: el día se toca decenas de veces por sesión, así que la
+     respuesta tiene que ser discreta — confirmar el toque sin llamar la atención. */
+  .cell:active{transform:scale(.98);}
   .cell:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
   .cell.empty{background:transparent;border:1px dashed transparent;cursor:default;}
   .cell.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent), 0 0 22px var(--glow);}
@@ -486,7 +526,8 @@
   }
   .frame{
     aspect-ratio:1/1;position:relative;display:flex;align-items:flex-end;
-    padding:6px;overflow:hidden;
+    padding:6px;overflow:hidden;cursor:pointer;
+    transition:filter .15s var(--ease-out), transform 100ms var(--ease-out);
   }
   .frame .fnum{
     font-family:'IBM Plex Mono',monospace;font-size:9px;color:rgba(0,0,0,.55);
@@ -518,6 +559,7 @@
     top:auto;right:auto;z-index:1;border:1px solid rgba(255,255,255,.6);
   }
   .frame:hover{filter:brightness(1.08);}
+  .frame:active{transform:scale(.96);}
   .sheet-empty{
     padding:26px 20px;text-align:center;color:var(--muted-2);font-size:12.5px;line-height:1.6;
   }
@@ -532,14 +574,24 @@
   .overlay{
     position:fixed;inset:0;background:rgba(4,4,8,.65);backdrop-filter:blur(4px);
     display:none;align-items:stretch;justify-content:flex-end;z-index:50;
+    opacity:0;
+    transition:opacity 220ms var(--ease-out), display 220ms allow-discrete;
   }
-  .overlay.open{display:flex;}
+  .overlay.open{display:flex;opacity:1;}
+  @starting-style{ .overlay.open{opacity:0;} }
   .panel{
     width:440px;max-width:92vw;background:var(--surface);border-left:1px solid var(--border);
     backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
     height:100%;display:flex;flex-direction:column;padding:0;
-    animation:slidein .18s ease-out;
+    /* Antes solo entraba deslizando (animation:slidein, una sola dirección) y al cerrar
+       desaparecía de golpe sin salir por donde vino. translateX en porcentaje —no en px
+       fijos— para que se mueva por su propio ancho sin importar si el panel mide 440px
+       en escritorio o el 92vw del celular. */
+    transform:translateX(100%);
+    transition:transform 260ms var(--ease-drawer);
   }
+  .overlay.open .panel{transform:translateX(0);}
+  @starting-style{ .overlay.open .panel{transform:translateX(100%);} }
   /* Márgenes ajustados: los originales dejaban una franja vacía arriba, otra entre las dos
      secciones y otra sobre los botones, que sumadas obligaban a scrollear para ver el
      posteo que se está editando. */
@@ -563,7 +615,6 @@
     position:sticky;bottom:0;padding:10px 16px;z-index:50;
     background:#15141c;border-top:1px solid var(--border);
   }
-  @keyframes slidein{from{transform:translateX(24px);opacity:0;}to{transform:translateX(0);opacity:1;}}
   .panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
   .panel-head h2{flex:none;}
   .anotacion-input{
@@ -577,8 +628,10 @@
   .close-x{
     background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;
     width:30px;height:30px;border-radius:6px;
+    transition:background .15s var(--ease-out), color .15s var(--ease-out), transform 100ms var(--ease-out);
   }
   .close-x:hover{background:var(--surface-2);color:var(--text);}
+  .close-x:active{transform:scale(.9);}
 
   .block{margin-bottom:8px;border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--surface-2);backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);}
   .block-title{
@@ -618,7 +671,25 @@
     position:absolute;top:calc(100% + 4px);left:0;right:0;z-index:120;
     background:var(--card-bg);border:1px solid var(--surface-3);border-radius:10px;
     padding:5px;max-height:220px;overflow-y:auto;box-shadow:0 16px 40px rgba(0,0,0,.65);
+    /* Este menú se crea y se destruye directo por JS (sin una clase "abierto" que
+       togglear), así que @starting-style alcanza para animar la entrada sin tocar el
+       código que lo abre. La salida queda instantánea, como ya estaba — animarla
+       requeriría demorar el .remove() hasta que termine una transición, y no vale la
+       pena el riesgo para un menú que se usa así de seguido. transform-origin arriba
+       porque cuelga de su disparador, no del centro de la pantalla como un modal. */
+    transform-origin: top center;
+    transform: scale(1); opacity: 1;
+    transition: transform 140ms var(--ease-out), opacity 140ms var(--ease-out);
   }
+  @starting-style{ .angle-menu{ transform: scale(.95); opacity: 0; } }
+  /* Mismo criterio, para el selector de emojis (que se arma con estilos en línea por JS;
+     esta clase es lo único que necesitaba para poder engancharle la animación). */
+  .emoji-picker-popup{
+    transform-origin: top left;
+    transform: scale(1); opacity: 1;
+    transition: transform 140ms var(--ease-out), opacity 140ms var(--ease-out);
+  }
+  @starting-style{ .emoji-picker-popup{ transform: scale(.95); opacity: 0; } }
   .angle-option{
     display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:6px;cursor:pointer;font-size:13px;
   }
@@ -665,16 +736,37 @@
   .clear-day:hover{text-decoration:underline;}
 
   /* ---------- manage angles overlay ---------- */
+  /* Las 13 ventanas de la app comparten este mismo par de clases, así que animarlas acá
+     las anima a todas de una — sin tocar ninguno de los ~25 lugares del código que hacen
+     .classList.add/remove('open'). "display" no se puede interpolar por sí solo; con
+     transition-behavior:allow-discrete el navegador mantiene "flex" mientras dura la
+     salida y recién lo pasa a "none" al terminar, así el cierre se ve como un fundido
+     completo en vez de cortarse de golpe a mitad de camino. En un navegador que no
+     soporte esto, simplemente vuelve al comportamiento anterior (aparece/desaparece de
+     golpe) — no hay forma de que rompa nada. */
   .modal-back{
     position:fixed;inset:0;background:rgba(4,4,8,.65);display:none;
     align-items:center;justify-content:center;z-index:60;padding:20px;
+    opacity:0;
+    transition:opacity 220ms var(--ease-out), display 220ms allow-discrete;
   }
-  .modal-back.open{display:flex;}
+  .modal-back.open{display:flex;opacity:1;}
+  @starting-style{ .modal-back.open{opacity:0;} }
+
   .modal{
     background:var(--surface);border:1px solid var(--border);border-radius:22px;
     backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
     width:480px;max-width:100%;padding:24px;max-height:85vh;overflow-y:auto;
+    /* scale(.95) y no scale(0): nada en el mundo real aparece de la nada, y arrancar
+       desde un tamaño ya reconocible hace que la aparición se sienta como un objeto
+       real llegando, no como algo que se materializa de cero. transform-origin queda
+       en el centro por defecto (a diferencia de un popover) porque un modal no cuelga
+       de ningún disparador puntual — aparece centrado en la pantalla. */
+    transform:scale(.95);opacity:0;
+    transition:transform 220ms var(--ease-out), opacity 220ms var(--ease-out);
   }
+  .modal-back.open .modal{transform:scale(1);opacity:1;}
+  @starting-style{ .modal-back.open .modal{transform:scale(.95);opacity:0;} }
   .modal h2{font-family:'Inter',sans-serif;font-weight:700;margin:0 0 4px;font-size:18px;}
   .modal .hint{color:var(--muted);font-size:12.5px;margin:0 0 18px;line-height:1.5;}
   .angle-row{
@@ -750,7 +842,14 @@
     width:300px;padding:12px;
     background:var(--card-bg);border:1px solid var(--border);border-radius:14px;
     box-shadow:0 18px 40px rgba(0,0,0,.5);
+    /* Mismo criterio que .angle-menu: entrada animada vía @starting-style, sin tocar el
+       JS que lo crea y lo saca con .remove(). Origen arriba a la izquierda porque cuelga
+       del botón de links, que está a la izquierda del título. */
+    transform-origin: top left;
+    transform: scale(1); opacity: 1;
+    transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out);
   }
+  @starting-style{ .links-panel{ transform: scale(.95); opacity: 0; } }
   .links-panel h4{
     margin:0 0 10px;font-size:11px;letter-spacing:.6px;text-transform:uppercase;
     color:var(--muted);font-weight:600;
@@ -760,8 +859,11 @@
     flex:1;min-width:0;color:var(--text);text-decoration:none;font-size:13px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
     padding:6px 8px;border-radius:8px;background:var(--surface-2);
+    transition:background .15s var(--ease-out), transform 100ms var(--ease-out);
+    display:inline-block;
   }
   .link-row a:hover{background:var(--surface-3);}
+  .link-row a:active{transform:scale(.97);}
   .link-row a .host{display:block;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--muted-2);}
   .links-empty{color:var(--muted-2);font-size:12px;font-style:italic;padding:2px 0 10px;}
   .links-add{border-top:1px solid var(--border);margin-top:10px;padding-top:10px;display:flex;flex-direction:column;gap:6px;}
@@ -789,8 +891,10 @@
   .agente-ejemplo{
     background:var(--surface-2);border:1px solid var(--border);color:var(--muted);
     border-radius:999px;padding:5px 11px;font-size:11.5px;cursor:pointer;text-align:left;
+    transition:background .15s var(--ease-out), color .15s var(--ease-out), transform 100ms var(--ease-out);
   }
   .agente-ejemplo:hover{background:var(--surface-3);color:var(--text);}
+  .agente-ejemplo:active{transform:scale(.96);}
   .agente-respuesta{
     background:var(--ai-bg);border:1px solid var(--ai-border);border-radius:12px;
     padding:14px;font-size:13.5px;line-height:1.6;white-space:pre-wrap;
@@ -833,7 +937,13 @@
     width:340px;max-width:86vw;padding:12px;
     background:var(--card-bg);border:1px solid var(--border);border-radius:14px;
     box-shadow:0 18px 40px rgba(0,0,0,.6);
+    /* Mismo criterio que .angle-menu. Origen arriba a la derecha porque cuelga de la
+       campanita, que vive a la derecha del encabezado. */
+    transform-origin: top right;
+    transform: scale(1); opacity: 1;
+    transition: transform 160ms var(--ease-out), opacity 160ms var(--ease-out);
   }
+  @starting-style{ .notif-panel{ transform: scale(.95); opacity: 0; } }
   .notif-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;flex-wrap:wrap;}
   .notif-head h4{
     margin:0;font-size:11px;letter-spacing:.6px;text-transform:uppercase;
@@ -923,7 +1033,7 @@
     position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);
     background:var(--surface-3);border:1px solid var(--border);color:var(--text);
     padding:10px 18px;border-radius:8px;font-size:13px;opacity:0;pointer-events:none;
-    transition:opacity .2s, transform .2s; z-index:80;
+    transition:opacity .2s var(--ease-out), transform .2s var(--ease-out); z-index:80;
   }
   .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
 
@@ -1005,10 +1115,13 @@
   .weekday-toggle{display:flex;gap:6px;flex-wrap:wrap;}
   .weekday-opt{
     width:30px;height:30px;border-radius:8px;background:var(--surface);border:1px solid var(--border);
-    color:var(--muted);font-size:12px;cursor:pointer;transition:all .15s;font-family:'Inter',sans-serif;
+    color:var(--muted);font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;
+    transition:background .15s var(--ease-out), border-color .15s var(--ease-out),
+               color .15s var(--ease-out), transform 120ms var(--ease-out);
   }
   .weekday-opt.active{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;font-weight:600;}
   .weekday-opt:hover:not(.active){border-color:var(--muted-2);}
+  .weekday-opt:active{transform:scale(.92);}
 
   /* ---------- client avatar ---------- */
   .avatar-wrap{position:relative;width:44px;height:44px;flex-shrink:0;}
@@ -1058,6 +1171,23 @@
     .agente-ejemplo{font-size:11px;}
     /* Los campos a 16px evitan que el teléfono haga zoom solo al tocarlos. */
     textarea, input[type=text], input[type=url], input[type=date], select{font-size:16px;}
+  }
+
+  /* ---------- movimiento reducido ----------
+     No existía en ningún lado. Quien tenga activada esta preferencia del sistema (a veces
+     por mareo o vértigo, no solo por gusto) apaga todas las transiciones y animaciones de
+     golpe: los modales, el panel y los popovers pasan a aparecer/desaparecer directo, sin
+     el fundido ni el desplazamiento. Es la versión simple y pareja de esta regla —apagar
+     todo por igual— en vez de decidir caso por caso qué conservar; para una app de un
+     único archivo con decenas de componentes, ese análisis pieza por pieza no se termina
+     nunca, y la versión simple ya cubre lo que más importa: nadie se marea acá adentro. */
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{
+      animation-duration:0.001ms !important;
+      animation-iteration-count:1 !important;
+      transition-duration:0.001ms !important;
+      scroll-behavior:auto !important;
+    }
   }
 </style>
 </head>
@@ -1577,6 +1707,9 @@
     const container = document.createElement('div');
     // Fondo opaco por el mismo motivo que .angle-menu: var(--surface-3) dejaba ver el
     // formulario de atrás a través de la grilla de emojis.
+    // La clase (no solo el cssText de acá) es lo que le engancha la animación de
+    // entrada definida en .emoji-picker-popup más abajo.
+    container.className = 'emoji-picker-popup';
     container.style.cssText = 'position:absolute;top:100%;left:0;background:var(--card-bg);border:1px solid var(--surface-3);border-radius:10px;padding:8px;z-index:200;min-width:280px;max-width:300px;box-shadow:0 16px 40px rgba(0,0,0,.65);';
 
     const header = document.createElement('div');
