@@ -6467,9 +6467,13 @@
     try{
       sesion = await Data.sesion();
     }catch(e){
-      // Se olvida el token guardado: si no, un link dado de baja dejaría el navegador
-      // atascado en esta pantalla incluso al abrir un link nuevo y válido.
-      try{ localStorage.removeItem('cc-token'); }catch(err){}
+      // Se olvida el token guardado solo si el que falló era ese: un link dado de baja
+      // dejaría el navegador atascado acá. Pero cuando no había token para probar —una
+      // visita normal a la dirección general— no hay nada que invalidar, y borrarlo se
+      // llevaba puesta la sesión recordada junto con el atajo para volver a entrar.
+      if(TOKEN){
+        try{ localStorage.removeItem('cc-token'); localStorage.removeItem('cc-nombre'); }catch(err){}
+      }
       pantallaSinAcceso(
         TOKEN
           ? 'El link con el que entraste ya no sirve. Ingresá tu PIN para volver a entrar.'
