@@ -205,7 +205,9 @@
     padding:11px;margin-bottom:9px;
   }
   .item-card:last-child{margin-bottom:0;}
-  .item-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;}
+  /* cursor:pointer en todo el encabezado: el click para plegar/desplegar ya no depende de
+     acertarle a la flechita de 20px, así que el puntero debe reflejar eso en toda el área. */
+  .item-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;cursor:pointer;}
   .item-card.colapsada{padding:7px 9px;}
   .item-card.colapsada .item-card-head{margin-bottom:0;}
   .item-card.colapsada .item-body{display:none;}
@@ -2763,7 +2765,9 @@
       const entry = monthData[key];
       if(entry && entry.feed){
         entry.feed.forEach(it=>{
-          if(it.angle && !it.hideFromPreview){ posts.push({d, angle: angleById(it.angle), thumb: it.thumb || '', kind: it.kind, ts: itemTimestamp(it)}); }
+          // Ya no exige ángulo: un reel sin ángulo asignado sigue siendo un post real y
+          // tiene que aparecer en la vista previa igual, con el gris por defecto.
+          if(!it.hideFromPreview){ posts.push({d, angle: angleById(it.angle), thumb: it.thumb || '', kind: it.kind, ts: itemTimestamp(it)}); }
         });
       }
     }
@@ -2775,7 +2779,7 @@
       const empty = document.createElement('div');
       empty.className = 'sheet-empty';
       empty.style.gridColumn = '1 / -1';
-      empty.textContent = 'Todavía no hay posteos de feed asignados este mes. Elegí un ángulo en cualquier día para verlo acá.';
+      empty.textContent = 'Todavía no hay posteos de feed este mes. Agregá un reel o carrusel en cualquier día para verlo acá.';
       frames.appendChild(empty);
     } else {
       posts.forEach((p, idx)=>{
@@ -2823,6 +2827,10 @@
     $('panelDate').textContent = dt.toLocaleDateString('es-AR', {weekday:'long', day:'numeric', month:'long'});
     ensureEntry(key);
     $('pasteDayBtn').disabled = !dayClipboard;
+    // Cada vez que se abre un día (el mismo u otro) arranca con todo plegado. Sin este
+    // reinicio, tarjetasAbiertas —que vive para toda la sesión— dejaba un posteo abierto si
+    // ya lo habías desplegado antes, aunque cerraras el panel y lo volvieras a abrir.
+    tarjetasAbiertas.clear();
     renderDayPanelItems(key);
     openPanelSection('feed'); // cada día abre mostrando el feed, con Stories plegado
 
@@ -2962,6 +2970,26 @@
   // quiere la lista compacta, no el estado en que la dejó tres días atrás. Lo que sí se
   // recuerda dentro de la sesión es lo que abriste recién.
   const tarjetasAbiertas = new Set();
+
+  // Alterna el plegado de un posteo. El encabezado entero es clickeable, no solo la
+  // flechita: apuntar a un botón de 20px era incómodo, y el resto del encabezado (el
+  // resumen, el espacio vacío) no hacía nada, así que ampliar el área clickeable no le
+  // quita función a nada. Se excluyen los controles que necesitan su propio click —tipo,
+  // horario, duplicar, eliminar— para que tocarlos haga lo suyo en vez de plegar la tarjeta.
+  function hacerPlegable(head, card, toggleBtn, itemId){
+    const pintar = ()=>{
+      const abierta = tarjetasAbiertas.has(itemId);
+      card.classList.toggle('colapsada', !abierta);
+      toggleBtn.textContent = abierta ? '▼' : '▶';
+    };
+    head.addEventListener('click', (e)=>{
+      if(e.target.closest('.kind-opt, .horario-row, .item-remove')) return;
+      if(tarjetasAbiertas.has(itemId)) tarjetasAbiertas.delete(itemId);
+      else tarjetasAbiertas.add(itemId);
+      pintar();
+    });
+    pintar();
+  }
 
   function mutateAndRerender(key, mutator){
     pushUndo(key);
@@ -3263,21 +3291,13 @@
     resumen.className = 'item-resumen';
     const anguloResumen = item.angle ? angleById(item.angle) : null;
     const textoResumen = (item.title || item.text || item.context || '').trim();
+    // El horario va primero en el resumen: es el dato que hace falta para ubicar el
+    // posteo en el día sin tener que desplegarlo.
     resumen.textContent = [
+      item.time || null,
       anguloResumen ? ((anguloResumen.emoji ? anguloResumen.emoji + ' ' : '') + anguloResumen.name) : 'Sin ángulo',
       textoResumen
     ].filter(Boolean).join(' · ');
-
-    const pintarPliegue = ()=>{
-      const abierta = tarjetasAbiertas.has(item.id);
-      card.classList.toggle('colapsada', !abierta);
-      toggleBtn.textContent = abierta ? '▼' : '▶';
-    };
-    toggleBtn.addEventListener('click', ()=>{
-      if(tarjetasAbiertas.has(item.id)) tarjetasAbiertas.delete(item.id);
-      else tarjetasAbiertas.add(item.id);
-      pintarPliegue();
-    });
 
     leftGroup.prepend(toggleBtn);
     leftGroup.appendChild(resumen);
@@ -3287,7 +3307,7 @@
     const cuerpo = document.createElement('div');
     cuerpo.className = 'item-body';
     card.appendChild(cuerpo);
-    pintarPliegue();
+    hacerPlegable(head, card, toggleBtn, item.id);
 
     const previewRow = document.createElement('label');
     previewRow.className = 'gen-checkbox-row';
@@ -3551,21 +3571,13 @@
     resumen.className = 'item-resumen';
     const anguloResumen = item.angle ? angleById(item.angle) : null;
     const textoResumen = (item.title || item.text || item.context || '').trim();
+    // El horario va primero en el resumen: es el dato que hace falta para ubicar el
+    // posteo en el día sin tener que desplegarlo.
     resumen.textContent = [
+      item.time || null,
       anguloResumen ? ((anguloResumen.emoji ? anguloResumen.emoji + ' ' : '') + anguloResumen.name) : 'Sin ángulo',
       textoResumen
     ].filter(Boolean).join(' · ');
-
-    const pintarPliegue = ()=>{
-      const abierta = tarjetasAbiertas.has(item.id);
-      card.classList.toggle('colapsada', !abierta);
-      toggleBtn.textContent = abierta ? '▼' : '▶';
-    };
-    toggleBtn.addEventListener('click', ()=>{
-      if(tarjetasAbiertas.has(item.id)) tarjetasAbiertas.delete(item.id);
-      else tarjetasAbiertas.add(item.id);
-      pintarPliegue();
-    });
 
     leftGroup.prepend(toggleBtn);
     leftGroup.appendChild(resumen);
@@ -3575,7 +3587,7 @@
     const cuerpo = document.createElement('div');
     cuerpo.className = 'item-body';
     card.appendChild(cuerpo);
-    pintarPliegue();
+    hacerPlegable(head, card, toggleBtn, item.id);
 
     const titleInput = document.createElement('input');
     titleInput.type = 'text'; titleInput.className = 'rule-text-input'; titleInput.placeholder = 'Ej: ANUNCIO IMPORTANTE...';
