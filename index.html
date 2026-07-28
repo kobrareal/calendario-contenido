@@ -44,6 +44,13 @@
     --ai-bg:#1c1730;
     --ai-border:rgba(139,92,246,.4);
 
+    /* Estados derivados del color primario. Un diseñador nunca inventa "el azul un
+       poquito más oscuro" a ojo — lo deriva del color base. */
+    --accent-hover:#3d7cea;
+    /* Fondo de tooltips: dedicado, no reciclado de otra variable, porque tiene un
+       requisito distinto (opaco de verdad, no translúcido) para leerse siempre. */
+    --tooltip-bg:#242430;
+
     /* Curvas propias en vez de las de fábrica del navegador (ease/ease-out estándar), que
        se sienten débiles y sin intención. ease-out fuerte para lo que entra o sale de
        pantalla; ease-in-out para lo que se mueve dentro de la pantalla; la de cajón para el
@@ -51,6 +58,56 @@
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
     --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+    /* ---------- sistema de diseño ----------
+       Antes había 19 tamaños de fuente, 62 paddings y 15 radios distintos. Escalas
+       "elegidas al azar" es el segundo tell más claro de una interfaz hecha por IA (el
+       primero es el emoji delante de cada botón). Un diseñador trabaja con una escala
+       corta y coherente y la respeta. Estas seis variables son la escala. */
+
+    /* Espaciado en múltiplos de 4. Cualquier padding/margin debe salir de acá — nada de
+       11px, 9px, 14px. Se lee como una grilla, no como decisiones sueltas. */
+    --s-1: 4px;  --s-2: 8px;  --s-3: 12px; --s-4: 16px;
+    --s-5: 20px; --s-6: 24px; --s-7: 32px; --s-8: 40px;
+
+    /* Tipografía en 5 niveles, no en 19. Cada nivel tiene su leading. */
+    --t-xs: 11px;   --lh-xs: 1.45;
+    --t-sm: 13px;   --lh-sm: 1.5;
+    --t-md: 15px;   --lh-md: 1.55;
+    --t-lg: 18px;   --lh-lg: 1.35;   /* subtítulos y encabezados de panel */
+    --t-xl: 22px;   --lh-xl: 1.2;    /* h1 */
+
+    /* Radios: 4 niveles y basta. */
+    --r-1: 6px;     /* controles chicos: chips, tags, íconos */
+    --r-2: 10px;    /* botones estándar, inputs, tarjetas de posteo */
+    --r-3: 16px;    /* modales, sheets, superficies medianas */
+    --r-4: 22px;    /* superficies grandes: header, panel del día */
+    --r-pill: 999px;
+
+    /* Sombras: una escala en vez del "cada cual la suya". Estos son los ÚNICOS valores
+       de sombra permitidos. */
+    --sh-1: 0 1px 2px rgba(0,0,0,.15);                        /* apenas separa */
+    --sh-2: 0 4px 12px rgba(0,0,0,.28);                       /* elementos flotantes bajos */
+    --sh-3: 0 12px 32px rgba(0,0,0,.42);                      /* popovers, dropdowns */
+    --sh-4: 0 24px 60px rgba(0,0,0,.55), 0 4px 12px rgba(0,0,0,.35);  /* modales */
+
+    /* Peso tipográfico: dos, no cuatro. */
+    --w-regular: 400;
+    --w-semibold: 600;
+  }
+
+  /* Suavizado de fuentes. Sin esto Inter se ve gruesa en Mac; con esto lee más nítida en
+     todas las plataformas. Es el detalle "invisible" que separa un producto de un
+     prototipo. */
+  html{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;text-rendering:optimizeLegibility;}
+  /* Optical sizing y kerning: los diseñadores tipográficos serios los dejan siempre
+     prendidos. La diferencia se nota en headers y en tablas de datos. */
+  body{font-feature-settings:"kern","liga","calt";font-optical-sizing:auto;}
+  /* Números tabulares: cuando aparecen números uno debajo del otro (horarios, PIN,
+     cantidades), tienen que alinearse por dígito. Sin esto el "1" ocupa menos que el "0"
+     y las columnas de números se desalinean. */
+  .mono, input[type="date"], input[type="time"], input[type="number"], .item-resumen{
+    font-variant-numeric:tabular-nums;
   }
   *{box-sizing:border-box;}
 
@@ -86,15 +143,20 @@
   select option{background:var(--card-bg,#1a1a22);color:var(--text);}
   body{
     margin:0;
+    /* Fondo más contenido: los tres degradados grandes del original tenían un aire
+       "web de startup" con nubes de color por todos lados. Se reemplazan por dos
+       degradados más chicos y con menos saturación, que sostienen la sensación de
+       profundidad sin competir con el contenido. Menos ruido, más foco. */
     background:
-      radial-gradient(900px 620px at 12% 0%, rgba(45,212,191,.24) 0%, transparent 60%),
-      radial-gradient(1000px 700px at 88% 8%, rgba(79,142,247,.24) 0%, transparent 60%),
-      radial-gradient(1100px 850px at 50% 105%, rgba(139,92,246,.24) 0%, transparent 65%),
+      radial-gradient(700px 520px at 8% -10%, rgba(79,142,247,.12) 0%, transparent 60%),
+      radial-gradient(900px 700px at 100% 100%, rgba(139,92,246,.10) 0%, transparent 65%),
       var(--bg-a);
     background-attachment:fixed;
     color:var(--text);
     font-family:'Inter',sans-serif;
-    -webkit-font-smoothing:antialiased;
+    font-size:var(--t-sm);
+    line-height:var(--lh-sm);
+    letter-spacing:-0.005em; /* tracking muy sutil negativo en tamaño de texto */
   }
   ::selection{background:var(--accent-soft);}
 
@@ -126,12 +188,15 @@
   .app{max-width:1400px;margin:0 auto;padding:28px 28px 60px;}
   header.top{
     display:flex;align-items:center;justify-content:space-between;
-    flex-wrap:wrap;gap:16px;
-    margin-bottom:24px;
-    padding:18px 22px;
-    background:var(--surface);border:1px solid var(--border);border-radius:24px;
+    flex-wrap:wrap;gap:var(--s-4);
+    margin-bottom:var(--s-6);
+    padding:var(--s-4) var(--s-5);
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-3);
     backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
-    box-shadow:0 20px 50px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+    /* Sombra más discreta: la anterior era 0 20px 50px @45%, muy dramática — parecía
+       flotar en el aire. En una superficie que vive fija arriba de todo, alcanza con
+       una sombra 2 sutil. */
+    box-shadow:var(--sh-2), inset 0 1px 0 rgba(255,255,255,.04);
     /* El backdrop-filter de arriba crea un contexto de apilamiento propio, así que el
        z-index del panel de links quedaba encerrado acá adentro y la grilla del mes —que va
        después en el documento— se dibujaba encima. Con esto el encabezado entero queda por
@@ -141,12 +206,16 @@
   .brand{display:flex;align-items:center;gap:12px;}
   .brand h1{
     font-family:'Inter',sans-serif;
-    font-weight:800;
-    font-size:22px;
+    /* font-weight 800 era demasiado pesado; se leía "app de bar" en vez de "herramienta
+       profesional". 600 con tracking negativo (-0.02em en headings, como recomienda la
+       skill) queda con presencia sin gritar. */
+    font-weight:var(--w-semibold);
+    font-size:var(--t-xl);
+    line-height:var(--lh-xl);
     margin:0;
-    letter-spacing:-.2px;
+    letter-spacing:-0.02em;
   }
-  .brand .sub{color:var(--muted);font-size:11.5px;letter-spacing:.6px;text-transform:uppercase;}
+  .brand .sub{color:var(--muted-2);font-size:var(--t-xs);letter-spacing:0.05em;text-transform:uppercase;}
   .client-row{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px;}
   .client-row input{
     background:transparent;border:none;border-bottom:1px dashed var(--muted-2);
@@ -164,13 +233,18 @@
   }
   .month-nav button:hover{background:var(--surface-3);box-shadow:0 0 16px var(--glow);}
   .month-nav button:focus-visible, button:focus-visible, [tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
-  .month-label{font-family:'Inter',sans-serif;font-weight:700;font-size:18px;min-width:170px;text-align:center;text-transform:capitalize;white-space:nowrap;}
+  .month-label{font-family:'Inter',sans-serif;font-weight:var(--w-semibold);font-size:var(--t-lg);line-height:var(--lh-lg);letter-spacing:-0.015em;min-width:170px;text-align:center;text-transform:capitalize;white-space:nowrap;}
 
   .top-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .btn{
     background:var(--surface-2);border:1px solid var(--border);color:var(--text);
-    padding:9px 16px;border-radius:999px;cursor:pointer;font-size:13px;font-family:'Inter',sans-serif;
-    display:flex;align-items:center;gap:6px;
+    /* radius:10px en vez de 999px. Los botones tipo píldora envejecieron: se leen
+       "consumer/marketing", no "herramienta profesional". Un radio parejo con las
+       superficies (10-16px) hace que la app se lea como un editor, no como un landing. */
+    padding:var(--s-2) var(--s-4);border-radius:var(--r-2);cursor:pointer;
+    font-size:var(--t-sm);font-family:'Inter',sans-serif;font-weight:var(--w-semibold);
+    letter-spacing:-0.005em;
+    display:inline-flex;align-items:center;gap:var(--s-2);
     transition:background .15s var(--ease-out), border-color .15s var(--ease-out),
                box-shadow .15s var(--ease-out), transform 100ms var(--ease-out);
   }
@@ -180,12 +254,30 @@
   .btn:active{transform:scale(.97);}
   .btn:disabled{opacity:.4;cursor:not-allowed;}
   .btn:disabled:active{transform:none;}
-  .btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;font-weight:600;box-shadow:0 0 24px rgba(79,142,247,.35);}
-  .btn.primary:hover{filter:brightness(1.08);}
-  .btn.ghost{background:rgba(255,255,255,.05);}
-  .btn.icon-only{position:relative;min-width:40px;height:40px;padding:0;display:flex;align-items:center;justify-content:center;}
+  /* Primario: color plano en vez de gradiente + glow. El gradiente sobre el botón está
+     tan visto en interfaces de IA/marketing que ya se lee como sello. Un color plano bien
+     elegido, con la sombra 1 apenas para separarlo, se lee como Linear/Figma/Notion. */
+  .btn.primary{background:var(--accent);border-color:transparent;color:#fff;box-shadow:var(--sh-1);}
+  .btn.primary:hover{background:var(--accent-hover);}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--muted);}
+  .btn.ghost:hover{background:var(--surface-2);color:var(--text);border-color:transparent;}
+  .btn.icon-only{
+    position:relative;min-width:36px;width:36px;height:36px;padding:0;
+    display:inline-flex;align-items:center;justify-content:center;
+    background:transparent;border-color:transparent;color:var(--muted);
+    border-radius:var(--r-2);
+  }
+  .btn.icon-only:hover{background:var(--surface-2);color:var(--text);}
   .btn.icon-only i{display:block;font-size:14px;}
-  .btn.icon-only .label{position:absolute;left:50%;top:100%;transform:translateX(-50%);white-space:nowrap;background:var(--surface-3);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;opacity:0;pointer-events:none;transition:opacity .2s;margin-top:4px;z-index:100;}
+  /* Íconos dentro de botones con texto: mismo tamaño/color/optical align que el texto. */
+  .btn i:not(.fa-lg){font-size:0.9em;opacity:.85;line-height:1;}
+  .btn.icon-only .label{
+    position:absolute;left:50%;top:calc(100% + 6px);transform:translateX(-50%);
+    white-space:nowrap;background:var(--tooltip-bg);border:1px solid var(--border);
+    border-radius:var(--r-1);padding:5px 9px;font-size:var(--t-xs);color:var(--text);
+    opacity:0;pointer-events:none;transition:opacity .2s;z-index:100;
+    box-shadow:var(--sh-2);letter-spacing:-0.005em;
+  }
   .btn.icon-only:hover .label{opacity:1;}
   .btn.small{padding:6px 10px;font-size:12px;}
 
@@ -215,8 +307,8 @@
   .block.collapsed{padding:8px 10px;}
   .block.collapsed .block-title-row{margin-bottom:0;}
   .item-card{
-    border:1px solid var(--border);border-radius:12px;background:var(--card-bg);
-    padding:11px;margin-bottom:9px;
+    border:1px solid var(--border);border-radius:var(--r-2);background:var(--card-bg);
+    padding:var(--s-3);margin-bottom:var(--s-2);
   }
   .item-card:last-child{margin-bottom:0;}
   /* cursor:pointer en todo el encabezado: el click para plegar/desplegar ya no depende de
@@ -397,15 +489,19 @@
     .grid.semana .cell{min-height:0;}
   }
   .cell{
-    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    /* radius:22px de las celdas se leía "glass card app de startup". 10px las hace ver
+       como parte de una grilla: profesional en vez de decorativo. */
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-2);
     backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);
-    min-height:74px;padding:7px;cursor:pointer;position:relative;
-    display:flex;flex-direction:column;gap:2px;
+    min-height:74px;padding:var(--s-2);cursor:pointer;position:relative;
+    display:flex;flex-direction:column;gap:var(--s-1);
     transition:border-color .15s var(--ease-out), background .15s var(--ease-out),
                opacity .15s var(--ease-out), box-shadow .15s var(--ease-out),
                transform 100ms var(--ease-out);
   }
-  .cell:hover{border-color:var(--muted-2);background:var(--surface-2);box-shadow:0 0 20px rgba(168,120,255,.18);}
+  /* Hover más sobrio: sin box-shadow con glow violeta, solo un cambio de borde y fondo.
+     El glow por celda multiplicado por 30 celdas del mes se leía como "ruido". */
+  .cell:hover{border-color:var(--muted-2);background:var(--surface-2);}
   /* Escala apenas perceptible: el día se toca decenas de veces por sesión, así que la
      respuesta tiene que ser discreta — confirmar el toque sin llamar la atención. */
   .cell:active{transform:scale(.98);}
@@ -754,9 +850,10 @@
   @starting-style{ .modal-back.open{opacity:0;} }
 
   .modal{
-    background:var(--surface);border:1px solid var(--border);border-radius:22px;
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-3);
     backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
-    width:480px;max-width:100%;padding:24px;max-height:85vh;overflow-y:auto;
+    width:480px;max-width:100%;padding:var(--s-6);max-height:85vh;overflow-y:auto;
+    box-shadow:var(--sh-4);
     /* scale(.95) y no scale(0): nada en el mundo real aparece de la nada, y arrancar
        desde un tamaño ya reconocible hace que la aparición se sienta como un objeto
        real llegando, no como algo que se materializa de cero. transform-origin queda
@@ -767,8 +864,8 @@
   }
   .modal-back.open .modal{transform:scale(1);opacity:1;}
   @starting-style{ .modal-back.open .modal{transform:scale(.95);opacity:0;} }
-  .modal h2{font-family:'Inter',sans-serif;font-weight:700;margin:0 0 4px;font-size:18px;}
-  .modal .hint{color:var(--muted);font-size:12.5px;margin:0 0 18px;line-height:1.5;}
+  .modal h2{font-family:'Inter',sans-serif;font-weight:var(--w-semibold);margin:0 0 var(--s-1);font-size:var(--t-lg);line-height:var(--lh-lg);letter-spacing:-0.015em;}
+  .modal .hint{color:var(--muted);font-size:var(--t-sm);margin:0 0 var(--s-5);line-height:var(--lh-sm);}
   .angle-row{
     display:flex;align-items:center;gap:10px;margin-bottom:10px;
     background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:8px 10px;
@@ -1308,9 +1405,9 @@
           <div id="legendList"></div>
           <!-- Sin solo-admin: los ángulos son de cada marca (se guardan en su propio espacio),
                así que la marca puede definir los suyos sin tocar los de nadie más. -->
-          <button class="btn manage-btn admin-only" id="manageAnglesBtn" title="Crear y editar los ángulos de contenido: su nombre, color y emoji">✎ Gestionar ángulos</button>
-          <button class="btn manage-btn admin-only" id="manageImagesBtn" style="margin-top:8px;" title="Ver y borrar todas las imágenes cargadas este mes">🗑 Gestionar imágenes</button>
-          <button class="btn manage-btn admin-only" id="manageClearBtn" style="margin-top:8px;color:var(--danger);" title="Vaciar varios días de una vez (una semana, el mes entero)">🗑 Vaciar semana / mes</button>
+          <button class="btn manage-btn admin-only" id="manageAnglesBtn" title="Crear y editar los ángulos de contenido: su nombre, color y emoji"><i class="fa-solid fa-pen"></i>Gestionar ángulos</button>
+          <button class="btn manage-btn admin-only" id="manageImagesBtn" style="margin-top:8px;" title="Ver y borrar todas las imágenes cargadas este mes"><i class="fa-solid fa-images"></i>Gestionar imágenes</button>
+          <button class="btn manage-btn admin-only" id="manageClearBtn" style="margin-top:8px;color:var(--danger);" title="Vaciar varios días de una vez (una semana, el mes entero)"><i class="fa-solid fa-trash"></i>Vaciar semana / mes</button>
         </div>
       </div>
     </div>
@@ -1329,7 +1426,7 @@
       <button class="btn ghost" id="resyncBtn" style="width:100%;" title="Sube a la base lo que haya quedado guardado solo en este navegador">↑ Subir todo lo local a la base</button>
     </div>
     <div class="modal-close-row" style="margin-bottom:10px;">
-      <button class="btn ghost" id="diagBtn" style="width:100%;" title="Prueba la conexión y muestra cuánto tarda cada operación">🔍 Diagnóstico</button>
+      <button class="btn ghost" id="diagBtn" style="width:100%;" title="Prueba la conexión y muestra cuánto tarda cada operación"><i class="fa-solid fa-stethoscope"></i>Diagnóstico</button>
     </div>
     <pre id="diagOutput" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-family:'IBM Plex Mono',monospace;font-size:11px;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow-y:auto;margin-bottom:14px;"></pre>
     <p class="hint" style="margin-top:14px;">Este navegador recuerda tu link para que la app instalada abra directo. Si estás en una computadora compartida, cerrá la sesión al terminar.</p>
@@ -1387,10 +1484,10 @@
     </div>
 
     <div class="panel-footer" style="flex-wrap:wrap;gap:8px;">
-      <button class="btn ghost admin-only" id="clearDay" title="Manda todo el contenido de este día a la papelera. Podés restaurarlo durante 7 días.">🧹 Vaciar día</button>
+      <button class="btn ghost admin-only" id="clearDay" title="Manda todo el contenido de este día a la papelera. Podés restaurarlo durante 7 días."><i class="fa-solid fa-broom"></i>Vaciar día</button>
       <div style="display:flex;gap:8px;">
-        <button class="btn ghost admin-only" id="copyDayBtn" title="Copia el contenido de este día para pegarlo en otro">📋 Copiar</button>
-        <button class="btn ghost admin-only" id="pasteDayBtn" title="Reemplaza el contenido de este día por el que copiaste antes" disabled>📌 Pegar</button>
+        <button class="btn ghost admin-only" id="copyDayBtn" title="Copia el contenido de este día para pegarlo en otro"><i class="fa-regular fa-copy"></i>Copiar</button>
+        <button class="btn ghost admin-only" id="pasteDayBtn" title="Reemplaza el contenido de este día por el que copiaste antes" disabled><i class="fa-solid fa-paste"></i>Pegar</button>
         <button class="btn primary" id="doneBtn" title="Guarda y cierra este día">Listo</button>
       </div>
     </div>
@@ -1432,7 +1529,7 @@
     </label>
     <div class="modal-close-row">
       <button class="btn ghost" id="closeGenerateModal" title="Cerrar sin generar nada">Cancelar</button>
-      <button class="btn primary" id="runGenerateBtn" title="Rellenar el mes con la configuración de arriba">🎲 Generar</button>
+      <button class="btn primary" id="runGenerateBtn" title="Rellenar el mes con la configuración de arriba"><i class="fa-solid fa-wand-magic-sparkles"></i>Generar</button>
     </div>
   </div>
 </div>
@@ -1446,7 +1543,7 @@
     <select id="clearRangeSelect" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:'Inter',sans-serif;font-size:13px;margin-bottom:6px;"></select>
     <div class="modal-close-row">
       <button class="btn ghost" id="closeClearModal" title="Cerrar sin borrar nada">Cancelar</button>
-      <button class="btn primary" id="runClearBtn" style="background:linear-gradient(135deg,var(--danger),#a9515b);" title="Vaciar el rango elegido">🗑 Vaciar</button>
+      <button class="btn primary" id="runClearBtn" style="background:linear-gradient(135deg,var(--danger),#a9515b);" title="Vaciar el rango elegido"><i class="fa-solid fa-trash"></i>Vaciar</button>
     </div>
   </div>
 </div>
@@ -1591,7 +1688,7 @@
     <div id="searchMonthsList" class="search-months-list"></div>
     <div class="modal-close-row" style="margin-top:14px;">
       <button class="btn ghost" id="closeSearchModal" title="Cerrar el buscador">Cerrar</button>
-      <button class="btn primary" id="runSearchBtn" title="Buscar en los meses marcados">🔎 Buscar</button>
+      <button class="btn primary" id="runSearchBtn" title="Buscar en los meses marcados"><i class="fa-solid fa-magnifying-glass"></i>Buscar</button>
     </div>
     <div id="searchResultsList" class="search-results-list"></div>
   </div>
@@ -3132,7 +3229,7 @@
     renderDayPanelItems(key);
   }
 
-  // Builds the "context/idea" + "✨ Generar copy" box shared by Reel/Carrusel/Story cards.
+  // Builds the "context/idea" + "<i class="fa-solid fa-wand-magic-sparkles"></i>Generar copy" box shared by Reel/Carrusel/Story cards.
   // Calls the configured Apps Script backend, which talks to Gemini server-side (API key never
   // touches the browser). onGenerated(text) is used to reflect the result into the item's own
   // "Descripción / copy" textarea without re-rendering the whole card (keeps focus/scroll stable).
@@ -3157,10 +3254,10 @@
     genRow.className = 'ai-btn-row';
 
     const genBtn = document.createElement('button');
-    genBtn.type = 'button'; genBtn.className = 'btn small ai-generate-btn'; genBtn.textContent = '✨ Generar copy';
+    genBtn.type = 'button'; genBtn.className = 'btn small ai-generate-btn'; genBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar copy';
 
     const copyBtn = document.createElement('button');
-    copyBtn.type = 'button'; copyBtn.className = 'btn ghost small ai-copy-btn'; copyBtn.textContent = '📋 Copiar copy';
+    copyBtn.type = 'button'; copyBtn.className = 'btn ghost small ai-copy-btn'; copyBtn.textContent = '<i class="fa-regular fa-copy"></i>Copiar copy';
     copyBtn.disabled = !item.text || !item.text.trim();
     copyBtn.addEventListener('click', async ()=>{
       try{
@@ -3196,7 +3293,7 @@
         showToast('No se pudo generar el copy: ' + (err && err.message ? err.message : 'error desconocido'));
       }finally{
         genBtn.disabled = false;
-        genBtn.textContent = '✨ Generar copy';
+        genBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar copy';
       }
     });
     genRow.appendChild(genBtn);
@@ -3491,7 +3588,7 @@
     const emojiRow = document.createElement('div');
     emojiRow.style.cssText = 'position:relative;display:inline-block;';
     const emojiBtn = document.createElement('button');
-    emojiBtn.type = 'button'; emojiBtn.className = 'btn ghost small'; emojiBtn.textContent = '😊 Emoji';
+    emojiBtn.type = 'button'; emojiBtn.className = 'btn ghost small'; emojiBtn.textContent = '<i class="fa-regular fa-face-smile"></i>Emoji';
     emojiBtn.title = 'Insertar un emoji en el texto';
     emojiBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -3506,7 +3603,7 @@
     // Guión IA (sin límite de caracteres)
     const scriptContainer = document.createElement('div');
     const scriptBtn = document.createElement('button');
-    scriptBtn.type = 'button'; scriptBtn.className = 'btn ghost small'; scriptBtn.textContent = '✏️ Generar guión';
+    scriptBtn.type = 'button'; scriptBtn.className = 'btn ghost small'; scriptBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
     let scriptTextarea = null;
     scriptBtn.addEventListener('click', ()=>{
       if(!scriptTextarea){
@@ -3518,7 +3615,7 @@
         scriptContainer.appendChild(scriptTextarea);
 
         const scriptGenBtn = document.createElement('button');
-        scriptGenBtn.type = 'button'; scriptGenBtn.className = 'btn small ai-generate-btn'; scriptGenBtn.textContent = '✨ Generar con IA';
+        scriptGenBtn.type = 'button'; scriptGenBtn.className = 'btn small ai-generate-btn'; scriptGenBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
         scriptGenBtn.style.cssText = 'margin-top:8px;width:100%;';
         scriptGenBtn.addEventListener('click', async ()=>{
           if(!item.context.trim()){ showToast('Escribí primero el contexto del copy'); return; }
@@ -3534,7 +3631,7 @@
             showToast('No se pudo generar el guión: ' + (err && err.message ? err.message : 'error desconocido'));
           }finally{
             scriptGenBtn.disabled = false;
-            scriptGenBtn.textContent = '✨ Generar con IA';
+            scriptGenBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
           }
         });
         scriptContainer.appendChild(scriptGenBtn);
@@ -3543,7 +3640,7 @@
         scriptTextarea.remove();
         scriptContainer.querySelectorAll('button:not(:first-child)').forEach(b=>b.remove());
         scriptTextarea = null;
-        scriptBtn.textContent = '✏️ Generar guión';
+        scriptBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
       }
     });
     accionesRow.appendChild(scriptBtn); // comparte renglón con el de emoji
@@ -3560,9 +3657,9 @@
     const btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:flex;gap:8px;';
     const uploadBtn = document.createElement('button');
-    uploadBtn.type = 'button'; uploadBtn.className = 'btn small'; uploadBtn.textContent = '📷 Subir imagen';
+    uploadBtn.type = 'button'; uploadBtn.className = 'btn small'; uploadBtn.textContent = '<i class="fa-solid fa-upload"></i>Subir imagen';
     const pasteBtn = document.createElement('button');
-    pasteBtn.type = 'button'; pasteBtn.className = 'btn small'; pasteBtn.textContent = '📋 Pegar';
+    pasteBtn.type = 'button'; pasteBtn.className = 'btn small'; pasteBtn.textContent = '<i class="fa-solid fa-paste"></i>Pegar';
     pasteBtn.title = 'Pegar una imagen copiada (o Ctrl+V sobre esta tarjeta)';
     const clearBtn = document.createElement('button');
     clearBtn.type = 'button'; clearBtn.className = 'btn ghost small'; clearBtn.textContent = 'Quitar';
@@ -3756,7 +3853,7 @@
     const emojiRow = document.createElement('div');
     emojiRow.style.cssText = 'position:relative;display:inline-block;';
     const emojiBtn = document.createElement('button');
-    emojiBtn.type = 'button'; emojiBtn.className = 'btn ghost small'; emojiBtn.textContent = '😊 Emoji';
+    emojiBtn.type = 'button'; emojiBtn.className = 'btn ghost small'; emojiBtn.textContent = '<i class="fa-regular fa-face-smile"></i>Emoji';
     emojiBtn.title = 'Insertar un emoji en el texto';
     emojiBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -3771,7 +3868,7 @@
     // Guión IA (sin límite de caracteres)
     const scriptContainer = document.createElement('div');
     const scriptBtn = document.createElement('button');
-    scriptBtn.type = 'button'; scriptBtn.className = 'btn ghost small'; scriptBtn.textContent = '✏️ Generar guión';
+    scriptBtn.type = 'button'; scriptBtn.className = 'btn ghost small'; scriptBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
     let scriptTextarea = null;
     scriptBtn.addEventListener('click', ()=>{
       if(!scriptTextarea){
@@ -3783,7 +3880,7 @@
         scriptContainer.appendChild(scriptTextarea);
 
         const scriptGenBtn = document.createElement('button');
-        scriptGenBtn.type = 'button'; scriptGenBtn.className = 'btn small ai-generate-btn'; scriptGenBtn.textContent = '✨ Generar con IA';
+        scriptGenBtn.type = 'button'; scriptGenBtn.className = 'btn small ai-generate-btn'; scriptGenBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
         scriptGenBtn.style.cssText = 'margin-top:8px;width:100%;';
         scriptGenBtn.addEventListener('click', async ()=>{
           if(!item.context.trim()){ showToast('Escribí primero el contexto del copy'); return; }
@@ -3799,7 +3896,7 @@
             showToast('No se pudo generar el guión: ' + (err && err.message ? err.message : 'error desconocido'));
           }finally{
             scriptGenBtn.disabled = false;
-            scriptGenBtn.textContent = '✨ Generar con IA';
+            scriptGenBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
           }
         });
         scriptContainer.appendChild(scriptGenBtn);
@@ -3808,7 +3905,7 @@
         scriptTextarea.remove();
         scriptContainer.querySelectorAll('button:not(:first-child)').forEach(b=>b.remove());
         scriptTextarea = null;
-        scriptBtn.textContent = '✏️ Generar guión';
+        scriptBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
       }
     });
     accionesRow.appendChild(scriptBtn); // comparte renglón con el de emoji
@@ -5323,7 +5420,7 @@
     };
 
     const subir = document.createElement('button');
-    subir.type='button'; subir.className='btn ghost small'; subir.textContent='📷 Subir';
+    subir.type='button'; subir.className='btn ghost small'; subir.textContent='<i class="fa-solid fa-upload"></i>Subir';
     subir.title = 'Elegir una imagen de referencia desde tu computadora';
     subir.addEventListener('click', ()=> archivo.click());
     archivo.addEventListener('change', async (e)=>{
@@ -5332,7 +5429,7 @@
     });
 
     const pegar = document.createElement('button');
-    pegar.type='button'; pegar.className='btn ghost small'; pegar.textContent='📋 Pegar';
+    pegar.type='button'; pegar.className='btn ghost small'; pegar.textContent='<i class="fa-solid fa-paste"></i>Pegar';
     pegar.title = 'Pegar una imagen copiada (o Ctrl+V sobre esta fila)';
     pegar.addEventListener('click', async ()=>{
       if(!navigator.clipboard || !navigator.clipboard.read){
@@ -5640,7 +5737,7 @@
       }
     } finally {
       $('runSearchBtn').disabled = false;
-      $('runSearchBtn').textContent = '🔎 Buscar';
+      $('runSearchBtn').textContent = '<i class="fa-solid fa-magnifying-glass"></i>Buscar';
     }
 
     renderSearchResults(results);
@@ -6111,7 +6208,7 @@
       await saveDayNow(list[i]);
     }
     $('runGenerateBtn').disabled = false;
-    $('runGenerateBtn').textContent = '🎲 Generar';
+    $('runGenerateBtn').textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar';
 
     $('generateModal').classList.remove('open');
     renderCalendar();
