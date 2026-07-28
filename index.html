@@ -3254,10 +3254,10 @@
     genRow.className = 'ai-btn-row';
 
     const genBtn = document.createElement('button');
-    genBtn.type = 'button'; genBtn.className = 'btn small ai-generate-btn'; genBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar copy';
+    genBtn.type = 'button'; genBtn.className = 'btn small ai-generate-btn'; genBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar copy';
 
     const copyBtn = document.createElement('button');
-    copyBtn.type = 'button'; copyBtn.className = 'btn ghost small ai-copy-btn'; copyBtn.textContent = '<i class="fa-regular fa-copy"></i>Copiar copy';
+    copyBtn.type = 'button'; copyBtn.className = 'btn ghost small ai-copy-btn'; copyBtn.innerHTML = '<i class="fa-regular fa-copy"></i>Copiar copy';
     copyBtn.disabled = !item.text || !item.text.trim();
     copyBtn.addEventListener('click', async ()=>{
       try{
@@ -3293,7 +3293,7 @@
         showToast('No se pudo generar el copy: ' + (err && err.message ? err.message : 'error desconocido'));
       }finally{
         genBtn.disabled = false;
-        genBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar copy';
+        genBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar copy';
       }
     });
     genRow.appendChild(genBtn);
@@ -3588,7 +3588,7 @@
     const emojiRow = document.createElement('div');
     emojiRow.style.cssText = 'position:relative;display:inline-block;';
     const emojiBtn = document.createElement('button');
-    emojiBtn.type = 'button'; emojiBtn.className = 'btn ghost small'; emojiBtn.textContent = '<i class="fa-regular fa-face-smile"></i>Emoji';
+    emojiBtn.type = 'button'; emojiBtn.className = 'btn ghost small'; emojiBtn.innerHTML = '<i class="fa-regular fa-face-smile"></i>Emoji';
     emojiBtn.title = 'Insertar un emoji en el texto';
     emojiBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -3603,7 +3603,7 @@
     // Guión IA (sin límite de caracteres)
     const scriptContainer = document.createElement('div');
     const scriptBtn = document.createElement('button');
-    scriptBtn.type = 'button'; scriptBtn.className = 'btn ghost small'; scriptBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
+    scriptBtn.type = 'button'; scriptBtn.className = 'btn ghost small'; scriptBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
     let scriptTextarea = null;
     scriptBtn.addEventListener('click', ()=>{
       if(!scriptTextarea){
@@ -3615,7 +3615,7 @@
         scriptContainer.appendChild(scriptTextarea);
 
         const scriptGenBtn = document.createElement('button');
-        scriptGenBtn.type = 'button'; scriptGenBtn.className = 'btn small ai-generate-btn'; scriptGenBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
+        scriptGenBtn.type = 'button'; scriptGenBtn.className = 'btn small ai-generate-btn'; scriptGenBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
         scriptGenBtn.style.cssText = 'margin-top:8px;width:100%;';
         scriptGenBtn.addEventListener('click', async ()=>{
           if(!item.context.trim()){ showToast('Escribí primero el contexto del copy'); return; }
@@ -3631,7 +3631,7 @@
             showToast('No se pudo generar el guión: ' + (err && err.message ? err.message : 'error desconocido'));
           }finally{
             scriptGenBtn.disabled = false;
-            scriptGenBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
+            scriptGenBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
           }
         });
         scriptContainer.appendChild(scriptGenBtn);
@@ -3640,7 +3640,7 @@
         scriptTextarea.remove();
         scriptContainer.querySelectorAll('button:not(:first-child)').forEach(b=>b.remove());
         scriptTextarea = null;
-        scriptBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
+        scriptBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
       }
     });
     accionesRow.appendChild(scriptBtn); // comparte renglón con el de emoji
@@ -3657,9 +3657,9 @@
     const btnRow = document.createElement('div');
     btnRow.style.cssText = 'display:flex;gap:8px;';
     const uploadBtn = document.createElement('button');
-    uploadBtn.type = 'button'; uploadBtn.className = 'btn small'; uploadBtn.textContent = '<i class="fa-solid fa-upload"></i>Subir imagen';
+    uploadBtn.type = 'button'; uploadBtn.className = 'btn small'; uploadBtn.innerHTML = '<i class="fa-solid fa-upload"></i>Subir imagen';
     const pasteBtn = document.createElement('button');
-    pasteBtn.type = 'button'; pasteBtn.className = 'btn small'; pasteBtn.textContent = '<i class="fa-solid fa-paste"></i>Pegar';
+    pasteBtn.type = 'button'; pasteBtn.className = 'btn small'; pasteBtn.innerHTML = '<i class="fa-solid fa-paste"></i>Pegar';
     pasteBtn.title = 'Pegar una imagen copiada (o Ctrl+V sobre esta tarjeta)';
     const clearBtn = document.createElement('button');
     clearBtn.type = 'button'; clearBtn.className = 'btn ghost small'; clearBtn.textContent = 'Quitar';
@@ -3853,7 +3853,7 @@
     const emojiRow = document.createElement('div');
     emojiRow.style.cssText = 'position:relative;display:inline-block;';
     const emojiBtn = document.createElement('button');
-    emojiBtn.type = 'button'; emojiBtn.className = 'btn ghost small'; emojiBtn.textContent = '<i class="fa-regular fa-face-smile"></i>Emoji';
+    emojiBtn.type = 'button'; emojiBtn.className = 'btn ghost small'; emojiBtn.innerHTML = '<i class="fa-regular fa-face-smile"></i>Emoji';
     emojiBtn.title = 'Insertar un emoji en el texto';
     emojiBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
@@ -3868,7 +3868,7 @@
     // Guión IA (sin límite de caracteres)
     const scriptContainer = document.createElement('div');
     const scriptBtn = document.createElement('button');
-    scriptBtn.type = 'button'; scriptBtn.className = 'btn ghost small'; scriptBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
+    scriptBtn.type = 'button'; scriptBtn.className = 'btn ghost small'; scriptBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
     let scriptTextarea = null;
     scriptBtn.addEventListener('click', ()=>{
       if(!scriptTextarea){
@@ -3880,7 +3880,7 @@
         scriptContainer.appendChild(scriptTextarea);
 
         const scriptGenBtn = document.createElement('button');
-        scriptGenBtn.type = 'button'; scriptGenBtn.className = 'btn small ai-generate-btn'; scriptGenBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
+        scriptGenBtn.type = 'button'; scriptGenBtn.className = 'btn small ai-generate-btn'; scriptGenBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
         scriptGenBtn.style.cssText = 'margin-top:8px;width:100%;';
         scriptGenBtn.addEventListener('click', async ()=>{
           if(!item.context.trim()){ showToast('Escribí primero el contexto del copy'); return; }
@@ -3896,7 +3896,7 @@
             showToast('No se pudo generar el guión: ' + (err && err.message ? err.message : 'error desconocido'));
           }finally{
             scriptGenBtn.disabled = false;
-            scriptGenBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
+            scriptGenBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
           }
         });
         scriptContainer.appendChild(scriptGenBtn);
@@ -3905,7 +3905,7 @@
         scriptTextarea.remove();
         scriptContainer.querySelectorAll('button:not(:first-child)').forEach(b=>b.remove());
         scriptTextarea = null;
-        scriptBtn.textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
+        scriptBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
       }
     });
     accionesRow.appendChild(scriptBtn); // comparte renglón con el de emoji
@@ -5420,7 +5420,7 @@
     };
 
     const subir = document.createElement('button');
-    subir.type='button'; subir.className='btn ghost small'; subir.textContent='<i class="fa-solid fa-upload"></i>Subir';
+    subir.type='button'; subir.className='btn ghost small'; subir.innerHTML='<i class="fa-solid fa-upload"></i>Subir';
     subir.title = 'Elegir una imagen de referencia desde tu computadora';
     subir.addEventListener('click', ()=> archivo.click());
     archivo.addEventListener('change', async (e)=>{
@@ -5429,7 +5429,7 @@
     });
 
     const pegar = document.createElement('button');
-    pegar.type='button'; pegar.className='btn ghost small'; pegar.textContent='<i class="fa-solid fa-paste"></i>Pegar';
+    pegar.type='button'; pegar.className='btn ghost small'; pegar.innerHTML='<i class="fa-solid fa-paste"></i>Pegar';
     pegar.title = 'Pegar una imagen copiada (o Ctrl+V sobre esta fila)';
     pegar.addEventListener('click', async ()=>{
       if(!navigator.clipboard || !navigator.clipboard.read){
@@ -5737,7 +5737,7 @@
       }
     } finally {
       $('runSearchBtn').disabled = false;
-      $('runSearchBtn').textContent = '<i class="fa-solid fa-magnifying-glass"></i>Buscar';
+      $('runSearchBtn').innerHTML = '<i class="fa-solid fa-magnifying-glass"></i>Buscar';
     }
 
     renderSearchResults(results);
@@ -6208,7 +6208,7 @@
       await saveDayNow(list[i]);
     }
     $('runGenerateBtn').disabled = false;
-    $('runGenerateBtn').textContent = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar';
+    $('runGenerateBtn').innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar';
 
     $('generateModal').classList.remove('open');
     renderCalendar();
