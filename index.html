@@ -1788,6 +1788,10 @@
   // en la raíz, sin el token en la dirección, y sin esto quedaría afuera de su propio
   // calendario. Como contrapartida, quien use este navegador queda dentro hasta que se
   // cierre sesión — es el mismo trato que "mantener sesión iniciada".
+  // ¿Está corriendo como app instalada, sin barra del navegador?
+  const ES_APP_INSTALADA = (window.matchMedia && matchMedia('(display-mode: standalone)').matches)
+    || navigator.standalone === true;
+
   const TOKEN = (function(){
     const params = new URLSearchParams(location.search);
     // /algo → "algo". Se descartan rutas conocidas para no confundir un archivo con un token.
@@ -1798,7 +1802,14 @@
       try{ localStorage.setItem('cc-token', candidato); }catch(e){ /* modo privado: no se recuerda */ }
       return candidato;
     }
-    try{ return localStorage.getItem('cc-token') || ''; }catch(e){ return ''; }
+    // Entrar solo con lo recordado queda reservado a la app instalada, que abre siempre en
+    // la raíz y no tiene de dónde sacar el token. En el navegador, ir a la dirección general
+    // tiene que mostrar el acceso: si no, quien la visita entra al último calendario abierto
+    // sin haberlo pedido, y encima sin enterarse de que quedó una sesión guardada.
+    if(ES_APP_INSTALADA){
+      try{ return localStorage.getItem('cc-token') || ''; }catch(e){ return ''; }
+    }
+    return '';
   })();
 
   // El manifiesto se pide con el token adentro, para que la app instalada abra en ESTE
@@ -6131,8 +6142,8 @@
     $('settingsModal').classList.add('open');
   });
   $('cerrarSesionBtn').addEventListener('click', ()=>{
-    if(!confirm('¿Cerrar sesión en este navegador?\n\nVas a necesitar tu link para volver a entrar. Asegurate de tenerlo guardado.')) return;
-    try{ localStorage.removeItem('cc-token'); }catch(e){}
+    if(!confirm('¿Cerrar sesión en este navegador?\n\nVas a necesitar tu PIN para volver a entrar.')) return;
+    try{ localStorage.removeItem('cc-token'); localStorage.removeItem('cc-nombre'); }catch(e){}
     location.href = '/';
   });
 
@@ -6316,6 +6327,7 @@
       '<button id="entrarPin" style="width:100%;background:linear-gradient(135deg,#4f8ef7,#8b5cf6);border:none;' +
       'border-radius:10px;color:#fff;padding:13px;font-size:15px;font-weight:600;cursor:pointer;">Entrar</button>' +
       '<p id="errorPin" style="color:#f2617a;font-size:12.5px;margin:10px 0 0;min-height:18px;line-height:1.45;"></p>' +
+      '<div id="zonaRecordado"></div>' +
       '<details style="margin-top:14px;text-align:left;">' +
       '<summary style="color:#615c72;font-size:11.5px;cursor:pointer;">Tengo un link en vez de un PIN</summary>' +
       '<input id="pegarLink" type="text" placeholder="https://…/tu-marca-xxxx" ' +
@@ -6376,6 +6388,33 @@
     document.getElementById('pinInput').addEventListener('keydown', (e)=>{ if(e.key === 'Enter') entrarConPin(); });
     document.getElementById('entrarLink').addEventListener('click', entrarConLink);
     document.getElementById('pinInput').focus();
+
+    // Atajo si este navegador ya entró antes: evita tipear el PIN cada vez, pero requiere un
+    // click. Nunca entra solo, que era el problema.
+    let recordado = '', nombreRecordado = '';
+    try{
+      recordado = localStorage.getItem('cc-token') || '';
+      nombreRecordado = localStorage.getItem('cc-nombre') || '';
+    }catch(e){}
+    if(recordado){
+      const zona = document.getElementById('zonaRecordado');
+      zona.innerHTML =
+        '<div style="border-top:1px solid rgba(255,255,255,.12);margin-top:14px;padding-top:14px;">' +
+        '<button id="seguirComo" style="width:100%;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);' +
+        'border-radius:10px;color:#f4f2fb;padding:11px;font-size:13.5px;cursor:pointer;">Continuar como ' +
+        (nombreRecordado ? nombreRecordado.replace(/[<>&]/g, '') : 'la última sesión') + '</button>' +
+        '<button id="olvidarSesion" style="background:none;border:none;color:#615c72;font-size:11.5px;' +
+        'cursor:pointer;margin-top:8px;text-decoration:underline;">No soy yo, olvidar esta sesión</button>' +
+        '</div>';
+      document.getElementById('seguirComo').addEventListener('click', ()=>{
+        location.href = '/' + encodeURIComponent(recordado);
+      });
+      document.getElementById('olvidarSesion').addEventListener('click', ()=>{
+        try{ localStorage.removeItem('cc-token'); localStorage.removeItem('cc-nombre'); }catch(e){}
+        document.getElementById('zonaRecordado').innerHTML = '';
+        document.getElementById('pinInput').focus();
+      });
+    }
   }
 
   // ---------- app instalable ----------
@@ -6441,6 +6480,9 @@
     }
     ES_ADMIN = sesion.rol === 'admin';
     NOMBRE_SESION = sesion.nombre || '';
+    // Se recuerda el nombre junto al token para poder ofrecer "Continuar como …" en la
+    // pantalla de acceso, sin tener que preguntarle al servidor antes de identificarse.
+    try{ localStorage.setItem('cc-nombre', NOMBRE_SESION); }catch(e){}
     // El administrador elige con ?cliente= qué marca mira; una marca no elige nada, y aunque
     // edite la URL el servidor le sigue devolviendo únicamente lo suyo.
     CLIENT_ID = ES_ADMIN
