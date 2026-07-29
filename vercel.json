@@ -5,6 +5,7 @@
     }
   },
   "rewrites": [
+    { "source": "/privacidad", "destination": "/privacidad.html" },
     { "source": "/:token", "destination": "/index.html" }
   ]
 }
