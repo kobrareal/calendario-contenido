@@ -585,8 +585,10 @@
   /* ---------- sidebar / contact sheet ---------- */
   .sidebar{position:sticky;top:24px;}
   .sheet{
-    background:var(--surface);border:1px solid var(--border);border-radius:22px;
-    backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+    /* Dentro del mockup del iPhone: negro plano y sin borde, para que la pantalla del
+       teléfono se lea como pantalla real. Antes el sheet tenía su propio borde y blur,
+       que competían con el marco del mockup y le quitaban el efecto. */
+    background:#000;
     padding:0;overflow:hidden;
   }
   .sheet-head{
@@ -595,8 +597,55 @@
   }
   .sheet-head h2{font-family:'Inter',sans-serif;font-size:15px;margin:0;font-weight:700;}
   .sheet-head span{font-size:11px;color:var(--muted-2);font-family:'IBM Plex Mono',monospace;}
-  .sprockets{display:flex;gap:6px;padding:8px 14px;background:var(--surface-3);backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);}
-  .sprockets div{width:5px;height:5px;border-radius:50%;background:var(--bg-a);}
+  /* Cabecera fuera del sheet (arriba del mockup del iPhone), en vez de encima de la
+     grilla — así el mockup se lee limpio, sin un encabezado propio. */
+  .sheet-head-outside{
+    padding:0 var(--s-2) var(--s-3);border-bottom:none;
+    display:flex;align-items:baseline;justify-content:space-between;
+  }
+
+  /* ---------- mockup de iPhone ----------
+     Marco decorativo que envuelve la vista previa del feed para que se lea como una
+     app real y no como una tabla. Nada funcional depende del mockup: si se saca, la
+     grilla sigue trabajando. Colores hardcodeados a propósito — un iPhone es negro/
+     titanio, no sigue los tokens del calendario. */
+  .iphone-mockup{
+    position:relative;
+    max-width:340px; margin:0 auto;
+    background:#0b0b0e;
+    border-radius:44px;
+    padding:12px 12px 20px;
+    box-shadow:
+      inset 0 0 0 2px #2a2a2f,      /* borde interior tipo titanio */
+      0 30px 60px -20px rgba(0,0,0,.7),
+      0 8px 20px rgba(0,0,0,.4);
+  }
+  .iphone-notch{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    width:82px; height:24px; background:#000; border-radius:14px; z-index:2;
+    pointer-events:none;
+  }
+  .iphone-screen{
+    background:#000; border-radius:34px; overflow:hidden;
+    padding-top:44px; /* deja aire para el notch */
+    display:flex; flex-direction:column;
+  }
+  .iphone-home{
+    position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
+    width:120px; height:4px; border-radius:2px; background:#3a3a3f;
+  }
+  /* Barra de Instagram estilizada. No es un mockup pixel-perfect de la app real —
+     es una alusión clara para que el ojo entienda "esto es un feed", nada más. */
+  .ig-topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px 12px; background:#000; color:#fff;
+    border-bottom:1px solid #1a1a1d;
+  }
+  .ig-brand{
+    font-family:'Inter', sans-serif; font-weight:700; font-size:16px;
+    letter-spacing:-0.01em;
+  }
+  .ig-icons{ display:flex; gap:14px; font-size:18px; color:#fff; opacity:.85; }
   /* Tope de 1080x1920: es el tamaño de un lienzo de Instagram, y sin él la vista previa
      se estiraba con la pantalla. En monitores comunes no llega a tocar el límite. */
   .frames-viewport{
@@ -1363,6 +1412,12 @@
         <input type="date" id="dayPicker" class="day-picker" title="Elegí qué día querés ver en detalle" />
         <div class="angle-filter">
           Filtrar:
+          <select id="kindFilterSelect" title="Mostrar solo un tipo de publicación">
+            <option value="">Todo el contenido</option>
+            <option value="reel">Solo reels</option>
+            <option value="carrusel">Solo carruseles</option>
+            <option value="story">Solo stories</option>
+          </select>
           <select id="angleFilterSelect" title="Mostrar solo los días que tengan contenido de un ángulo">
             <option value="">Todos los ángulos</option>
           </select>
@@ -1390,16 +1445,33 @@
 
     <!-- SIDEBAR -->
     <div class="sidebar">
-      <div class="sheet">
-        <div class="sheet-head">
-          <h2>Vista previa del feed</h2>
-          <span id="frameCount">0 posts</span>
+      <div class="sheet-head sheet-head-outside">
+        <h2>Vista previa del feed</h2>
+        <span id="frameCount">0 posts</span>
+      </div>
+      <!-- Marco tipo iPhone. Es puramente decorativo: el contenido real (la grilla del
+           feed) sigue siendo el mismo .frames-viewport, solo cambia el envoltorio. Emula
+           un iPhone genérico con notch dinámico y barra de Instagram arriba, para que la
+           vista previa se lea como una foto de una app real y no como una tabla. -->
+      <div class="iphone-mockup">
+        <div class="iphone-notch"></div>
+        <div class="iphone-screen">
+          <div class="ig-topbar">
+            <span class="ig-brand" id="igBrand">wayfarer</span>
+            <div class="ig-icons">
+              <span aria-hidden="true">+</span>
+              <span aria-hidden="true">♡</span>
+              <span aria-hidden="true">✉</span>
+            </div>
+          </div>
+          <div class="sheet">
+            <div class="frames-viewport">
+              <div class="frames" id="feedFrames"></div>
+            </div>
+          </div>
         </div>
-        <div class="sprockets" id="sprocketsTop"></div>
-        <div class="frames-viewport">
-          <div class="frames" id="feedFrames"></div>
-        </div>
-        <div class="sprockets" id="sprocketsBottom"></div>
+        <div class="iphone-home"></div>
+      </div>
         <div class="legend">
           <h3>Ángulos de contenido</h3>
           <div id="legendList"></div>
@@ -1891,6 +1963,30 @@
   let saveTimer = null;
   let angleModalDirty = false;
   let angleFilter = '';
+  // Filtro por tipo de posteo. '' = mostrar todo. 'reel' | 'carrusel' | 'story'.
+  // Los días que no tengan un ítem del tipo elegido quedan atenuados con .dimmed, misma
+  // mecánica que angleFilter (no oculta días, solo baja su relieve para no perder la grilla).
+  let kindFilter = '';
+
+  // Los dos filtros funcionan distinto a propósito:
+  //  - angleFilter atenúa (dimmed) los días que no coinciden — vos querés ver el mes
+  //    entero pero destacar los días con ese ángulo.
+  //  - kindFilter esconde los ítems del tipo NO elegido dentro de cada día. Un filtro
+  //    "solo reels" tiene que dar una vista de reels, no un mes con reels iluminados y
+  //    stories/carruseles atenuados al lado. Devuelve la lista filtrada para pintarla.
+  function anguloCoincide(entry){
+    if(!angleFilter) return true;
+    if(!entry) return false;
+    return (entry.feed || []).some(it=>it.angle===angleFilter) ||
+           (entry.stories || []).some(it=>it.angle===angleFilter);
+  }
+  function itemsVisibles(entry){
+    const feed = (entry && entry.feed) || [];
+    const stories = (entry && entry.stories) || [];
+    if(!kindFilter) return { feed, stories };
+    if(kindFilter === 'story') return { feed: [], stories };
+    return { feed: feed.filter(it => (it.kind || 'reel') === kindFilter), stories: [] };
+  }
   let dayClipboard = null;
   let undoStack = [];
   let redoStack = [];
@@ -2086,6 +2182,14 @@
   function updateBrandTitle(){
     const base = tituloPersonalizado.trim() || $('clientName').value.trim() || 'Calendario de contenido';
     $('brandTitle').textContent = IS_READONLY ? `${base} (solo lectura)` : base;
+    // La barra de Instagram del mockup muestra el nombre de la marca, en minúsculas
+    // como usuario de IG. Si no hay marca cargada, usa el slug de la sesión o cae
+    // en un placeholder discreto.
+    const igBrand = $('igBrand');
+    if(igBrand){
+      const nombre = ($('clientName').value.trim() || CLIENT_ID || 'tu.marca').toLowerCase().replace(/\s+/g,'.');
+      igBrand.textContent = nombre;
+    }
   }
 
   function setSaving(state){
@@ -2472,6 +2576,10 @@
     angleFilter = $('angleFilterSelect').value;
     renderCalendar();
   });
+  $('kindFilterSelect').addEventListener('change', ()=>{
+    kindFilter = $('kindFilterSelect').value;
+    renderCalendar();
+  });
 
   // ---------- stats modal ----------
   function buildStatsSectionHtml(title, itemLabelSingular, itemLabelPlural, stats){
@@ -2641,12 +2749,10 @@
       cell.className = 'cell' + (key === hoyKey ? ' today' : '') +
         (fecha.getMonth() !== viewMonth ? ' otro-mes' : '');
 
-      if(angleFilter){
-        const coincide = entry && (
-          (entry.feed && entry.feed.some(it=>it.angle===angleFilter)) ||
-          (entry.stories && entry.stories.some(it=>it.angle===angleFilter))
-        );
-        if(!coincide) cell.classList.add('dimmed');
+      if(!anguloCoincide(entry)) cell.classList.add('dimmed');
+      const visibles = itemsVisibles(entry);
+      if(kindFilter && !visibles.feed.length && !visibles.stories.length){
+        cell.classList.add('dimmed');
       }
 
       cell.tabIndex = 0;
@@ -2678,12 +2784,15 @@
 
       const cuerpo = document.createElement('div');
       cuerpo.className = 'sem-lista';
-      const feed = (entry && entry.feed) || [];
-      const stories = (entry && entry.stories) || [];
+      const feed = visibles.feed;
+      const stories = visibles.stories;
 
       if(feed.length === 0 && stories.length === 0){
         const vacio = document.createElement('div');
         vacio.className = 'sem-vacio';
+        // Mismo texto con o sin filtro: la idea es que un día sin ese tipo se lea como
+        // un día vacío normal, no que el propio calendario te esté anunciando "acá no
+        // hay lo que buscás". Los días con el tipo hablan solos.
         vacio.textContent = 'Sin contenido';
         cuerpo.appendChild(vacio);
       }
@@ -2830,13 +2939,12 @@
       const isWeekStart = weekday === 0;
       cell.className = 'cell' + (isToday ? ' today':'') + (isWeekStart ? ' week-start':'');
 
-      if(angleFilter){
-        const matches = entry && (
-          (entry.feed && entry.feed.some(it=>it.angle===angleFilter)) ||
-          (entry.stories && entry.stories.some(it=>it.angle===angleFilter))
-        );
-        if(!matches) cell.classList.add('dimmed');
-      }
+      if(!anguloCoincide(entry)) cell.classList.add('dimmed');
+      const visibles = itemsVisibles(entry);
+      // A propósito NO se atenúa un día sin el tipo filtrado: el usuario quiere una vista
+      // limpia, no una vista con días "apagados". Ese día simplemente se ve como vacío,
+      // igual que si nunca hubiera tenido contenido — y así el mes se lee como un mes
+      // que solo tiene ese tipo.
 
       cell.tabIndex = 0;
       cell.setAttribute('role','button');
@@ -2874,8 +2982,19 @@
 
       const tags = document.createElement('div');
       tags.className = 'tags';
-      appendItemTags(tags, entry && entry.feed, 'R', key, 'feed');
-      appendItemTags(tags, entry && entry.stories, 'S', key, 'stories');
+      // Con el filtro activo, un día solo muestra las tags del tipo elegido — así
+      // "solo reels" da una vista de reels y no un mes atenuado con etiquetas mezcladas.
+      // La R/S vacía punteada solo aparece si NO hay filtro activo, para no ensuciar
+      // días que sí están filtrados a cero.
+      const conFiltro = kindFilter !== '';
+      const mostrarFeedVacia = !conFiltro;
+      const mostrarStoriesVacia = !conFiltro;
+      if(!conFiltro || kindFilter === 'reel' || kindFilter === 'carrusel'){
+        appendItemTags(tags, visibles.feed, mostrarFeedVacia ? 'R' : null, key, 'feed');
+      }
+      if(!conFiltro || kindFilter === 'story'){
+        appendItemTags(tags, visibles.stories, mostrarStoriesVacia ? 'S' : null, key, 'stories');
+      }
       cell.appendChild(tags);
 
       cell.addEventListener('click', ()=>openDayPanel(key));
@@ -2906,6 +3025,10 @@
 
   function appendItemTags(container, items, emptyLabel, key, listName){
     if(!items || items.length === 0){
+      // emptyLabel === null: quien llama pidió no dibujar el marcador vacío. Se usa
+      // cuando hay un filtro por tipo activo y queremos que los días sin ese tipo se
+      // vean limpios en vez de con la R/S punteada haciendo ruido.
+      if(emptyLabel == null) return;
       const tag = document.createElement('div');
       // Marcador de "todavía no hay nada acá": borde punteado y sin fondo, a diferencia de
       // un posteo real sin ángulo, que sí lleva fondo gris para que se lea.
@@ -2920,8 +3043,9 @@
       const timePrefix = it.time ? `${it.time} · ` : '';
       const hiddenMark = it.hideFromPreview ? ' 🚫' : '';
       const a = angleById(it.angle);
-      const titleText = it.title ? `${it.title} - ` : '';
-      const tooltipText = `${titleText}${a ? a.name : 'Sin ángulo'}${it.text ? '\n\n' + it.text : ''}`;
+      // Separador " · " y no " - " para unificar con el resto de la app.
+      const titleText = it.title ? `${it.title} · ` : '';
+      const tooltipText = `${titleText.replace(/ · $/, '')}${it.title && a ? ' · ' : ''}${a ? a.name : 'Sin ángulo'}${it.text ? '\n\n' + it.text : ''}`;
 
       // Puntito de estado y marca de aprobación: solo aparecen cuando hay algo que decir,
       // así un mes recién armado no se llena de adornos grises.
@@ -2995,9 +3119,14 @@
       const entry = monthData[key];
       if(entry && entry.feed){
         entry.feed.forEach(it=>{
-          // Ya no exige ángulo: un reel sin ángulo asignado sigue siendo un post real y
-          // tiene que aparecer en la vista previa igual, con el gris por defecto.
-          if(!it.hideFromPreview){ posts.push({d, angle: angleById(it.angle), thumb: it.thumb || '', kind: it.kind, ts: itemTimestamp(it)}); }
+          // Filtros: si el ángulo activo no coincide, o si el filtro por tipo pide
+          // "solo stories" (y esto es feed) o "solo reels/carruseles" y este ítem es otro,
+          // no entra en la vista previa.
+          if(it.hideFromPreview) return;
+          if(angleFilter && it.angle !== angleFilter) return;
+          if(kindFilter === 'story') return;
+          if(kindFilter && (it.kind || 'reel') !== kindFilter) return;
+          posts.push({d, id: it.id, angle: angleById(it.angle), thumb: it.thumb || '', kind: it.kind, ts: itemTimestamp(it)});
         });
       }
     }
@@ -3024,7 +3153,20 @@
         }
         f.innerHTML = `<span class="fnum">${String(idx+1).padStart(2,'0')}</span><span class="fdate">${p.d}</span><span class="fover" style="background:${p.angle ? p.angle.color : '#4a4757'}"></span><span class="flabel">${escapeHtml(p.angle ? p.angle.name : '')}</span>`;
         f.title = `${p.d} de ${MESES[viewMonth]} — ${p.angle ? p.angle.name : ''}`;
-        f.addEventListener('click', ()=>openDayPanel(dateKey(viewYear, viewMonth, p.d)));
+        // Abre el día y despliega justo ese posteo, en vez de dejarlos todos plegados y
+        // hacerte buscar cuál era. openDayPanel siempre limpia tarjetasAbiertas al abrir,
+        // así que se agrega el id después.
+        f.addEventListener('click', ()=>{
+          openDayPanel(dateKey(viewYear, viewMonth, p.d));
+          tarjetasAbiertas.add(p.id);
+          renderDayPanelItems(dateKey(viewYear, viewMonth, p.d));
+          // Un rato después de que el panel entre, scrolleá la tarjeta a la vista.
+          setTimeout(()=>{
+            const target = [...document.querySelectorAll('#feedItemsList .item-card')]
+              .find(c => !c.classList.contains('colapsada'));
+            if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
+          }, 320);
+        });
         frames.appendChild(f);
       });
     }
@@ -3520,13 +3662,18 @@
     const resumen = document.createElement('span');
     resumen.className = 'item-resumen';
     const anguloResumen = item.angle ? angleById(item.angle) : null;
-    const textoResumen = (item.title || item.text || item.context || '').trim();
-    // El horario va primero en el resumen: es el dato que hace falta para ubicar el
-    // posteo en el día sin tener que desplegarlo.
+    // Orden fijo Hora · Título · Ángulo. El horario va primero para ubicar en el día,
+    // el título es la identidad del posteo (lo que uno reconoce), y el ángulo cierra
+    // — sirve como etiqueta, no como identidad. Si el posteo no tiene título, cae en
+    // text o context para no dejar un renglón mudo.
+    const tituloResumen = (item.title || item.text || item.context || '').trim();
+    const anguloTexto = anguloResumen
+      ? ((anguloResumen.emoji ? anguloResumen.emoji + ' ' : '') + anguloResumen.name)
+      : (tituloResumen ? null : 'Sin ángulo'); // solo mostrar "Sin ángulo" si no hay título
     resumen.textContent = [
       item.time || null,
-      anguloResumen ? ((anguloResumen.emoji ? anguloResumen.emoji + ' ' : '') + anguloResumen.name) : 'Sin ángulo',
-      textoResumen
+      tituloResumen || null,
+      anguloTexto
     ].filter(Boolean).join(' · ');
 
     leftGroup.prepend(toggleBtn);
@@ -3800,13 +3947,18 @@
     const resumen = document.createElement('span');
     resumen.className = 'item-resumen';
     const anguloResumen = item.angle ? angleById(item.angle) : null;
-    const textoResumen = (item.title || item.text || item.context || '').trim();
-    // El horario va primero en el resumen: es el dato que hace falta para ubicar el
-    // posteo en el día sin tener que desplegarlo.
+    // Orden fijo Hora · Título · Ángulo. El horario va primero para ubicar en el día,
+    // el título es la identidad del posteo (lo que uno reconoce), y el ángulo cierra
+    // — sirve como etiqueta, no como identidad. Si el posteo no tiene título, cae en
+    // text o context para no dejar un renglón mudo.
+    const tituloResumen = (item.title || item.text || item.context || '').trim();
+    const anguloTexto = anguloResumen
+      ? ((anguloResumen.emoji ? anguloResumen.emoji + ' ' : '') + anguloResumen.name)
+      : (tituloResumen ? null : 'Sin ángulo'); // solo mostrar "Sin ángulo" si no hay título
     resumen.textContent = [
       item.time || null,
-      anguloResumen ? ((anguloResumen.emoji ? anguloResumen.emoji + ' ' : '') + anguloResumen.name) : 'Sin ángulo',
-      textoResumen
+      tituloResumen || null,
+      anguloTexto
     ].filter(Boolean).join(' · ');
 
     leftGroup.prepend(toggleBtn);
