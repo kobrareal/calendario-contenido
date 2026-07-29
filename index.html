@@ -1007,9 +1007,19 @@
   }
 
   /* ---------- panel de Ideas siempre visible en la sidebar ---------- */
+  /* Grid de 2 columnas debajo del calendario para notas + ideas. En pantalla angosta
+     (< 900px) se apilan para que cada uno respire. El margen superior vive acá y no en
+     los paneles individuales, así el grid gobierna la separación. */
+  .dashboard-panels{
+    display:grid;grid-template-columns:1fr 1fr;gap:var(--s-4);
+    margin-top:var(--s-4);
+  }
+  @media(max-width:900px){ .dashboard-panels{grid-template-columns:1fr;} }
+
   .ideas-dashboard{
-    margin-top:var(--s-5); padding:var(--s-4);
+    padding:var(--s-4);
     background:var(--surface); border:1px solid var(--border); border-radius:var(--r-3);
+    display:flex; flex-direction:column; min-height:0;
   }
   .ideas-dashboard-head{
     display:flex; align-items:center; justify-content:space-between;
@@ -1037,6 +1047,12 @@
     font-family:'IBM Plex Mono',monospace; font-size:9px; text-transform:uppercase;
     background:var(--surface-3); color:var(--muted); padding:2px 5px; border-radius:var(--r-1);
     flex:none;
+  }
+  /* Miniatura en el widget del dashboard: cuadrada, chica, con el mismo radio que las
+     ideas grandes del modal para que se lea como el mismo objeto en escala. */
+  .idea-mini .mini-thumb{
+    width:32px; height:32px; flex:none; object-fit:cover;
+    border-radius:var(--r-1); border:1px solid var(--border); background:var(--card-bg-2);
   }
   .idea-mini .mini-action{
     background:none; border:none; color:var(--muted); cursor:pointer;
@@ -1102,10 +1118,15 @@
 
   /* ---------- notas del mes, debajo del calendario ---------- */
   .notas-mes-box{
-    margin-top:14px;padding:12px 14px;
-    background:var(--surface);border:1px solid var(--border);border-radius:16px;
+    /* margin-top:0 — la separación con el calendario la maneja .dashboard-panels ahora. */
+    padding:var(--s-4);
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-3);
     backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);
+    display:flex;flex-direction:column;
   }
+  /* El textarea de notas ocupa lo que quede del alto del panel, para que la caja
+     empareje con la de ideas y no quede corta si el otro panel está lleno. */
+  .notas-mes-box textarea{flex:1;}
   .notas-mes-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
   .notas-mes-box textarea{
     width:100%;min-height:74px;resize:vertical;
@@ -1513,15 +1534,33 @@
         <div class="grid" id="calendarGrid"></div>
       </div>
 
-      <!-- Notas del mes: antes vivían en una ventana aparte y había que acordarse de abrirla.
-           Acá quedan siempre a la vista, debajo del calendario que describen. -->
-      <div class="notas-mes-box" id="notasMesBox">
-        <div class="notas-mes-head">
-          <label class="field-label" for="monthNotesText" id="monthNotesTitle" style="margin-bottom:0;">📝 Notas del mes</label>
-          <span class="hint" id="monthNotesStatus" style="margin:0;"></span>
+      <!-- Notas + Ideas: dos paneles a la misma altura, mitad y mitad, debajo del
+           calendario. Antes las notas ocupaban todo el ancho y las ideas vivían en la
+           sidebar; ahora quedan uno al lado del otro para que ninguno se lea gigante y
+           ambos estén a mano sin abrir modales. En pantallas angostas se apilan. -->
+      <div class="dashboard-panels">
+        <div class="notas-mes-box" id="notasMesBox">
+          <div class="notas-mes-head">
+            <label class="field-label" for="monthNotesText" id="monthNotesTitle" style="margin-bottom:0;">📝 Notas del mes</label>
+            <span class="hint" id="monthNotesStatus" style="margin:0;"></span>
+          </div>
+          <textarea id="monthNotesText" title="Observaciones generales del mes: la campaña que corre, lo que hay que tener en cuenta, lo que quedó pendiente"
+            placeholder="Ej: mes de aniversario, priorizar contenido de comunidad. Falta confirmar la fecha del sorteo…"></textarea>
         </div>
-        <textarea id="monthNotesText" title="Observaciones generales del mes: la campaña que corre, lo que hay que tener en cuenta, lo que quedó pendiente"
-          placeholder="Ej: mes de aniversario, priorizar contenido de comunidad. Falta confirmar la fecha del sorteo…"></textarea>
+
+        <div class="ideas-dashboard">
+          <div class="ideas-dashboard-head">
+            <h3>💡 Ideas guardadas</h3>
+            <button class="btn ghost small" id="openIdeasFullBtn" title="Abrir el editor completo de ideas"><i class="fa-solid fa-expand"></i>Ampliar</button>
+          </div>
+          <div class="ideas-dashboard-tabs" id="ideasDashKindTabs">
+            <button type="button" class="ik-tab active" data-kind="">Todo</button>
+            <button type="button" class="ik-tab" data-kind="reel">R</button>
+            <button type="button" class="ik-tab" data-kind="carrusel">C</button>
+            <button type="button" class="ik-tab" data-kind="story">S</button>
+          </div>
+          <div id="ideasDashboardList"></div>
+        </div>
       </div>
     </div>
 
@@ -1557,21 +1596,6 @@
         </div>
       </div>
 
-      <!-- Panel de ideas visible siempre en el dashboard: lista compacta con los filtros
-           por tipo, y botones para llevar al calendario o abrir el editor completo. -->
-      <div class="ideas-dashboard">
-        <div class="ideas-dashboard-head">
-          <h3>💡 Ideas guardadas</h3>
-          <button class="btn ghost small" id="openIdeasFullBtn" title="Abrir el editor completo de ideas"><i class="fa-solid fa-expand"></i>Ampliar</button>
-        </div>
-        <div class="ideas-dashboard-tabs" id="ideasDashKindTabs">
-          <button type="button" class="ik-tab active" data-kind="">Todo</button>
-          <button type="button" class="ik-tab" data-kind="reel">R</button>
-          <button type="button" class="ik-tab" data-kind="carrusel">C</button>
-          <button type="button" class="ik-tab" data-kind="story">S</button>
-        </div>
-        <div id="ideasDashboardList"></div>
-      </div>
     </div>
   </div>
 
@@ -5814,7 +5838,11 @@
       row.className = 'idea-mini';
       const kind = idea.kind || '';
       const texto = (idea.text || '').slice(0,80);
+      // La miniatura va primero: cuando hay imagen, es lo que uno reconoce antes que
+      // el texto. Si no hay, el renglón queda solo con el texto — sin placeholder gris,
+      // porque en una lista compacta eso hace más ruido que valor.
       row.innerHTML = `
+        ${idea.thumb ? `<img class="mini-thumb" src="${escapeHtml(idea.thumb)}" alt="" />` : ''}
         ${kind ? `<span class="mini-kind">${KIND_LABEL[kind]}</span>` : ''}
         <span class="mini-txt" title="${escapeHtml(idea.text||'')}">${escapeHtml(texto)}</span>
         <button class="mini-action" data-act="llevar" title="Llevar al calendario"><i class="fa-solid fa-calendar-plus"></i></button>
@@ -5848,6 +5876,16 @@
     info.appendChild(txt);
     const meta = document.createElement('div');
     meta.className = 'meta';
+    // Chip de tipo (R/C/S) al lado del de ángulo, solo si la idea tiene tipo asignado.
+    // Sin filtro activo, es la única forma de ver de un vistazo qué tipo tiene cada una.
+    if(idea.kind){
+      const KIND = { reel:'Reel', carrusel:'Carrusel', story:'Story' };
+      const chipKind = document.createElement('span');
+      chipKind.className = 'mini-kind';
+      chipKind.style.cssText = 'font-size:9.5px;padding:2px 6px;';
+      chipKind.textContent = KIND[idea.kind] || idea.kind;
+      meta.appendChild(chipKind);
+    }
     const chip = document.createElement('span');
     chip.className = 'tag';
     chip.style.cssText = a ? `background:${a.color};display:inline-flex;` : 'display:inline-flex;';
@@ -5919,6 +5957,20 @@
     const porta = { thumb: idea.thumb || '' };
     row.appendChild(construirImagenIdea(porta));
 
+    // Selector de tipo al editar cada idea individual. Al confirmar cambia idea.kind y
+    // por lo tanto también el filtro/chip con el que aparece la idea en la lista.
+    const kindSelect = document.createElement('select');
+    kindSelect.className = 'idea-kind-select';
+    kindSelect.style.marginBottom = 'var(--s-2)';
+    kindSelect.innerHTML = `
+      <option value="">Cualquier tipo</option>
+      <option value="reel">Reel</option>
+      <option value="carrusel">Carrusel</option>
+      <option value="story">Story</option>
+    `;
+    kindSelect.value = idea.kind || '';
+    row.appendChild(kindSelect);
+
     const pickerRow = document.createElement('div');
     pickerRow.style.cssText = 'display:flex;gap:8px;align-items:center;';
     const pickerContainer = document.createElement('div');
@@ -5936,6 +5988,7 @@
       idea.link = normalizarUrl(linkInput.value);
       idea.thumb = porta.thumb;
       idea.angle = editingIdeaAngle;
+      idea.kind = kindSelect.value; // '' = cualquier tipo
       editingIdeaId = null;
       await saveIdeas();
       renderIdeasList();
