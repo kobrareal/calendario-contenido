@@ -611,10 +611,10 @@
      titanio, no sigue los tokens del calendario. */
   .iphone-mockup{
     position:relative;
-    /* Aspect 9/16 real del teléfono (marco entero, no la pantalla).
-       El ancho manda: si la sidebar lo permite crece, con un tope razonable
-       para no volverse gigante en escritorio. El alto sale del ratio. */
-    width:100%; max-width:320px; aspect-ratio:9/16; margin:0 auto;
+    /* Sin aspect-ratio propio: el alto lo define la pantalla, que a su vez está calculada
+       para mostrar 5 filas de 3 miniaturas. Un 9/16 fijo dejaba el teléfono más corto que
+       eso y cortaba la última fila por la mitad. */
+    width:100%; max-width:320px; margin:0 auto;
     background:#0b0b0e;
     border-radius:44px;
     padding:12px 12px 20px;
@@ -630,13 +630,11 @@
   }
   .iphone-screen{
     background:#000; border-radius:34px; overflow:hidden;
-    padding-top:44px; /* deja aire para el notch */
+    padding-top:44px;    /* deja aire para el notch */
+    padding-bottom:16px; /* deja aire para la barra de inicio */
     display:flex; flex-direction:column;
-    /* Llena el mockup completo: el ratio 9/16 lo define .iphone-mockup, así que el
-       screen y el sheet interno solo tienen que ocupar todo el alto disponible. */
-    flex:1; height:100%;
   }
-  .iphone-screen .sheet{flex:1;display:flex;flex-direction:column;min-height:0;}
+  .iphone-screen .sheet{display:flex;flex-direction:column;min-height:0;}
   .iphone-home{
     position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
     width:120px; height:4px; border-radius:2px; background:#3a3a3f;
@@ -655,25 +653,22 @@
   .ig-icons{ display:flex; gap:14px; font-size:18px; color:#fff; opacity:.85; }
   /* Tope de 1080x1920: es el tamaño de un lienzo de Instagram, y sin él la vista previa
      se estiraba con la pantalla. En monitores comunes no llega a tocar el límite. */
+  /* Alto para exactamente 5 filas de 3 miniaturas cuadradas, y scroll si hay más posts.
+     Va por aspect-ratio y no por una altura calculada porque en CSS un porcentaje dentro
+     de `height` se mide contra el alto del padre, no contra el ancho: la cuenta daba
+     cualquier cosa. Con 3 columnas cuadradas, cinco filas son cinco tercios del ancho,
+     o sea 3/5 puesto como relación. */
   .frames-viewport{
-    /* Dentro del mockup del iPhone: llena el alto disponible del screen y scrollea
-       cuando hay más posts que los que entran. Antes tenía aspect-ratio:3/4 propio,
-       que le imponía una forma incompatible con el ratio 9/16 del mockup. */
-    flex:1; min-height:0; overflow-y:auto; overflow-x:hidden;
-    background:#000; scrollbar-width:thin;
+    aspect-ratio:3/5;
+    min-height:0; overflow-y:auto; overflow-x:hidden;
+    background:#000;
+    /* Sin barra de scroll visible: le comía 6px de ancho, y con columnas más angostas
+       las cinco filas no llenaban el alto y asomaba un pedazo de la sexta. De paso, un
+       teléfono de verdad tampoco muestra la barra. Se sigue pudiendo scrollear. */
+    scrollbar-width:none;
   }
+  .frames-viewport::-webkit-scrollbar{display:none;}
   .sheet{max-width:1080px;}
-  /* Más angosta que la general porque la columna del preview es estrecha, pero con los
-     mismos colores: antes era la única barra gris y desentonaba. */
-  .frames-viewport::-webkit-scrollbar{width:6px;}
-  .frames-viewport::-webkit-scrollbar-thumb{
-    background:linear-gradient(180deg, rgba(139,92,246,.65), rgba(79,142,247,.65));
-    border-radius:999px;
-  }
-  .frames-viewport::-webkit-scrollbar-thumb:hover{
-    background:linear-gradient(180deg, rgba(157,120,250,.9), rgba(110,164,255,.9));
-  }
-  .frames-viewport::-webkit-scrollbar-track{background:transparent;}
   .frames{
     display:grid;grid-template-columns:repeat(3,1fr);gap:2px;
     padding:2px;background:var(--surface-3);
@@ -1013,6 +1008,10 @@
   .dashboard-panels{
     display:grid;grid-template-columns:1fr 1fr;gap:var(--s-4);
     margin-top:var(--s-4);
+    /* Cada panel toma su propio alto. Por defecto el grid los estira a la altura del más
+       alto, y las notas quedaban con un textarea enorme y vacío solo porque al lado había
+       muchas ideas. */
+    align-items:start;
   }
   @media(max-width:900px){ .dashboard-panels{grid-template-columns:1fr;} }
 
@@ -1118,12 +1117,12 @@
     backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);
     display:flex;flex-direction:column;
   }
-  /* El textarea de notas ocupa lo que quede del alto del panel, para que la caja
-     empareje con la de ideas y no quede corta si el otro panel está lleno. */
-  .notas-mes-box textarea{flex:1;}
   .notas-mes-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+  /* Alto de tres renglones por defecto. Crece solo cuando el texto no entra —lo estira el
+     JS, midiendo el contenido— y nunca por lo que pase en el panel de al lado.
+     overflow:hidden porque el textarea ya no scrollea: se agranda en su lugar. */
   .notas-mes-box textarea{
-    width:100%;min-height:74px;resize:vertical;
+    width:100%;min-height:74px;resize:none;overflow:hidden;
     background:var(--surface-2);border:1px solid var(--border);border-radius:10px;
     color:var(--text);padding:9px 11px;font-family:'Inter',sans-serif;font-size:13px;line-height:1.55;
   }
@@ -1549,6 +1548,10 @@
         <div class="ideas-dashboard" id="ideasDashboard">
           <div class="ideas-dashboard-head">
             <h3>💡 Ideas guardadas</h3>
+            <!-- El formulario de alta arranca plegado: la lista de ideas es lo que se
+                 viene a mirar, y tener siempre desplegado un textarea vacío con sus
+                 controles se comía media caja sin que nadie lo pidiera. -->
+            <button class="btn ghost small" id="toggleNuevaIdeaBtn" title="Escribir una idea nueva"><i class="fa-solid fa-plus"></i>Nueva idea</button>
           </div>
           <div class="tabs-header ideas-inline-tabs">
             <button class="tab-btn active" data-tab="mis-ideas" title="Ideas propias que fuiste guardando">Mis ideas</button>
@@ -1556,8 +1559,7 @@
           </div>
 
           <div class="tab-panel active" data-tab-panel="mis-ideas">
-            <div class="idea-add-box compact">
-              <label class="field-label">Nueva idea</label>
+            <div class="idea-add-box compact" id="ideaAddBox" hidden>
               <textarea id="newIdeaText" placeholder="Ej: colaboración con influencer local, video de detrás de escena en la cocina..."></textarea>
               <input type="url" id="newIdeaLink" class="idea-link-input" placeholder="🔗 Link de referencia (opcional): un reel, un artículo, una foto…" />
               <div id="newIdeaImagen"></div>
@@ -1571,7 +1573,8 @@
                   <option value="story">Story</option>
                 </select>
                 <div class="angle-picker" id="newIdeaAnglePicker" style="flex:1;"></div>
-                <button class="btn primary small" id="addIdeaBtn" title="Guardar esta idea para usarla más adelante">+ Agregar</button>
+                <button class="btn ghost small" id="cancelIdeaBtn" title="Cerrar sin guardar">Cancelar</button>
+                <button class="btn primary small" id="addIdeaBtn" title="Guardar esta idea para usarla más adelante">Agregar</button>
               </div>
             </div>
 
@@ -5251,6 +5254,14 @@
     return `notas-mes:${viewYear}-${String(viewMonth+1).padStart(2,'0')}`;
   }
 
+  // El campo se estira al alto del texto y no más. Se pone en 'auto' primero porque
+  // scrollHeight no baja solo: sin ese paso, borrar renglones dejaría la caja grande.
+  function ajustarAltoNotas(){
+    const campo = $('monthNotesText');
+    campo.style.height = 'auto';
+    campo.style.height = campo.scrollHeight + 'px';
+  }
+
   // Se cargan junto con el mes, porque ahora están siempre a la vista debajo del calendario.
   async function loadNotasMes(){
     const campo = $('monthNotesText');
@@ -5264,10 +5275,12 @@
       $('monthNotesStatus').textContent = 'No se pudieron cargar.';
     }
     campo.disabled = IS_READONLY;
+    ajustarAltoNotas();
   }
 
   // Guardado con retardo, igual que el resto: escribir no dispara una escritura por tecla.
   $('monthNotesText').addEventListener('input', ()=>{
+    ajustarAltoNotas();
     if(IS_READONLY) return;
     $('monthNotesStatus').textContent = 'Guardando…';
     clearTimeout(temporizadorNotasMes);
@@ -6035,6 +6048,29 @@
     return row;
   }
 
+  // ---------- formulario de alta, plegable ----------
+  // Deja el formulario en blanco. Se llama al abrirlo y después de guardar, para que la
+  // próxima idea no arrastre lo que quedó escrito de la anterior.
+  function limpiarNuevaIdea(){
+    $('newIdeaText').value = '';
+    $('newIdeaLink').value = '';
+    $('newIdeaKind').value = '';
+    nuevaIdeaThumb = '';
+    renderNuevaIdeaImagen();
+    newIdeaAngleId = null;
+    renderNewIdeaPicker();
+  }
+
+  function mostrarFormularioIdea(abrir){
+    const caja = $('ideaAddBox'), btn = $('toggleNuevaIdeaBtn');
+    caja.hidden = !abrir;
+    btn.hidden = abrir; // con el formulario abierto, el botón sería redundante
+    if(abrir){ limpiarNuevaIdea(); $('newIdeaText').focus(); }
+  }
+
+  $('toggleNuevaIdeaBtn').addEventListener('click', ()=> mostrarFormularioIdea(true));
+  $('cancelIdeaBtn').addEventListener('click', ()=> mostrarFormularioIdea(false));
+
   $('addIdeaBtn').addEventListener('click', async ()=>{
     const text = $('newIdeaText').value.trim();
     if(!text){ showToast('Escribí una idea primero'); return; }
@@ -6047,13 +6083,8 @@
       createdAt: new Date().toISOString()
     });
     await saveIdeas();
-    $('newIdeaText').value = '';
-    $('newIdeaLink').value = '';
-    $('newIdeaKind').value = '';
-    nuevaIdeaThumb = '';
-    renderNuevaIdeaImagen();
-    newIdeaAngleId = null;
-    renderNewIdeaPicker();
+    // Se cierra al guardar: la idea ya está en la lista, que es adonde mira el ojo.
+    mostrarFormularioIdea(false);
     renderIdeasList();
     showToast('Idea agregada');
   });
@@ -6069,11 +6100,12 @@
     w.scrollIntoView({ behavior: 'smooth', block: 'center' });
     w.classList.add('flash');
     setTimeout(()=> w.classList.remove('flash'), 1200);
-    // Aseguro que la pestaña "Mis ideas" quede activa y refresco los pickers.
+    // Aseguro que la pestaña "Mis ideas" quede activa.
     document.querySelectorAll('#ideasDashboard .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'mis-ideas'));
     document.querySelectorAll('#ideasDashboard .tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tabPanel === 'mis-ideas'));
-    // Foco en el textarea para arrancar a escribir de una.
-    setTimeout(()=> $('newIdeaText').focus(), 400);
+    // Quien viene desde el botón del header quiere anotar algo: se abre el formulario
+    // ya listo para escribir, después de que termine el scroll.
+    setTimeout(()=> mostrarFormularioIdea(true), 400);
   });
 
   // Tabs "Mis ideas" / "Inspo Pinterest": intercambian qué panel está visible dentro
