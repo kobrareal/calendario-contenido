@@ -6229,13 +6229,19 @@
       const json = await res.json().catch(()=>null);
       if(res.status === 501){
         // Falta configurar el token: instrucciones, no un error seco.
+        // Falta el token. El texto no promete un botón de "generar token" que no existe:
+        // Pinterest pide cuenta business, aprobación manual de la app (revisan cada día
+        // hábil) y recién después el permiso se otorga con un OAuth, que es trabajo de
+        // programación y no algo que se resuelva pegando un dato acá.
         body.innerHTML = `
           <div class="ideas-empty" style="text-align:left;line-height:1.6;padding:var(--s-3);">
-            <strong>Pinterest no está conectado.</strong><br>
-            Para activarlo:<br>
-            1. Entrá a <a href="https://developers.pinterest.com/apps/" target="_blank" style="color:var(--accent);">developers.pinterest.com/apps</a> y creá una app.<br>
-            2. Generá un access token con scope <code>boards:read</code>, <code>pins:read</code>.<br>
-            3. Pegámelo por chat y lo dejo configurado en el servidor.
+            <strong>Pinterest no está conectado.</strong><br><br>
+            Conectarlo tiene dos partes. La tuya:<br>
+            1. Tener la cuenta de Pinterest como <em>business</em> (es gratis, se convierte desde la cuenta que ya usás).<br>
+            2. Entrar a <a href="https://developers.pinterest.com/apps/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">developers.pinterest.com/apps</a>, tocar <strong>Connect app</strong> y completar el formulario.<br>
+            3. Esperar el mail de aprobación: la revisan a mano, un día hábil.<br><br>
+            Cuando llegue la aprobación, avisame y hago la segunda parte del lado del servidor.
+            Mientras tanto podés usar las ideas con imagen pegada, que funciona igual.
           </div>`;
         return;
       }
