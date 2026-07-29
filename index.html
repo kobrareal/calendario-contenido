@@ -1029,37 +1029,31 @@
     margin:0; font-size:var(--t-md); font-weight:var(--w-semibold);
     letter-spacing:-0.01em;
   }
-  .ideas-dashboard-tabs{display:flex; gap:var(--s-1); margin-bottom:var(--s-3);}
-  #ideasDashboardList{
-    max-height:280px; overflow-y:auto;
-    /* Lista compacta sin bordes gordos: cada idea es un renglón con click a llevar. */
-    display:flex; flex-direction:column; gap:var(--s-1);
+  /* Pestañas Mis ideas / Pinterest, en línea dentro del panel (ya no en un modal). */
+  .ideas-inline-tabs{margin-bottom:var(--s-3);}
+  /* Formulario de alta compacto: mismo contenido que tenía el modal, pero con menos aire
+     porque acá compite por espacio con la lista, no ocupa una ventana entera. */
+  .idea-add-box.compact{padding:var(--s-3); margin-bottom:var(--s-3);}
+  .idea-add-box.compact textarea{min-height:52px;}
+  .ideas-dashboard #ideasList{
+    max-height:420px; overflow-y:auto;
+    display:flex; flex-direction:column; gap:var(--s-2);
   }
-  .idea-mini{
-    display:flex; align-items:center; gap:var(--s-2); padding:var(--s-2);
-    background:var(--surface-2); border:1px solid transparent; border-radius:var(--r-2);
-    font-size:var(--t-xs); cursor:default;
-    transition:border-color .15s var(--ease-out);
-  }
-  .idea-mini:hover{border-color:var(--border);}
-  .idea-mini .mini-txt{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
-  .idea-mini .mini-kind{
+  /* Chip de tipo (Reel/Carrusel/Story) al lado del ángulo en cada idea. */
+  .mini-kind{
     font-family:'IBM Plex Mono',monospace; font-size:9px; text-transform:uppercase;
     background:var(--surface-3); color:var(--muted); padding:2px 5px; border-radius:var(--r-1);
     flex:none;
   }
-  /* Miniatura en el widget del dashboard: cuadrada, chica, con el mismo radio que las
-     ideas grandes del modal para que se lea como el mismo objeto en escala. */
-  .idea-mini .mini-thumb{
-    width:32px; height:32px; flex:none; object-fit:cover;
-    border-radius:var(--r-1); border:1px solid var(--border); background:var(--card-bg-2);
+  /* Flash al llegar desde el botón del header: confirma dónde quedó el panel sin ser
+     un movimiento que distraiga. */
+  .ideas-dashboard.flash{
+    animation:ideasFlash 1.2s var(--ease-out);
   }
-  .idea-mini .mini-action{
-    background:none; border:none; color:var(--muted); cursor:pointer;
-    padding:var(--s-1) var(--s-2); border-radius:var(--r-1); font-size:11px;
-    transition:color .15s var(--ease-out), background .15s var(--ease-out);
+  @keyframes ideasFlash{
+    0%,100%{border-color:var(--border);}
+    30%{border-color:var(--accent);}
   }
-  .idea-mini .mini-action:hover{color:var(--accent); background:var(--surface-3);}
   .idea-link-input{
     width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;
     color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:11.5px;
@@ -1548,18 +1542,58 @@
             placeholder="Ej: mes de aniversario, priorizar contenido de comunidad. Falta confirmar la fecha del sorteo…"></textarea>
         </div>
 
-        <div class="ideas-dashboard">
+        <!-- Ideas guardadas: editor completo, siempre visible. Antes vivía en un modal
+             separado y en el dashboard solo se veía un mini-listado; ahora el widget es
+             el editor entero — agregar, editar, clasificar, borrar y pegar miniatura se
+             hace acá mismo, y la pestaña de Pinterest queda al lado sin abrir nada. -->
+        <div class="ideas-dashboard" id="ideasDashboard">
           <div class="ideas-dashboard-head">
             <h3>💡 Ideas guardadas</h3>
-            <button class="btn ghost small" id="openIdeasFullBtn" title="Abrir el editor completo de ideas"><i class="fa-solid fa-expand"></i>Ampliar</button>
           </div>
-          <div class="ideas-dashboard-tabs" id="ideasDashKindTabs">
-            <button type="button" class="ik-tab active" data-kind="">Todo</button>
-            <button type="button" class="ik-tab" data-kind="reel">R</button>
-            <button type="button" class="ik-tab" data-kind="carrusel">C</button>
-            <button type="button" class="ik-tab" data-kind="story">S</button>
+          <div class="tabs-header ideas-inline-tabs">
+            <button class="tab-btn active" data-tab="mis-ideas" title="Ideas propias que fuiste guardando">Mis ideas</button>
+            <button class="tab-btn" data-tab="pinterest" title="Referencias visuales de tus tableros de Pinterest">Inspo Pinterest</button>
           </div>
-          <div id="ideasDashboardList"></div>
+
+          <div class="tab-panel active" data-tab-panel="mis-ideas">
+            <div class="idea-add-box compact">
+              <label class="field-label">Nueva idea</label>
+              <textarea id="newIdeaText" placeholder="Ej: colaboración con influencer local, video de detrás de escena en la cocina..."></textarea>
+              <input type="url" id="newIdeaLink" class="idea-link-input" placeholder="🔗 Link de referencia (opcional): un reel, un artículo, una foto…" />
+              <div id="newIdeaImagen"></div>
+              <div class="idea-add-row">
+                <!-- Tipo: sirve para clasificar y para prellenar cuando se lleva al calendario.
+                     '' = sin tipo, se elige después al asignar. -->
+                <select id="newIdeaKind" class="idea-kind-select" title="Tipo de posteo al que apunta esta idea">
+                  <option value="">Cualquier tipo</option>
+                  <option value="reel">Reel</option>
+                  <option value="carrusel">Carrusel</option>
+                  <option value="story">Story</option>
+                </select>
+                <div class="angle-picker" id="newIdeaAnglePicker" style="flex:1;"></div>
+                <button class="btn primary small" id="addIdeaBtn" title="Guardar esta idea para usarla más adelante">+ Agregar</button>
+              </div>
+            </div>
+
+            <div class="ideas-filter-row">
+              <div class="ideas-kind-tabs" id="ideaKindTabs">
+                <button type="button" class="ik-tab active" data-kind="">Todo</button>
+                <button type="button" class="ik-tab" data-kind="reel">Reels</button>
+                <button type="button" class="ik-tab" data-kind="carrusel">Carruseles</button>
+                <button type="button" class="ik-tab" data-kind="story">Stories</button>
+              </div>
+              <select id="ideaFilterSelect" title="Filtrar por ángulo"><option value="">Todos los ángulos</option></select>
+            </div>
+            <div id="ideasList"></div>
+          </div>
+
+          <div class="tab-panel" data-tab-panel="pinterest">
+            <p class="hint">Conectá tus tableros de Pinterest y traé pines como referencia visual. Con un click convertís cualquier pin en una idea del calendario.</p>
+            <div id="pinterestBody">
+              <!-- Se llena por JS: puede mostrar el estado "no conectado" con instrucciones, o
+                   la grilla de pines si ya está conectado. -->
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -1829,59 +1863,10 @@
   </div>
 </div>
 
-<!-- IDEAS MODAL -->
-<div class="modal-back" id="ideasModal">
-  <div class="modal" style="width:620px;">
-    <div class="tabs-header">
-      <button class="tab-btn active" data-tab="mis-ideas" title="Ideas propias que fuiste guardando">Mis ideas</button>
-      <button class="tab-btn" data-tab="pinterest" title="Referencias visuales de tus tableros de Pinterest">Inspo Pinterest</button>
-    </div>
-
-    <div class="tab-panel active" data-tab-panel="mis-ideas">
-      <p class="hint">Guardá ideas de contenido, categorizalas por tipo (S/R/C) y llevalas al calendario cuando quieras usarlas. Al asignarlas, la idea queda igual en la lista — podés reutilizarla.</p>
-
-      <div class="idea-add-box">
-        <label class="field-label">Nueva idea</label>
-        <textarea id="newIdeaText" placeholder="Ej: colaboración con influencer local, video de detrás de escena en la cocina..."></textarea>
-        <input type="url" id="newIdeaLink" class="idea-link-input" placeholder="🔗 Link de referencia (opcional): un reel, un artículo, una foto…" />
-        <div id="newIdeaImagen"></div>
-        <div class="idea-add-row">
-          <!-- Tipo: sirve para clasificar y para prellenar cuando se lleva al calendario.
-               '' = sin tipo, se elige después al asignar. -->
-          <select id="newIdeaKind" class="idea-kind-select" title="Tipo de posteo al que apunta esta idea">
-            <option value="">Cualquier tipo</option>
-            <option value="reel">Reel</option>
-            <option value="carrusel">Carrusel</option>
-            <option value="story">Story</option>
-          </select>
-          <div class="angle-picker" id="newIdeaAnglePicker" style="flex:1;"></div>
-          <button class="btn primary" id="addIdeaBtn" title="Guardar esta idea para usarla más adelante">+ Agregar</button>
-        </div>
-      </div>
-
-      <div class="ideas-filter-row">
-        <div class="ideas-kind-tabs" id="ideaKindTabs">
-          <button type="button" class="ik-tab active" data-kind="">Todo</button>
-          <button type="button" class="ik-tab" data-kind="reel">Reels</button>
-          <button type="button" class="ik-tab" data-kind="carrusel">Carruseles</button>
-          <button type="button" class="ik-tab" data-kind="story">Stories</button>
-        </div>
-        <select id="ideaFilterSelect" title="Filtrar por ángulo"><option value="">Todos los ángulos</option></select>
-      </div>
-      <div id="ideasList"></div>
-    </div>
-
-    <div class="tab-panel" data-tab-panel="pinterest">
-      <p class="hint">Conectá tus tableros de Pinterest y traé pines como referencia visual. Con un click convertís cualquier pin en una idea del calendario.</p>
-      <div id="pinterestBody">
-        <!-- Se llena por JS: puede mostrar el estado "no conectado" con instrucciones, o
-             la grilla de pines si ya está conectado. -->
-      </div>
-    </div>
-
-    <div class="modal-close-row"><button class="btn primary" id="closeIdeasModal" title="Cerrar">Cerrar</button></div>
-  </div>
-</div>
+<!-- El modal de Ideas se retiró: todo su contenido vive ahora dentro del widget
+     "Ideas guardadas" del dashboard (agregar, editar, clasificar, borrar, pegar
+     miniatura y la pestaña de Pinterest). El botón del header sigue funcionando pero
+     ahora hace scroll hasta el widget en vez de abrir una ventana aparte. -->
 
 <!-- LLEVAR IDEA AL CALENDARIO -->
 <div class="modal-back" id="ideaToCalendarModal">
@@ -2355,14 +2340,6 @@
   function updateBrandTitle(){
     const base = tituloPersonalizado.trim() || $('clientName').value.trim() || 'Calendario de contenido';
     $('brandTitle').textContent = IS_READONLY ? `${base} (solo lectura)` : base;
-    // La barra de Instagram del mockup muestra el nombre de la marca, en minúsculas
-    // como usuario de IG. Si no hay marca cargada, usa el slug de la sesión o cae
-    // en un placeholder discreto.
-    const igBrand = $('igBrand');
-    if(igBrand){
-      const nombre = ($('clientName').value.trim() || CLIENT_ID || 'tu.marca').toLowerCase().replace(/\s+/g,'.');
-      igBrand.textContent = nombre;
-    }
   }
 
   function setSaving(state){
@@ -2437,8 +2414,58 @@
   // Reads: try the Sheet (source of truth) first, fall back to the local cache if offline/not configured.
   // Every key is transparently namespaced by CLIENT_ID so different clients never see each other's data,
   // even though they can share the same Google Sheet / Apps Script backend.
+  // Precarga del arranque: en vez de que cada loadX() haga su propia ida y vuelta al
+  // servidor —eran una docena, una atrás de otra, y el calendario no aparecía hasta que
+  // terminaba la última— se piden todas las claves juntas en un solo pedido y se dejan
+  // acá. Cada clave se consume una sola vez: después de eso, quien vuelva a leerla
+  // pregunta a la base, porque el dato pudo cambiar mientras tanto.
+  let precarga = null;
+
+  function tomarDePrecarga(fullKey){
+    if(!precarga || !Object.prototype.hasOwnProperty.call(precarga, fullKey)) return undefined;
+    const val = precarga[fullKey];
+    delete precarga[fullKey];
+    return val === undefined ? null : val;
+  }
+
+  // Todas las claves que el arranque va a necesitar sí o sí: la configuración de la marca
+  // más los días del mes visible. Se piden juntas y quedan en `precarga`.
+  async function precargarArranque(){
+    const claves = [
+      'angles', 'client-name', 'calendar-title', 'client-photo',
+      'ideas', 'quick-links', 'papelera', 'recurring-rules', 'notifications',
+      claveAnotaciones(viewYear, viewMonth), claveNotasMes(),
+      // El blob de la versión vieja se consulta en cada arranque para migrarlo. Viene en
+      // el mismo pedido: casi siempre no existe, y así no cuesta una ida y vuelta propia.
+      `month:${viewYear}-${String(viewMonth+1).padStart(2,'0')}`
+    ];
+    const diasDelMes = new Date(viewYear, viewMonth+1, 0).getDate();
+    for(let d=1; d<=diasDelMes; d++) claves.push(dateKey(viewYear, viewMonth, d));
+
+    try{
+      precarga = await Data.getMany(claves.map(clientKey));
+      // getMany solo devuelve las claves que existen. Las que no vinieron se marcan como
+      // "ya preguntadas y vacías", para que nadie vuelva a pedirlas de a una.
+      claves.forEach(k=>{
+        const fk = clientKey(k);
+        if(!Object.prototype.hasOwnProperty.call(precarga, fk)) precarga[fk] = null;
+      });
+    }catch(e){
+      // Si el pedido falla, cada paso vuelve al camino de antes: pide lo suyo y, si eso
+      // también falla, cae al cache local. Nada se rompe, solo tarda como tardaba.
+      precarga = null;
+    }
+  }
+
   async function storageGet(key){
     const fullKey = clientKey(key);
+    const previo = tomarDePrecarga(fullKey);
+    if(previo !== undefined){
+      if(previo !== null){ localStorage.setItem('cc-cache:'+fullKey, previo); return previo; }
+      // La precarga trajo la respuesta y esa clave no existe en la base. No hay nada que
+      // reintentar; si hay algo en el cache local es de antes y sirve igual.
+      return localStorage.getItem('cc-cache:'+fullKey);
+    }
     try{
       const val = await Data.get(fullKey);
       if(val !== null && val !== undefined){
@@ -2453,12 +2480,24 @@
   // key, so a half-populated month still paints whatever was seen before.
   async function storageGetMany(keys){
     const fullKeys = keys.map(clientKey);
+    // Lo que ya vino en la precarga del arranque no se vuelve a pedir; solo se consulta
+    // por lo que falta. En el arranque eso deja el pedido en cero claves y no se sale a
+    // la red en absoluto.
+    const yaTengo = {};
+    const faltan = [];
+    fullKeys.forEach(fk=>{
+      const previo = tomarDePrecarga(fk);
+      if(previo !== undefined) yaTengo[fk] = previo;
+      else faltan.push(fk);
+    });
     let found = {};
-    try{ found = await Data.getMany(fullKeys); }
-    catch(e){ /* fall through to local cache for every key */ }
+    if(faltan.length){
+      try{ found = await Data.getMany(faltan); }
+      catch(e){ /* fall through to local cache for every key */ }
+    }
     return keys.map((key, i) => {
       const fullKey = fullKeys[i];
-      const val = found[fullKey];
+      const val = Object.prototype.hasOwnProperty.call(yaTengo, fullKey) ? yaTengo[fullKey] : found[fullKey];
       if(val !== null && val !== undefined){
         localStorage.setItem('cc-cache:'+fullKey, val);
         return val;
@@ -2503,7 +2542,12 @@
   async function loadAngles(){
     try{
       const val = await storageGet('angles');
-      angles = val ? JSON.parse(val) : DEFAULT_ANGLES.slice();
+      const parsed = val ? JSON.parse(val) : null;
+      // Si la marca todavía no configuró ángulos, o si por lo que sea quedó guardada una
+      // lista vacía (una migración vieja, un click de más al gestionar), arranco con los
+      // defaults. Sin ángulos no se puede filtrar ni pintar la grilla, así que "vacío"
+      // termina siendo un estado roto en la práctica.
+      angles = (Array.isArray(parsed) && parsed.length > 0) ? parsed : DEFAULT_ANGLES.slice();
     }catch(e){
       angles = DEFAULT_ANGLES.slice();
     }
@@ -2552,8 +2596,14 @@
       placeholder.style.display = 'flex';
     }
   }
-  async function loadMonth(){
-    setSaving('saving');
+  // onProgress (opcional) recibe una fracción 0..1 según van cerrando las cuatro fases:
+  // leer los días, marcadores, notas del mes y migración. Sirve para que la barra de
+  // arranque no se clave "al 90%" mientras corre el paso más pesado.
+  //
+  // Ojo: no toca el indicador "guardado / guardando". Antes lo prendía en 'saving'
+  // durante toda la carga, y eso mentía — leer no es guardar, y quedaba mostrando
+  // "guardando…" hasta que la red respondía.
+  async function loadMonth(onProgress){
     const daysInMonth = new Date(viewYear, viewMonth+1, 0).getDate();
     const keys = [];
     for(let d=1; d<=daysInMonth; d++) keys.push(dateKey(viewYear, viewMonth, d));
@@ -2578,11 +2628,13 @@
         }
       });
     }catch(e){ /* keep whatever was loaded */ }
+    if(onProgress) onProgress(0.4);
     await loadAnotaciones(); // las marcas del mes (feriados, lanzamientos) viven aparte
+    if(onProgress) onProgress(0.7);
     await loadNotasMes();    // y las notas generales, que se ven debajo del calendario
+    if(onProgress) onProgress(0.9);
     await migrateLegacyMonthBlob();
-    setSaving('saved');
-    setTimeout(()=>setSaving('idle'), 900);
+    if(onProgress) onProgress(1);
   }
 
   function isEmptyEntry(entry){
@@ -2738,7 +2790,14 @@
       : 'Todo el mes tiene Feed asignado 🎉';
   }
 
+  // Se llama en cada repintado, pero la lista de ángulos casi nunca cambia. Se compara
+  // contra la última firma usada y, si es la misma, no se toca el <select> — reconstruirlo
+  // cierra el desplegable si estaba abierto y tira trabajo de más en cada repintado.
+  let firmaFiltroAngulos = null;
   function populateAngleFilterOptions(){
+    const firma = angles.map(a=> a.id + ' ' + a.name).join('');
+    if(firma === firmaFiltroAngulos) return;
+    firmaFiltroAngulos = firma;
     const sel = $('angleFilterSelect');
     const prevVal = sel.value;
     sel.innerHTML = '<option value="">Todos los ángulos</option>' +
@@ -2891,7 +2950,8 @@
   // fecha completa, conviven sin pisarse con los del mes cargado.
   async function cargarSemana(){
     const claves = diasDeLaVista().map(d => dateKey(d.getFullYear(), d.getMonth(), d.getDate()));
-    setSaving('saving');
+    // Solo leer: no se toca el indicador de guardado, así no muestra "guardando…" mientras
+    // en realidad no se está escribiendo nada.
     claves.forEach(k=>{
       if(monthData[k]) return;
       const cache = localStorage.getItem('cc-cache:'+clientKey(k));
@@ -2903,8 +2963,6 @@
         if(val){ try{ monthData[claves[i]] = normalizeEntry(JSON.parse(val)); }catch(e){} }
       });
     }catch(e){ /* se queda con lo que haya en cache */ }
-    setSaving('saved');
-    setTimeout(()=>setSaving('idle'), 900);
   }
 
   function renderSemana(){
@@ -3074,6 +3132,16 @@
       return;
     }
     $('monthLabel').textContent = `${MESES[viewMonth]} ${viewYear}`;
+  }
+
+  // Repintado diferido. Escribir un título repinta la grilla entera —cuarenta celdas más
+  // la vista previa del feed— y hacerlo por cada tecla se siente pegajoso al tipear. Con
+  // esto, muchas llamadas seguidas colapsan en un solo repintado en el próximo frame.
+  let repintadoPedido = false;
+  function renderCalendarPronto(){
+    if(repintadoPedido) return;
+    repintadoPedido = true;
+    requestAnimationFrame(()=>{ repintadoPedido = false; renderCalendar(); });
   }
 
   function renderCalendar(){
@@ -3344,12 +3412,6 @@
       });
     }
 
-    const sprocketRows = [$('sprocketsTop'), $('sprocketsBottom')];
-    sprocketRows.forEach(row=>{
-      row.innerHTML='';
-      for(let i=0;i<16;i++){ const s=document.createElement('div'); row.appendChild(s); }
-    });
-
     renderLegend();
   }
 
@@ -3414,7 +3476,7 @@
     const dia = openDate, texto = $('dayNoteInput').value.trim();
     if(claveAnotaciones(viewYear, viewMonth) === mesAnotacionesCargado){
       if(texto) anotaciones[dia] = texto; else delete anotaciones[dia];
-      renderCalendar(); // se ve en la grilla mientras se escribe
+      renderCalendarPronto(); // se ve en la grilla mientras se escribe
     }
     clearTimeout(temporizadorAnotacion);
     temporizadorAnotacion = setTimeout(()=> guardarAnotacionDe(dia, texto), 600);
@@ -3877,7 +3939,7 @@
     const titleInput = document.createElement('input');
     titleInput.type = 'text'; titleInput.className = 'rule-text-input'; titleInput.placeholder = 'Ej: CAMPERAS, DESCUENTO 30%...';
     titleInput.value = item.title || '';
-    titleInput.addEventListener('input', ()=>{ item.title = titleInput.value; scheduleSaveDay(key); renderCalendar(); });
+    titleInput.addEventListener('input', ()=>{ item.title = titleInput.value; scheduleSaveDay(key); renderCalendarPronto(); });
     cuerpo.appendChild(filaCampo('Título', titleInput));
 
     const pickerContainer = document.createElement('div');
@@ -4147,7 +4209,7 @@
     const titleInput = document.createElement('input');
     titleInput.type = 'text'; titleInput.className = 'rule-text-input'; titleInput.placeholder = 'Ej: ANUNCIO IMPORTANTE...';
     titleInput.value = item.title || '';
-    titleInput.addEventListener('input', ()=>{ item.title = titleInput.value; scheduleSaveDay(key); renderCalendar(); });
+    titleInput.addEventListener('input', ()=>{ item.title = titleInput.value; scheduleSaveDay(key); renderCalendarPronto(); });
     cuerpo.appendChild(filaCampo('Título', titleInput));
 
     const pickerContainer = document.createElement('div');
@@ -5802,6 +5864,7 @@
 
   function renderIdeasList(){
     const list = $('ideasList');
+    if(!list) return;
     list.innerHTML = '';
     const filtered = ideasFiltradas();
     if(filtered.length === 0){
@@ -5809,46 +5872,11 @@
         ? 'Todavía no cargaste ninguna idea.'
         : 'Ninguna idea con esos filtros.';
       list.innerHTML = `<div class="ideas-empty">${msg}</div>`;
-      // También refresco el mini widget del dashboard, así queda sincronizado.
-      renderIdeasDashboard();
       return;
     }
     // Most recent first.
     filtered.slice().sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||'')).forEach(idea=>{
       list.appendChild(idea.id === editingIdeaId ? buildIdeaEditRow(idea) : buildIdeaViewRow(idea));
-    });
-    renderIdeasDashboard();
-  }
-
-  // Mini widget en la sidebar: la MISMA lista filtrada, pero en renglones compactos
-  // con un solo botón visible ("Llevar al calendario"). Editar y borrar se hacen desde
-  // el modal completo (botón "Ampliar").
-  function renderIdeasDashboard(){
-    const cont = $('ideasDashboardList');
-    if(!cont) return;
-    cont.innerHTML = '';
-    const filtered = ideasFiltradas();
-    if(filtered.length === 0){
-      cont.innerHTML = `<div class="ideas-empty" style="padding:var(--s-3) 0;">${ideas.length===0 ? 'Sin ideas todavía.' : 'Sin ideas con este tipo.'}</div>`;
-      return;
-    }
-    const KIND_LABEL = { reel:'R', carrusel:'C', story:'S' };
-    filtered.slice().sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||'')).forEach(idea=>{
-      const row = document.createElement('div');
-      row.className = 'idea-mini';
-      const kind = idea.kind || '';
-      const texto = (idea.text || '').slice(0,80);
-      // La miniatura va primero: cuando hay imagen, es lo que uno reconoce antes que
-      // el texto. Si no hay, el renglón queda solo con el texto — sin placeholder gris,
-      // porque en una lista compacta eso hace más ruido que valor.
-      row.innerHTML = `
-        ${idea.thumb ? `<img class="mini-thumb" src="${escapeHtml(idea.thumb)}" alt="" />` : ''}
-        ${kind ? `<span class="mini-kind">${KIND_LABEL[kind]}</span>` : ''}
-        <span class="mini-txt" title="${escapeHtml(idea.text||'')}">${escapeHtml(texto)}</span>
-        <button class="mini-action" data-act="llevar" title="Llevar al calendario"><i class="fa-solid fa-calendar-plus"></i></button>
-      `;
-      row.querySelector('[data-act="llevar"]').addEventListener('click', ()=> abrirLlevarIdea(idea));
-      cont.appendChild(row);
     });
   }
 
@@ -5916,8 +5944,16 @@
 
     const actions = document.createElement('div');
     actions.className = 'actions';
+    // Llevar al calendario: la acción principal de una idea, así que va primera y con
+    // el ícono lleno. La idea no se borra al llevarla, se copia al día elegido.
+    const calBtn = document.createElement('button');
+    calBtn.type = 'button'; calBtn.className = 'btn ghost small';
+    calBtn.innerHTML = '<i class="fa-solid fa-calendar-plus"></i>';
+    calBtn.title = 'Llevar al calendario';
+    calBtn.addEventListener('click', ()=> abrirLlevarIdea(idea));
     const editBtn = document.createElement('button');
-    editBtn.type = 'button'; editBtn.className = 'btn ghost small'; editBtn.textContent = '✎';
+    editBtn.type = 'button'; editBtn.className = 'btn ghost small';
+    editBtn.innerHTML = '<i class="fa-solid fa-pen"></i>';
     editBtn.title = 'Editar';
     editBtn.addEventListener('click', ()=>{
       editingIdeaId = idea.id;
@@ -5925,14 +5961,15 @@
       renderIdeasList();
     });
     const delBtn = document.createElement('button');
-    delBtn.type = 'button'; delBtn.className = 'btn ghost small'; delBtn.style.color = 'var(--danger)'; delBtn.textContent = '🗑';
+    delBtn.type = 'button'; delBtn.className = 'btn ghost small'; delBtn.style.color = 'var(--danger)';
+    delBtn.innerHTML = '<i class="fa-solid fa-trash"></i>';
     delBtn.title = 'Eliminar';
     delBtn.addEventListener('click', async ()=>{
       ideas = ideas.filter(i=>i.id!==idea.id);
       await saveIdeas();
       renderIdeasList();
     });
-    actions.appendChild(editBtn); actions.appendChild(delBtn);
+    actions.appendChild(calBtn); actions.appendChild(editBtn); actions.appendChild(delBtn);
     row.appendChild(actions);
     return row;
   }
@@ -6024,35 +6061,38 @@
     ideaFilterAngle = $('ideaFilterSelect').value;
     renderIdeasList();
   });
+  // El botón del header ya no abre un modal: el editor vive siempre en el dashboard.
+  // Hace scroll hasta el widget y le da un flash suave, para orientar al que lo tocó.
   $('ideasBtn').addEventListener('click', ()=>{
-    populateIdeaFilterOptions();
-    renderNewIdeaPicker();
-    renderNuevaIdeaImagen();
-    renderIdeasList();
-    $('ideasModal').classList.add('open');
+    const w = $('ideasDashboard');
+    if(!w) return;
+    w.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    w.classList.add('flash');
+    setTimeout(()=> w.classList.remove('flash'), 1200);
+    // Aseguro que la pestaña "Mis ideas" quede activa y refresco los pickers.
+    document.querySelectorAll('#ideasDashboard .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'mis-ideas'));
+    document.querySelectorAll('#ideasDashboard .tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tabPanel === 'mis-ideas'));
+    // Foco en el textarea para arrancar a escribir de una.
+    setTimeout(()=> $('newIdeaText').focus(), 400);
   });
-  $('closeIdeasModal').addEventListener('click', ()=>{ $('ideasModal').classList.remove('open'); });
 
   // Tabs "Mis ideas" / "Inspo Pinterest": intercambian qué panel está visible dentro
-  // del modal. Un solo handler para todos los botones de tab, delegado.
-  document.querySelectorAll('#ideasModal .tab-btn').forEach(btn=>{
+  // del widget de ideas. Un solo handler para todos los botones de tab.
+  document.querySelectorAll('#ideasDashboard .tab-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const tab = btn.dataset.tab;
-      document.querySelectorAll('#ideasModal .tab-btn').forEach(b => b.classList.toggle('active', b === btn));
-      document.querySelectorAll('#ideasModal .tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tabPanel === tab));
+      document.querySelectorAll('#ideasDashboard .tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('#ideasDashboard .tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tabPanel === tab));
       if(tab === 'pinterest') renderPinterestPanel();
     });
   });
 
-  // Filtro por tipo (Todo/Reels/Carruseles/Stories). Los dos widgets — el del modal y
-  // el del dashboard — comparten variable de estado, así que cambiar en uno actualiza el
-  // otro. Un solo listener delegado por container.
+  // Filtro por tipo (Todo/Reels/Carruseles/Stories) del propio widget.
   function conectarTabsTipo(container){
     container.querySelectorAll('.ik-tab').forEach(btn=>{
       btn.addEventListener('click', ()=>{
         ideaFilterKind = btn.dataset.kind;
-        // Marcar activo en AMBOS containers para mantenerlos sincronizados
-        document.querySelectorAll('.ideas-kind-tabs .ik-tab, .ideas-dashboard-tabs .ik-tab').forEach(b=>{
+        container.querySelectorAll('.ik-tab').forEach(b=>{
           b.classList.toggle('active', b.dataset.kind === ideaFilterKind);
         });
         renderIdeasList();
@@ -6060,10 +6100,6 @@
     });
   }
   conectarTabsTipo($('ideaKindTabs'));
-  conectarTabsTipo($('ideasDashKindTabs'));
-
-  // Botón "Ampliar" del widget: abre el modal completo. Mismo path que #ideasBtn del header.
-  $('openIdeasFullBtn').addEventListener('click', ()=> $('ideasBtn').click());
 
   // ---------- llevar una idea al calendario ----------
   // La idea NO se elimina cuando se lleva — solo se copia como posteo al día elegido.
@@ -6236,10 +6272,14 @@
     }
   }
 
-  // Al arrancar el calendario, además de cargar ideas, pinta el widget del dashboard.
-  // Se hace acá y no dentro de loadIdeas() porque loadIdeas puede correr antes de que el
-  // DOM tenga el widget.
-  setTimeout(()=>{ if(document.getElementById('ideasDashboardList')) renderIdeasDashboard(); }, 100);
+  // El editor de ideas está siempre en pantalla, así que se pinta apenas termina de
+  // cargar la lista, sin esperar a que nadie abra nada.
+  function refrescarPanelIdeas(){
+    populateIdeaFilterOptions();
+    renderNewIdeaPicker();
+    renderNuevaIdeaImagen();
+    renderIdeasList();
+  }
 
   // ---------- cross-month search ----------
   function monthOptionsAround(centerYear, centerMonth, rangeMonths){
@@ -7343,33 +7383,56 @@
       : (sesion.slug || '');
     document.body.classList.toggle('rol-editor', !ES_ADMIN);
 
+    // Solo lo que se ve. El mes cuenta como 4 pasos internos (leer días, marcadores,
+    // notas, migración) así la barra no se queda "clavada al 90%" durante la fase más
+    // pesada. Novedades y papelera se cargan después de pintar: son un contador y un
+    // botón, y hacer esperar el calendario por ellos no tiene sentido.
     const steps = [
-      {name: 'Ángulos', fn: loadAngles},
-      {name: 'Marca', fn: loadClientName},
-      {name: 'Título', fn: loadCalendarTitle},
-      {name: 'Avatar', fn: loadClientPhoto},
-      {name: 'Ideas', fn: loadIdeas},
-      {name: 'Links', fn: loadQuickLinks},
-      {name: 'Novedades', fn: async ()=>{ await loadNotificaciones(); actualizarCampanita(); }},
-      {name: 'Papelera', fn: loadPapelera},
-      {name: 'Reglas', fn: loadRecurringRules},
-      {name: 'Mes', fn: loadMonth}
+      {name: 'Ángulos', fn: loadAngles, peso: 1},
+      {name: 'Marca', fn: loadClientName, peso: 1},
+      {name: 'Título', fn: loadCalendarTitle, peso: 1},
+      {name: 'Avatar', fn: loadClientPhoto, peso: 1},
+      {name: 'Ideas', fn: async ()=>{ await loadIdeas(); refrescarPanelIdeas(); }, peso: 1},
+      {name: 'Links', fn: loadQuickLinks, peso: 1},
+      {name: 'Reglas', fn: loadRecurringRules, peso: 1},
+      {name: 'Mes', fn: loadMonth, peso: 4}
     ];
+    const pesoTotal = steps.reduce((s,x)=> s + x.peso, 0);
 
     // Only show bar if it takes a bit to load (> 500ms threshold)
     const showBarTimer = setTimeout(()=>{ bar.style.display='block'; }, 300);
 
-    let loaded = 0;
+    // Un solo pedido con todo lo del arranque. Antes cada paso salía a la red por su
+    // cuenta y el calendario esperaba una docena de idas y vueltas encadenadas; ahora
+    // esperamos una sola, y los pasos se sirven de lo que ya llegó.
+    await precargarArranque();
+
+    let acumulado = 0;
+    const pintar = (frac)=>{
+      progress.style.width = Math.round(((acumulado + frac)/pesoTotal)*100) + '%';
+    };
     for(const step of steps){
-      await step.fn();
-      loaded++;
-      progress.style.width = Math.round((loaded/steps.length)*100) + '%';
+      // Un paso con sub-progreso mueve la barra dentro de su propio peso; los otros
+      // avanzan de golpe al terminar.
+      if(step.peso > 1){
+        await step.fn(sub => pintar(sub * step.peso));
+      }else{
+        await step.fn();
+      }
+      acumulado += step.peso;
+      pintar(0);
     }
 
     clearTimeout(showBarTimer);
     bar.style.display = 'none';
     updateFooterNote();
     renderCalendar();
+
+    // Ya está el calendario en pantalla. Lo accesorio se completa solo, sin bloquear:
+    // la campanita aparece con su número y el botón de papelera se habilita cuando
+    // terminan. Si algo falla, el calendario ya está usable igual.
+    loadNotificaciones().then(actualizarCampanita).catch(()=>{});
+    loadPapelera().catch(()=>{});
 
     // ?dia=YYYY-MM-DD abre ese día directamente. Lo usan las notificaciones cuando la
     // novedad es de otra marca: no alcanza con cambiar de ?cliente=, hay que recargar, y
