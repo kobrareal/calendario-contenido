@@ -611,7 +611,10 @@
      titanio, no sigue los tokens del calendario. */
   .iphone-mockup{
     position:relative;
-    max-width:340px; margin:0 auto;
+    /* Aspect 9/16 real del teléfono (marco entero, no la pantalla).
+       El ancho manda: si la sidebar lo permite crece, con un tope razonable
+       para no volverse gigante en escritorio. El alto sale del ratio. */
+    width:100%; max-width:320px; aspect-ratio:9/16; margin:0 auto;
     background:#0b0b0e;
     border-radius:44px;
     padding:12px 12px 20px;
@@ -629,7 +632,11 @@
     background:#000; border-radius:34px; overflow:hidden;
     padding-top:44px; /* deja aire para el notch */
     display:flex; flex-direction:column;
+    /* Llena el mockup completo: el ratio 9/16 lo define .iphone-mockup, así que el
+       screen y el sheet interno solo tienen que ocupar todo el alto disponible. */
+    flex:1; height:100%;
   }
+  .iphone-screen .sheet{flex:1;display:flex;flex-direction:column;min-height:0;}
   .iphone-home{
     position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
     width:120px; height:4px; border-radius:2px; background:#3a3a3f;
@@ -649,9 +656,11 @@
   /* Tope de 1080x1920: es el tamaño de un lienzo de Instagram, y sin él la vista previa
      se estiraba con la pantalla. En monitores comunes no llega a tocar el límite. */
   .frames-viewport{
-    aspect-ratio:3/4;overflow-y:auto;overflow-x:hidden;
-    max-width:1080px;max-height:1920px;
-    background:var(--surface-3);scrollbar-width:thin;
+    /* Dentro del mockup del iPhone: llena el alto disponible del screen y scrollea
+       cuando hay más posts que los que entran. Antes tenía aspect-ratio:3/4 propio,
+       que le imponía una forma incompatible con el ratio 9/16 del mockup. */
+    flex:1; min-height:0; overflow-y:auto; overflow-x:hidden;
+    background:#000; scrollbar-width:thin;
   }
   .sheet{max-width:1080px;}
   /* Más angosta que la general porque la columna del preview es estrecha, pero con los
@@ -962,6 +971,79 @@
   .idea-row .meta{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted-2);font-family:'IBM Plex Mono',monospace;}
   .idea-row .actions{display:flex;gap:6px;flex-shrink:0;}
   .ideas-empty{color:var(--muted-2);font-size:12.5px;text-align:center;padding:20px 0;}
+
+  /* ---------- tabs del modal de Ideas ---------- */
+  .tabs-header{
+    display:flex; gap:var(--s-1); margin-bottom:var(--s-4);
+    border-bottom:1px solid var(--border);
+  }
+  .tab-btn{
+    background:none; border:none; color:var(--muted); cursor:pointer;
+    padding:var(--s-2) var(--s-3); font-size:var(--t-sm); font-weight:var(--w-semibold);
+    font-family:'Inter',sans-serif; letter-spacing:-0.005em;
+    border-bottom:2px solid transparent; margin-bottom:-1px;
+    transition:color .15s var(--ease-out), border-color .15s var(--ease-out);
+  }
+  .tab-btn:hover{color:var(--text);}
+  .tab-btn.active{color:var(--text); border-bottom-color:var(--accent);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  /* ---------- tabs por tipo (Todo/Reels/Carruseles/Stories) ---------- */
+  .ideas-kind-tabs{display:flex; gap:var(--s-1); flex:1;}
+  .ik-tab{
+    background:var(--card-bg-2); border:1px solid var(--border); color:var(--muted);
+    padding:var(--s-1) var(--s-3); border-radius:var(--r-1); font-size:var(--t-xs);
+    cursor:pointer; font-family:'Inter',sans-serif;
+    transition:background .15s var(--ease-out), color .15s var(--ease-out);
+  }
+  .ik-tab:hover{color:var(--text);}
+  .ik-tab.active{background:var(--surface-3); color:var(--text); border-color:var(--muted-2);}
+
+  .idea-kind-select{
+    background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-2);
+    color:var(--text); padding:var(--s-1) var(--s-2); font-size:var(--t-xs);
+    font-family:'Inter',sans-serif; cursor:pointer;
+  }
+
+  /* ---------- panel de Ideas siempre visible en la sidebar ---------- */
+  .ideas-dashboard{
+    margin-top:var(--s-5); padding:var(--s-4);
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--r-3);
+  }
+  .ideas-dashboard-head{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:var(--s-3);
+  }
+  .ideas-dashboard-head h3{
+    margin:0; font-size:var(--t-md); font-weight:var(--w-semibold);
+    letter-spacing:-0.01em;
+  }
+  .ideas-dashboard-tabs{display:flex; gap:var(--s-1); margin-bottom:var(--s-3);}
+  #ideasDashboardList{
+    max-height:280px; overflow-y:auto;
+    /* Lista compacta sin bordes gordos: cada idea es un renglón con click a llevar. */
+    display:flex; flex-direction:column; gap:var(--s-1);
+  }
+  .idea-mini{
+    display:flex; align-items:center; gap:var(--s-2); padding:var(--s-2);
+    background:var(--surface-2); border:1px solid transparent; border-radius:var(--r-2);
+    font-size:var(--t-xs); cursor:default;
+    transition:border-color .15s var(--ease-out);
+  }
+  .idea-mini:hover{border-color:var(--border);}
+  .idea-mini .mini-txt{flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .idea-mini .mini-kind{
+    font-family:'IBM Plex Mono',monospace; font-size:9px; text-transform:uppercase;
+    background:var(--surface-3); color:var(--muted); padding:2px 5px; border-radius:var(--r-1);
+    flex:none;
+  }
+  .idea-mini .mini-action{
+    background:none; border:none; color:var(--muted); cursor:pointer;
+    padding:var(--s-1) var(--s-2); border-radius:var(--r-1); font-size:11px;
+    transition:color .15s var(--ease-out), background .15s var(--ease-out);
+  }
+  .idea-mini .mini-action:hover{color:var(--accent); background:var(--surface-3);}
   .idea-link-input{
     width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;
     color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:11.5px;
@@ -1456,14 +1538,6 @@
       <div class="iphone-mockup">
         <div class="iphone-notch"></div>
         <div class="iphone-screen">
-          <div class="ig-topbar">
-            <span class="ig-brand" id="igBrand">wayfarer</span>
-            <div class="ig-icons">
-              <span aria-hidden="true">+</span>
-              <span aria-hidden="true">♡</span>
-              <span aria-hidden="true">✉</span>
-            </div>
-          </div>
           <div class="sheet">
             <div class="frames-viewport">
               <div class="frames" id="feedFrames"></div>
@@ -1481,6 +1555,22 @@
           <button class="btn manage-btn admin-only" id="manageImagesBtn" style="margin-top:8px;" title="Ver y borrar todas las imágenes cargadas este mes"><i class="fa-solid fa-images"></i>Gestionar imágenes</button>
           <button class="btn manage-btn admin-only" id="manageClearBtn" style="margin-top:8px;color:var(--danger);" title="Vaciar varios días de una vez (una semana, el mes entero)"><i class="fa-solid fa-trash"></i>Vaciar semana / mes</button>
         </div>
+      </div>
+
+      <!-- Panel de ideas visible siempre en el dashboard: lista compacta con los filtros
+           por tipo, y botones para llevar al calendario o abrir el editor completo. -->
+      <div class="ideas-dashboard">
+        <div class="ideas-dashboard-head">
+          <h3>💡 Ideas guardadas</h3>
+          <button class="btn ghost small" id="openIdeasFullBtn" title="Abrir el editor completo de ideas"><i class="fa-solid fa-expand"></i>Ampliar</button>
+        </div>
+        <div class="ideas-dashboard-tabs" id="ideasDashKindTabs">
+          <button type="button" class="ik-tab active" data-kind="">Todo</button>
+          <button type="button" class="ik-tab" data-kind="reel">R</button>
+          <button type="button" class="ik-tab" data-kind="carrusel">C</button>
+          <button type="button" class="ik-tab" data-kind="story">S</button>
+        </div>
+        <div id="ideasDashboardList"></div>
       </div>
     </div>
   </div>
@@ -1717,25 +1807,84 @@
 
 <!-- IDEAS MODAL -->
 <div class="modal-back" id="ideasModal">
-  <div class="modal" style="width:560px;">
-    <h2>Ideas para el futuro</h2>
-    <p class="hint">Guardá ideas de contenido para más adelante, asignales un ángulo y filtralas cuando quieras retomarlas. No están atadas a ningún mes en particular.</p>
-    <div class="idea-add-box">
-      <label class="field-label">Nueva idea</label>
-      <textarea id="newIdeaText" placeholder="Ej: colaboración con influencer local, video de detrás de escena en la cocina..."></textarea>
-      <input type="url" id="newIdeaLink" class="idea-link-input" placeholder="🔗 Link de referencia (opcional): un reel, un artículo, una foto…" />
-      <div id="newIdeaImagen"></div>
-      <div class="idea-add-row">
-        <div class="angle-picker" id="newIdeaAnglePicker" style="flex:1;"></div>
-        <button class="btn primary" id="addIdeaBtn" title="Guardar esta idea para usarla más adelante">+ Agregar</button>
+  <div class="modal" style="width:620px;">
+    <div class="tabs-header">
+      <button class="tab-btn active" data-tab="mis-ideas" title="Ideas propias que fuiste guardando">Mis ideas</button>
+      <button class="tab-btn" data-tab="pinterest" title="Referencias visuales de tus tableros de Pinterest">Inspo Pinterest</button>
+    </div>
+
+    <div class="tab-panel active" data-tab-panel="mis-ideas">
+      <p class="hint">Guardá ideas de contenido, categorizalas por tipo (S/R/C) y llevalas al calendario cuando quieras usarlas. Al asignarlas, la idea queda igual en la lista — podés reutilizarla.</p>
+
+      <div class="idea-add-box">
+        <label class="field-label">Nueva idea</label>
+        <textarea id="newIdeaText" placeholder="Ej: colaboración con influencer local, video de detrás de escena en la cocina..."></textarea>
+        <input type="url" id="newIdeaLink" class="idea-link-input" placeholder="🔗 Link de referencia (opcional): un reel, un artículo, una foto…" />
+        <div id="newIdeaImagen"></div>
+        <div class="idea-add-row">
+          <!-- Tipo: sirve para clasificar y para prellenar cuando se lleva al calendario.
+               '' = sin tipo, se elige después al asignar. -->
+          <select id="newIdeaKind" class="idea-kind-select" title="Tipo de posteo al que apunta esta idea">
+            <option value="">Cualquier tipo</option>
+            <option value="reel">Reel</option>
+            <option value="carrusel">Carrusel</option>
+            <option value="story">Story</option>
+          </select>
+          <div class="angle-picker" id="newIdeaAnglePicker" style="flex:1;"></div>
+          <button class="btn primary" id="addIdeaBtn" title="Guardar esta idea para usarla más adelante">+ Agregar</button>
+        </div>
+      </div>
+
+      <div class="ideas-filter-row">
+        <div class="ideas-kind-tabs" id="ideaKindTabs">
+          <button type="button" class="ik-tab active" data-kind="">Todo</button>
+          <button type="button" class="ik-tab" data-kind="reel">Reels</button>
+          <button type="button" class="ik-tab" data-kind="carrusel">Carruseles</button>
+          <button type="button" class="ik-tab" data-kind="story">Stories</button>
+        </div>
+        <select id="ideaFilterSelect" title="Filtrar por ángulo"><option value="">Todos los ángulos</option></select>
+      </div>
+      <div id="ideasList"></div>
+    </div>
+
+    <div class="tab-panel" data-tab-panel="pinterest">
+      <p class="hint">Conectá tus tableros de Pinterest y traé pines como referencia visual. Con un click convertís cualquier pin en una idea del calendario.</p>
+      <div id="pinterestBody">
+        <!-- Se llena por JS: puede mostrar el estado "no conectado" con instrucciones, o
+             la grilla de pines si ya está conectado. -->
       </div>
     </div>
-    <div class="ideas-filter-row">
-      Filtrar por ángulo:
-      <select id="ideaFilterSelect"><option value="">Todos los ángulos</option></select>
-    </div>
-    <div id="ideasList"></div>
+
     <div class="modal-close-row"><button class="btn primary" id="closeIdeasModal" title="Cerrar">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- LLEVAR IDEA AL CALENDARIO -->
+<div class="modal-back" id="ideaToCalendarModal">
+  <div class="modal" style="width:420px;">
+    <h2>Llevar idea al calendario</h2>
+    <p class="hint" id="ideaToCalendarPreview" style="margin-bottom:var(--s-4);"></p>
+    <label class="field-label">Tipo de posteo</label>
+    <select id="ideaToCalKind" class="idea-kind-select" style="width:100%;margin-bottom:var(--s-3);">
+      <option value="reel">Reel</option>
+      <option value="carrusel">Carrusel</option>
+      <option value="story">Story</option>
+    </select>
+    <div style="display:flex;gap:var(--s-3);">
+      <div style="flex:2;">
+        <label class="field-label">Fecha</label>
+        <input type="date" id="ideaToCalDate" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-2);color:var(--text);padding:var(--s-2) var(--s-3);font-family:'IBM Plex Mono',monospace;font-size:13px;" />
+      </div>
+      <div style="flex:1;">
+        <label class="field-label">Hora</label>
+        <div id="ideaToCalTime"></div>
+      </div>
+    </div>
+    <p class="hint" style="margin-top:var(--s-4);">La idea queda igual en tu lista — esto solo la copia al día elegido.</p>
+    <div class="modal-close-row" style="margin-top:var(--s-4);">
+      <button class="btn ghost" id="ideaToCalCancel" title="Cancelar">Cancelar</button>
+      <button class="btn primary" id="ideaToCalConfirm" title="Crear el posteo en la fecha elegida">Llevar</button>
+    </div>
   </div>
 </div>
 
@@ -5507,6 +5656,7 @@
   let ideas = [];
   let newIdeaAngleId = null;
   let ideaFilterAngle = '';
+  let ideaFilterKind = ''; // '' = todos | 'reel' | 'carrusel' | 'story'
 
   async function loadIdeas(){
     try{
@@ -5618,17 +5768,59 @@
     return fila;
   }
 
+  function ideasFiltradas(){
+    return ideas.filter(i=>{
+      if(ideaFilterAngle && i.angle !== ideaFilterAngle) return false;
+      if(ideaFilterKind && (i.kind || '') !== ideaFilterKind) return false;
+      return true;
+    });
+  }
+
   function renderIdeasList(){
     const list = $('ideasList');
     list.innerHTML = '';
-    const filtered = ideaFilterAngle ? ideas.filter(i=>i.angle===ideaFilterAngle) : ideas;
+    const filtered = ideasFiltradas();
     if(filtered.length === 0){
-      list.innerHTML = `<div class="ideas-empty">${ideas.length===0 ? 'Todavía no cargaste ninguna idea.' : 'Ninguna idea con ese ángulo.'}</div>`;
+      const msg = ideas.length===0
+        ? 'Todavía no cargaste ninguna idea.'
+        : 'Ninguna idea con esos filtros.';
+      list.innerHTML = `<div class="ideas-empty">${msg}</div>`;
+      // También refresco el mini widget del dashboard, así queda sincronizado.
+      renderIdeasDashboard();
       return;
     }
     // Most recent first.
     filtered.slice().sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||'')).forEach(idea=>{
       list.appendChild(idea.id === editingIdeaId ? buildIdeaEditRow(idea) : buildIdeaViewRow(idea));
+    });
+    renderIdeasDashboard();
+  }
+
+  // Mini widget en la sidebar: la MISMA lista filtrada, pero en renglones compactos
+  // con un solo botón visible ("Llevar al calendario"). Editar y borrar se hacen desde
+  // el modal completo (botón "Ampliar").
+  function renderIdeasDashboard(){
+    const cont = $('ideasDashboardList');
+    if(!cont) return;
+    cont.innerHTML = '';
+    const filtered = ideasFiltradas();
+    if(filtered.length === 0){
+      cont.innerHTML = `<div class="ideas-empty" style="padding:var(--s-3) 0;">${ideas.length===0 ? 'Sin ideas todavía.' : 'Sin ideas con este tipo.'}</div>`;
+      return;
+    }
+    const KIND_LABEL = { reel:'R', carrusel:'C', story:'S' };
+    filtered.slice().sort((a,b)=> (b.createdAt||'').localeCompare(a.createdAt||'')).forEach(idea=>{
+      const row = document.createElement('div');
+      row.className = 'idea-mini';
+      const kind = idea.kind || '';
+      const texto = (idea.text || '').slice(0,80);
+      row.innerHTML = `
+        ${kind ? `<span class="mini-kind">${KIND_LABEL[kind]}</span>` : ''}
+        <span class="mini-txt" title="${escapeHtml(idea.text||'')}">${escapeHtml(texto)}</span>
+        <button class="mini-action" data-act="llevar" title="Llevar al calendario"><i class="fa-solid fa-calendar-plus"></i></button>
+      `;
+      row.querySelector('[data-act="llevar"]').addEventListener('click', ()=> abrirLlevarIdea(idea));
+      cont.appendChild(row);
     });
   }
 
@@ -5761,11 +5953,13 @@
       link: normalizarUrl($('newIdeaLink').value),
       thumb: nuevaIdeaThumb,
       angle: newIdeaAngleId,
+      kind: $('newIdeaKind').value || '', // '' = sin tipo asignado
       createdAt: new Date().toISOString()
     });
     await saveIdeas();
     $('newIdeaText').value = '';
     $('newIdeaLink').value = '';
+    $('newIdeaKind').value = '';
     nuevaIdeaThumb = '';
     renderNuevaIdeaImagen();
     newIdeaAngleId = null;
@@ -5785,6 +5979,214 @@
     $('ideasModal').classList.add('open');
   });
   $('closeIdeasModal').addEventListener('click', ()=>{ $('ideasModal').classList.remove('open'); });
+
+  // Tabs "Mis ideas" / "Inspo Pinterest": intercambian qué panel está visible dentro
+  // del modal. Un solo handler para todos los botones de tab, delegado.
+  document.querySelectorAll('#ideasModal .tab-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const tab = btn.dataset.tab;
+      document.querySelectorAll('#ideasModal .tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+      document.querySelectorAll('#ideasModal .tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tabPanel === tab));
+      if(tab === 'pinterest') renderPinterestPanel();
+    });
+  });
+
+  // Filtro por tipo (Todo/Reels/Carruseles/Stories). Los dos widgets — el del modal y
+  // el del dashboard — comparten variable de estado, así que cambiar en uno actualiza el
+  // otro. Un solo listener delegado por container.
+  function conectarTabsTipo(container){
+    container.querySelectorAll('.ik-tab').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        ideaFilterKind = btn.dataset.kind;
+        // Marcar activo en AMBOS containers para mantenerlos sincronizados
+        document.querySelectorAll('.ideas-kind-tabs .ik-tab, .ideas-dashboard-tabs .ik-tab').forEach(b=>{
+          b.classList.toggle('active', b.dataset.kind === ideaFilterKind);
+        });
+        renderIdeasList();
+      });
+    });
+  }
+  conectarTabsTipo($('ideaKindTabs'));
+  conectarTabsTipo($('ideasDashKindTabs'));
+
+  // Botón "Ampliar" del widget: abre el modal completo. Mismo path que #ideasBtn del header.
+  $('openIdeasFullBtn').addEventListener('click', ()=> $('ideasBtn').click());
+
+  // ---------- llevar una idea al calendario ----------
+  // La idea NO se elimina cuando se lleva — solo se copia como posteo al día elegido.
+  // Vive junto al resto del código de ideas porque comparte su modelo de datos.
+  let ideaEnTransferencia = null;
+
+  function abrirLlevarIdea(idea){
+    ideaEnTransferencia = idea;
+    // Precarga: tipo desde la idea si lo tiene, fecha del día visible, hora vacía.
+    $('ideaToCalKind').value = idea.kind || 'reel';
+    const hoy = new Date();
+    const y = viewYear, m = viewMonth;
+    // Si el mes visible incluye "hoy", precargamos hoy; si no, el día 1 del mes.
+    const d = (y === hoy.getFullYear() && m === hoy.getMonth()) ? hoy.getDate() : 1;
+    $('ideaToCalDate').value = dateKey(y, m, d);
+    // Selector de hora reutilizado (misma UI que el horario de cada posteo).
+    const cont = $('ideaToCalTime'); cont.innerHTML = '';
+    const dummy = { time: '' };
+    cont.appendChild(buildSelectorHorario(dummy, ()=>{ /* nada: se lee al confirmar */ }));
+    cont._dummy = dummy;
+
+    // Preview del texto para que la persona confirme que es la idea correcta.
+    $('ideaToCalendarPreview').textContent = '“' + (idea.text || '').slice(0,120) + '”';
+    $('ideaToCalendarModal').classList.add('open');
+  }
+
+  $('ideaToCalCancel').addEventListener('click', ()=>{
+    $('ideaToCalendarModal').classList.remove('open');
+    ideaEnTransferencia = null;
+  });
+
+  $('ideaToCalConfirm').addEventListener('click', async ()=>{
+    if(!ideaEnTransferencia) return;
+    const dia = $('ideaToCalDate').value;
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(dia)){ showToast('Elegí una fecha válida'); return; }
+    const kind = $('ideaToCalKind').value;
+    const time = ($('ideaToCalTime')._dummy && $('ideaToCalTime')._dummy.time) || '';
+    const idea = ideaEnTransferencia;
+
+    // Se crea el ítem en el día elegido. El servidor decide qué mes cargar si es distinto.
+    const btn = $('ideaToCalConfirm');
+    btn.disabled = true; btn.textContent = 'Llevando…';
+    try{
+      const enMesVisible = dia.startsWith(`${viewYear}-${String(viewMonth+1).padStart(2,'0')}-`);
+      let entrada;
+      if(enMesVisible){ ensureEntry(dia); entrada = monthData[dia]; }
+      else{
+        const val = await storageGet(dia);
+        try{ entrada = normalizeEntry(val ? JSON.parse(val) : {}); }
+        catch(e){ entrada = { feed:[], stories:[] }; }
+      }
+      const nuevo = {
+        id: genId(),
+        angle: idea.angle || null,
+        text: idea.text || '',
+        thumb: idea.thumb || '',
+        hideFromPreview: false,
+        context: '', clientNote: '', time, title: '', script: '',
+        status:'pendiente', approval:'sin-revisar', approvalAt:''
+      };
+      if(kind === 'story'){
+        entrada.stories.push(nuevo);
+      }else{
+        nuevo.kind = (kind === 'carrusel') ? 'carrusel' : 'reel';
+        entrada.feed.push(nuevo);
+      }
+      entrada.feed.sort(compareByTime);
+      entrada.stories.sort(compareByTime);
+      if(enMesVisible){ monthData[dia] = entrada; await saveDayNow(dia); renderCalendar(); }
+      else{ await storageSet(dia, JSON.stringify(entrada)); }
+
+      const [y,m,d] = dia.split('-').map(Number);
+      showToast(`Idea llevada al ${d}/${m} — sigue guardada en tu lista`);
+      $('ideaToCalendarModal').classList.remove('open');
+      ideaEnTransferencia = null;
+    }catch(e){
+      showToast('No se pudo llevar: ' + ((e && e.message) ? e.message : 'error'));
+    }finally{
+      btn.disabled = false; btn.textContent = 'Llevar';
+    }
+  });
+
+  // ---------- Pinterest ----------
+  // Requiere un token de acceso (Pinterest lo da desde la config de la cuenta) puesto
+  // como variable de entorno PINTEREST_TOKEN en Vercel. Sin token, la pestaña muestra
+  // instrucciones concretas de qué hacer, en vez de un error genérico o una lista vacía.
+  async function renderPinterestPanel(){
+    const body = $('pinterestBody');
+    body.innerHTML = '<div class="ideas-empty">Cargando tableros…</div>';
+    try{
+      const res = await fetch('/api/pinterest?accion=boards', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ token: TOKEN })
+      });
+      const json = await res.json().catch(()=>null);
+      if(res.status === 501){
+        // Falta configurar el token: instrucciones, no un error seco.
+        body.innerHTML = `
+          <div class="ideas-empty" style="text-align:left;line-height:1.6;padding:var(--s-3);">
+            <strong>Pinterest no está conectado.</strong><br>
+            Para activarlo:<br>
+            1. Entrá a <a href="https://developers.pinterest.com/apps/" target="_blank" style="color:var(--accent);">developers.pinterest.com/apps</a> y creá una app.<br>
+            2. Generá un access token con scope <code>boards:read</code>, <code>pins:read</code>.<br>
+            3. Pegámelo por chat y lo dejo configurado en el servidor.
+          </div>`;
+        return;
+      }
+      if(!res.ok || !json) throw new Error((json && json.error) || ('http ' + res.status));
+      const boards = json.boards || [];
+      if(boards.length === 0){
+        body.innerHTML = '<div class="ideas-empty">No hay tableros en esta cuenta.</div>';
+        return;
+      }
+      body.innerHTML = boards.map(b =>
+        `<button class="btn ghost" data-board="${escapeHtml(b.id)}" style="width:100%;margin-bottom:var(--s-2);justify-content:space-between;">
+           ${escapeHtml(b.name)}
+           <span style="color:var(--muted-2);font-family:'IBM Plex Mono',monospace;font-size:var(--t-xs);">${b.pin_count || 0} pines</span>
+         </button>`
+      ).join('');
+      body.querySelectorAll('[data-board]').forEach(btn=>{
+        btn.addEventListener('click', ()=> mostrarPinesDeBoard(btn.dataset.board));
+      });
+    }catch(e){
+      body.innerHTML = `<div class="ideas-empty" style="color:var(--danger);">No se pudo cargar Pinterest: ${escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  async function mostrarPinesDeBoard(boardId){
+    const body = $('pinterestBody');
+    body.innerHTML = '<div class="ideas-empty">Cargando pines…</div>';
+    try{
+      const res = await fetch('/api/pinterest?accion=pins', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ token: TOKEN, boardId })
+      });
+      const json = await res.json().catch(()=>null);
+      if(!res.ok) throw new Error((json && json.error) || ('http ' + res.status));
+      const pins = json.pins || [];
+      const back = '<button class="btn ghost small" id="volverBoards" style="margin-bottom:var(--s-3);"><i class="fa-solid fa-arrow-left"></i>Tableros</button>';
+      if(pins.length === 0){ body.innerHTML = back + '<div class="ideas-empty">Este tablero no tiene pines.</div>'; }
+      else{
+        body.innerHTML = back + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s-2);">' +
+          pins.map(p => `
+            <div class="pin-card" style="position:relative;">
+              <img src="${escapeHtml(p.image)}" alt="" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:var(--r-2);display:block;" />
+              <button class="btn primary small" data-pin='${escapeHtml(JSON.stringify(p))}' style="position:absolute;bottom:6px;left:6px;right:6px;font-size:var(--t-xs);padding:var(--s-1) var(--s-2);">Convertir en idea</button>
+            </div>`).join('') +
+          '</div>';
+        body.querySelectorAll('[data-pin]').forEach(btn=>{
+          btn.addEventListener('click', async ()=>{
+            const pin = JSON.parse(btn.dataset.pin);
+            ideas.push({
+              id: genId(),
+              text: pin.description || pin.title || 'Pin de Pinterest',
+              link: pin.link || '',
+              thumb: pin.image || '',
+              angle: null, kind: '',
+              origen: 'pinterest',
+              createdAt: new Date().toISOString()
+            });
+            await saveIdeas();
+            renderIdeasList();
+            showToast('Idea creada desde el pin');
+          });
+        });
+      }
+      $('volverBoards').addEventListener('click', renderPinterestPanel);
+    }catch(e){
+      body.innerHTML = `<div class="ideas-empty" style="color:var(--danger);">No se pudieron cargar los pines: ${escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  // Al arrancar el calendario, además de cargar ideas, pinta el widget del dashboard.
+  // Se hace acá y no dentro de loadIdeas() porque loadIdeas puede correr antes de que el
+  // DOM tenga el widget.
+  setTimeout(()=>{ if(document.getElementById('ideasDashboardList')) renderIdeasDashboard(); }, 100);
 
   // ---------- cross-month search ----------
   function monthOptionsAround(centerYear, centerMonth, rangeMonths){
