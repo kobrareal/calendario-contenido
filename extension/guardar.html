@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8" />
+<title>Guardar idea</title>
+<style>
+  :root{
+    --fondo:#0f0f12; --superficie:#16161b; --superficie-2:#1c1c22; --superficie-3:#24242c;
+    --borde:#26262e; --texto:#e8e6ef; --apagado:#a09daf; --apagado-2:#6e6b7d;
+    --acento:#4f8ef7; --acento-2:#8b5cf6; --ok:#3fd399; --mal:#e0574f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:16px 18px 18px;
+    background:var(--fondo); color:var(--texto);
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif; font-size:13px;
+  }
+  h1{font-size:14px; margin:0 0 14px; font-weight:600; letter-spacing:-0.01em;}
+  label{display:block; font-size:11px; color:var(--apagado); margin:0 0 5px;}
+  .campo{margin-bottom:12px;}
+  textarea, input[type=url], select{
+    width:100%; background:var(--superficie-2); border:1px solid var(--borde);
+    border-radius:8px; color:var(--texto); padding:8px 10px;
+    font-family:inherit; font-size:12.5px; line-height:1.5;
+  }
+  textarea{min-height:62px; resize:vertical;}
+  input[type=url]{font-family:'Consolas',monospace; font-size:11px;}
+  textarea:focus, input:focus, select:focus{outline:none; border-color:var(--acento);}
+
+  /* Miniatura: si el sitio no dejó descargarla, la caja no aparece en vez de mostrar un
+     recuadro roto. */
+  .previa{
+    display:flex; gap:11px; align-items:flex-start; margin-bottom:13px;
+    padding:11px; background:var(--superficie); border:1px solid var(--borde);
+    border-radius:9px;
+  }
+  .previa img{
+    width:84px; height:84px; flex:none; object-fit:cover;
+    border-radius:6px; border:1px solid var(--borde); background:var(--superficie-3);
+  }
+  .previa .de{font-size:11px; color:var(--apagado); line-height:1.55; min-width:0;}
+  .previa .de b{color:var(--texto); font-weight:600;}
+  .previa .de span{
+    display:block; margin-top:3px; color:var(--apagado-2);
+    font-family:'Consolas',monospace; font-size:10px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+
+  /* Tipo de posteo: botones en vez de lista desplegable. Son tres opciones fijas y se
+     elige en un solo click, sin abrir nada. */
+  .tipos{display:flex; gap:6px;}
+  .tipos button{
+    flex:1; padding:8px 4px; border-radius:7px; cursor:pointer;
+    background:var(--superficie-2); border:1px solid var(--borde); color:var(--apagado);
+    font-family:inherit; font-size:11.5px; font-weight:600;
+  }
+  .tipos button:hover{color:var(--texto);}
+  .tipos button.elegido{
+    background:rgba(79,142,247,.18); border-color:var(--acento); color:var(--texto);
+  }
+
+  .fila{display:flex; gap:9px;}
+  .fila > *{flex:1; min-width:0;}
+
+  .acciones{display:flex; gap:9px; margin-top:16px;}
+  button.principal, button.secundario{
+    padding:9px 14px; border-radius:8px; font-size:13px; font-weight:600;
+    cursor:pointer; font-family:inherit; border:none;
+  }
+  button.principal{flex:1; background:var(--acento); color:#fff;}
+  button.principal:hover:not(:disabled){filter:brightness(1.12);}
+  button.principal:disabled{opacity:.5; cursor:default;}
+  button.secundario{background:none; border:1px solid var(--borde); color:var(--apagado);}
+  button.secundario:hover{color:var(--texto); border-color:var(--apagado-2);}
+
+  .aviso{margin-top:10px; font-size:11.5px; line-height:1.5; min-height:16px;}
+  .aviso.mal{color:var(--mal);}
+  .aviso.ok{color:var(--ok);}
+  .nota{color:var(--apagado-2); font-size:10.5px; margin-top:4px;}
+</style>
+</head>
+<body>
+
+<h1>Guardar como idea</h1>
+
+<div class="previa" id="previa" hidden>
+  <img id="previaImg" alt="" />
+  <div class="de">
+    <b id="previaTitulo">—</b>
+    <span id="previaSitio"></span>
+  </div>
+</div>
+
+<div class="campo">
+  <label for="texto">Título / descripción de la idea</label>
+  <textarea id="texto" placeholder="De qué se trata esta idea…"></textarea>
+</div>
+
+<div class="campo">
+  <label>Tipo de posteo</label>
+  <div class="tipos" id="tipos">
+    <button type="button" data-kind="reel">Reel</button>
+    <button type="button" data-kind="carrusel">Carrusel</button>
+    <button type="button" data-kind="story">Story</button>
+  </div>
+  <div class="nota">Se puede dejar sin elegir y definirlo después.</div>
+</div>
+
+<div class="fila">
+  <div class="campo">
+    <label for="angulo">Ángulo de contenido</label>
+    <select id="angulo"><option value="">Sin ángulo</option></select>
+  </div>
+  <div class="campo" id="campoMarca" hidden>
+    <label for="marca">Calendario de</label>
+    <select id="marca"></select>
+  </div>
+</div>
+
+<div class="campo">
+  <label for="link">Link de referencia</label>
+  <input type="url" id="link" placeholder="https://…" />
+</div>
+
+<div class="acciones">
+  <button class="secundario" id="cancelar">Cancelar</button>
+  <button class="principal" id="guardar">Guardar idea</button>
+</div>
+<div class="aviso" id="aviso"></div>
+
+<script src="guardar.js"></script>
+</body>
+</html>

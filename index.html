@@ -1011,6 +1011,21 @@
     margin:0; font-size:var(--t-md); font-weight:var(--w-semibold);
     letter-spacing:-0.01em;
   }
+  /* "Nueva idea": mismo tamaño que antes, pero con cuerpo de botón. Como fantasma se leía
+     igual que el título de al lado y no invitaba a tocarlo. Se resuelve con un fondo
+     tenue del color de acento y su borde, en vez de agrandarlo o pintarlo entero: es una
+     acción secundaria —lo principal del panel es la lista— y competir con el botón
+     primario del calendario le sacaría jerarquía a los dos. */
+  .btn-nueva-idea{
+    background:rgba(79,142,247,.16);
+    border:1px solid rgba(79,142,247,.42);
+    color:var(--text); font-weight:var(--w-semibold);
+  }
+  .btn-nueva-idea:hover{
+    background:rgba(79,142,247,.26);
+    border-color:var(--accent);
+  }
+  .btn-nueva-idea i{color:var(--accent);}
   /* Formulario de alta compacto: mismo contenido que tenía el modal, pero con menos aire
      porque acá compite por espacio con la lista, no ocupa una ventana entera. */
   .idea-add-box.compact{padding:var(--s-3); margin-bottom:var(--s-3);}
@@ -1019,6 +1034,23 @@
     max-height:420px; overflow-y:auto;
     display:flex; flex-direction:column; gap:var(--s-2);
   }
+  /* Selector de tipo dentro de cada idea. Se lee como un chip más de la fila de datos y
+     recién al pasar el mouse se muestra como algo que se puede tocar: un <select> con
+     borde permanente por cada idea llenaría la lista de cajas compitiendo por atención. */
+  .idea-kind-inline{
+    appearance:none; -webkit-appearance:none;
+    font-family:'IBM Plex Mono',monospace; font-size:9.5px; text-transform:uppercase;
+    letter-spacing:.03em;
+    background:var(--surface-3); color:var(--text);
+    border:1px solid transparent; border-radius:var(--r-1);
+    padding:2px 6px; cursor:pointer; flex:none;
+    transition:border-color .15s var(--ease-out), color .15s var(--ease-out);
+  }
+  .idea-kind-inline:hover{border-color:var(--border);}
+  .idea-kind-inline:focus{outline:none; border-color:var(--accent);}
+  /* Sin tipo asignado queda apagado, para que se note cuál falta clasificar. */
+  .idea-kind-inline.sin-tipo{color:var(--muted-2);}
+
   /* Chip de tipo (Reel/Carrusel/Story) al lado del ángulo en cada idea. */
   .mini-kind{
     font-family:'IBM Plex Mono',monospace; font-size:9px; text-transform:uppercase;
@@ -1533,7 +1565,7 @@
             <!-- El formulario de alta arranca plegado: la lista de ideas es lo que se
                  viene a mirar, y tener siempre desplegado un textarea vacío con sus
                  controles se comía media caja sin que nadie lo pidiera. -->
-            <button class="btn ghost small" id="toggleNuevaIdeaBtn" title="Escribir una idea nueva"><i class="fa-solid fa-plus"></i>Nueva idea</button>
+            <button class="btn small btn-nueva-idea" id="toggleNuevaIdeaBtn" title="Escribir una idea nueva"><i class="fa-solid fa-plus"></i>Nueva idea</button>
           </div>
 
           <div class="idea-add-box compact" id="ideaAddBox" hidden>
@@ -5885,16 +5917,29 @@
     info.appendChild(txt);
     const meta = document.createElement('div');
     meta.className = 'meta';
-    // Chip de tipo (R/C/S) al lado del de ángulo, solo si la idea tiene tipo asignado.
-    // Sin filtro activo, es la única forma de ver de un vistazo qué tipo tiene cada una.
-    if(idea.kind){
-      const KIND = { reel:'Reel', carrusel:'Carrusel', story:'Story' };
-      const chipKind = document.createElement('span');
-      chipKind.className = 'mini-kind';
-      chipKind.style.cssText = 'font-size:9.5px;padding:2px 6px;';
-      chipKind.textContent = KIND[idea.kind] || idea.kind;
-      meta.appendChild(chipKind);
-    }
+    // Tipo de posteo editable sin entrar en modo edición. Antes era un chip de solo
+    // lectura y el selector vivía detrás del botón del lápiz: clasificar una idea pedía
+    // tres clicks y encima no se veía que fuera posible. Acá se cambia en el momento y
+    // se guarda solo, que es lo que uno espera de un campo así.
+    const kindSel = document.createElement('select');
+    kindSel.className = 'idea-kind-inline';
+    kindSel.title = 'Tipo de posteo de esta idea';
+    kindSel.innerHTML = `
+      <option value="">Sin tipo</option>
+      <option value="reel">Reel</option>
+      <option value="carrusel">Carrusel</option>
+      <option value="story">Story</option>
+    `;
+    kindSel.value = idea.kind || '';
+    kindSel.classList.toggle('sin-tipo', !idea.kind);
+    kindSel.addEventListener('change', async ()=>{
+      idea.kind = kindSel.value;
+      await saveIdeas();
+      // Repintar hace falta igual: con un filtro de tipo activo, cambiarle el tipo puede
+      // sacar la idea de la vista, y dejarla ahí sería mentir sobre lo que el filtro dice.
+      renderIdeasList();
+    });
+    meta.appendChild(kindSel);
     const chip = document.createElement('span');
     chip.className = 'tag';
     chip.style.cssText = a ? `background:${a.color};display:inline-flex;` : 'display:inline-flex;';

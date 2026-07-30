@@ -1,47 +1,32 @@
-// Service worker de la extensión: arma el menú del click derecho y guarda la idea.
+// Service worker de la extensión: captura lo que se marcó y abre la ventana de guardado.
 //
-// Dos decisiones que valen la pena explicar:
+// No guarda nada por su cuenta. Baja la imagen, arma un borrador y abre guardar.html, que
+// es donde se completan título, tipo de posteo, ángulo y —si la sesión es de
+// administrador— a qué calendario va. El destino se elige ahí y no en un submenú del menú
+// contextual: con la miniatura a la vista es mucho más difícil equivocarse de marca que
+// eligiendo a ciegas desde el menú del click derecho.
 //
-// 1. Cuando la sesión es de administrador, el menú abre un submenú con una marca por
-//    entrada. No hay "marca activa" guardada en ningún lado a propósito: un selector que
-//    se configura una vez y después se olvida es exactamente cómo una idea de un cliente
-//    termina en el calendario de otro. Acá cada guardado es una elección explícita.
-//    Con una sesión de marca hay un solo destino posible y el submenú no aparece.
-//
-// 2. El aislamiento real no lo hace este archivo, lo hace el servidor (lib/acceso.js).
-//    Una sesión de marca solo puede escribir claves que arranquen con su propio nombre,
-//    así que ni un error de acá ni una extensión modificada a mano pueden cruzar datos.
+// El aislamiento real no lo hace este archivo, lo hace el servidor (lib/acceso.js): una
+// sesión de marca solo puede escribir claves que arranquen con su propio nombre, así que
+// ni un error de acá ni una extensión modificada a mano pueden cruzar datos entre marcas.
 
 const SITIO = 'https://calendario-contenido-kappa.vercel.app';
-const API = SITIO + '/api/datos';
 
-// Ancho máximo de la miniatura que se guarda. Mismo criterio que el calendario: la idea
-// necesita una referencia reconocible, no el original de 3000px, que además haría crecer
-// la fila de la base sin necesidad.
+// Ancho máximo de la miniatura. Mismo criterio que el calendario: alcanza con una
+// referencia reconocible, y el original de 3000px haría crecer la fila de la base al balde.
 const ANCHO_MAX = 900;
 const CALIDAD = 0.72;
 
-// ---------- sesión guardada ----------
+const VENTANA = { ancho: 440, alto: 660 };
+
 async function leerSesion() {
   const { sesion } = await chrome.storage.local.get('sesion');
   return sesion || null;
 }
 
-// ---------- API del calendario ----------
-async function pedir(cuerpo) {
-  const res = await fetch(API, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(cuerpo)
-  });
-  const json = await res.json().catch(() => null);
-  if (!res.ok) throw new Error((json && json.error) || ('http ' + res.status));
-  return json;
-}
-
 // ---------- menú del click derecho ----------
-// Se rearma entero cada vez: es más simple y más seguro que ir parcheando entradas
-// cuando cambia la sesión o la lista de marcas.
+// Una sola entrada: el detalle se elige en la ventana que se abre después. Los puntos
+// suspensivos avisan justamente eso, que no guarda de una.
 async function armarMenu() {
   await chrome.contextMenus.removeAll();
   const sesion = await leerSesion();
@@ -55,42 +40,16 @@ async function armarMenu() {
     return;
   }
 
-  const contextos = ['image', 'selection'];
-
-  // Una sola marca: el menú guarda directo, sin preguntar nada.
-  if (sesion.rol !== 'admin') {
-    chrome.contextMenus.create({
-      id: 'guardar::' + (sesion.slug || ''),
-      title: 'Guardar como idea en ' + (sesion.nombre || 'mi calendario'),
-      contexts: contextos
-    });
-    return;
-  }
-
-  // Administrador: un destino por marca, más el calendario principal (las claves sin
-  // prefijo, que es lo que se ve al entrar sin ?cliente=).
-  chrome.contextMenus.create({ id: 'raiz', title: 'Guardar como idea en', contexts: contextos });
   chrome.contextMenus.create({
-    id: 'guardar::', parentId: 'raiz', title: 'Calendario principal', contexts: contextos
-  });
-
-  let marcas = [];
-  try { marcas = (await pedir({ token: sesion.token, accion: 'marcas' })).marcas || []; }
-  catch (e) { /* sin lista igual queda el calendario principal */ }
-
-  marcas.forEach(m => {
-    chrome.contextMenus.create({
-      id: 'guardar::' + m.slug,
-      parentId: 'raiz',
-      title: m.nombre || m.slug,
-      contexts: contextos
-    });
+    id: 'guardar',
+    title: 'Guardar como idea…',
+    contexts: ['image', 'selection']
   });
 }
 
 chrome.runtime.onInstalled.addListener(armarMenu);
 chrome.runtime.onStartup.addListener(armarMenu);
-// El popup avisa cuando alguien entra o sale, para rearmar los destinos.
+// El popup avisa cuando alguien entra o sale, para rearmar el menú.
 chrome.runtime.onMessage.addListener((msg, _emisor, responder) => {
   if (msg && msg.tipo === 'sesionCambio') {
     armarMenu().then(() => responder({ ok: true }));
@@ -100,42 +59,47 @@ chrome.runtime.onMessage.addListener((msg, _emisor, responder) => {
 
 // ---------- traer la imagen ----------
 // Se descarga desde la propia pestaña y no desde el service worker: así la extensión no
-// necesita permiso permanente sobre todos los sitios, que es la advertencia que asusta al
-// instalar. El permiso de la pestaña lo habilita el click en el menú, y dura ese momento.
+// necesita permiso permanente sobre todos los sitios, que es la advertencia que hace dudar
+// al instalar. El permiso de la pestaña lo habilita el click en el menú y dura ese momento.
 //
-// El recorrido es fetch -> blob -> bitmap -> canvas porque un canvas que dibuja una imagen
-// de otro dominio queda "contaminado" y no se puede leer. Con un blob local eso no pasa.
-async function bajarImagen(tabId, url, anchoMax, calidad) {
-  const [resultado] = await chrome.scripting.executeScript({
-    target: { tabId },
-    args: [url, anchoMax, calidad],
-    func: async (src, maxW, q) => {
-      try {
-        const res = await fetch(src, { credentials: 'omit' });
-        if (!res.ok) return { error: 'http ' + res.status };
-        const blob = await res.blob();
-        const bitmap = await createImageBitmap(blob);
-        const escala = Math.min(1, maxW / bitmap.width);
-        const w = Math.round(bitmap.width * escala), h = Math.round(bitmap.height * escala);
-        const lienzo = new OffscreenCanvas(w, h);
-        lienzo.getContext('2d').drawImage(bitmap, 0, 0, w, h);
-        const jpg = await lienzo.convertToBlob({ type: 'image/jpeg', quality: q });
-        const dataUrl = await new Promise((ok, mal) => {
-          const fr = new FileReader();
-          fr.onload = () => ok(fr.result);
-          fr.onerror = () => mal(new Error('no se pudo leer'));
-          fr.readAsDataURL(jpg);
-        });
-        return { dataUrl };
-      } catch (e) {
-        return { error: (e && e.message) || 'falló la descarga' };
+// El recorrido es fetch → blob → bitmap → canvas porque un canvas que dibuja una imagen de
+// otro dominio queda "contaminado" y ya no se puede leer. Con un blob local eso no pasa.
+async function bajarImagen(tabId, url) {
+  try {
+    const [salida] = await chrome.scripting.executeScript({
+      target: { tabId },
+      args: [url, ANCHO_MAX, CALIDAD],
+      func: async (src, maxW, q) => {
+        try {
+          const res = await fetch(src, { credentials: 'omit' });
+          if (!res.ok) return { error: 'http ' + res.status };
+          const blob = await res.blob();
+          const bitmap = await createImageBitmap(blob);
+          const escala = Math.min(1, maxW / bitmap.width);
+          const w = Math.round(bitmap.width * escala), h = Math.round(bitmap.height * escala);
+          const lienzo = new OffscreenCanvas(w, h);
+          lienzo.getContext('2d').drawImage(bitmap, 0, 0, w, h);
+          const jpg = await lienzo.convertToBlob({ type: 'image/jpeg', quality: q });
+          const dataUrl = await new Promise((ok, mal) => {
+            const fr = new FileReader();
+            fr.onload = () => ok(fr.result);
+            fr.onerror = () => mal(new Error('no se pudo leer'));
+            fr.readAsDataURL(jpg);
+          });
+          return { dataUrl };
+        } catch (e) {
+          return { error: (e && e.message) || 'falló la descarga' };
+        }
       }
-    }
-  });
-  return (resultado && resultado.result) || { error: 'sin respuesta de la pestaña' };
+    });
+    return (salida && salida.result) || { error: 'sin respuesta de la pestaña' };
+  } catch (e) {
+    // Hay páginas donde no se puede inyectar nada (la tienda de extensiones, pestañas
+    // internas de Chrome). No es un error a mostrar: se sigue sin miniatura.
+    return { error: (e && e.message) || 'no se pudo leer la página' };
+  }
 }
 
-// ---------- guardar ----------
 function avisar(titulo, mensaje) {
   chrome.notifications.create({
     type: 'basic',
@@ -145,57 +109,38 @@ function avisar(titulo, mensaje) {
   });
 }
 
-function idAlAzar() {
-  return 'x' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-}
-
+// ---------- capturar y abrir la ventana ----------
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   if (info.menuItemId === 'configurar') { chrome.action.openPopup().catch(() => {}); return; }
-  if (typeof info.menuItemId !== 'string' || !info.menuItemId.startsWith('guardar::')) return;
+  if (info.menuItemId !== 'guardar') return;
 
-  const destino = info.menuItemId.slice('guardar::'.length);
   const sesion = await leerSesion();
   if (!sesion) { avisar('Falta conectar', 'Abrí la extensión y pegá tu PIN.'); return; }
 
-  // Una marca no puede elegir destino: el suyo es el único, venga lo que venga en el menú.
-  const slug = sesion.rol === 'admin' ? destino : (sesion.slug || '');
-  const clave = slug ? slug + ':ideas' : 'ideas';
-
   let thumb = '';
-  let texto = (info.selectionText || '').trim();
-
-  if (info.srcUrl) {
-    const r = await bajarImagen(tab.id, info.srcUrl, ANCHO_MAX, CALIDAD);
-    // Si el sitio no deja descargarla, se guarda el enlace en vez de perder la idea. La
-    // miniatura puede romperse más adelante, pero el texto y la referencia quedan.
-    thumb = r.dataUrl || '';
-    if (!thumb && !texto) texto = 'Referencia de ' + (tab.title || info.pageUrl || 'la web');
+  if (info.srcUrl && tab && tab.id != null) {
+    const r = await bajarImagen(tab.id, info.srcUrl);
+    // Si el sitio no deja descargarla, se cae al enlace directo: la miniatura puede
+    // romperse más adelante, pero es mejor que perder la referencia.
+    thumb = r.dataUrl || info.srcUrl;
   }
-  if (!texto) texto = 'Referencia de ' + (tab.title || 'la web');
 
-  try {
-    // Se relee la lista justo antes de escribir: si el calendario está abierto en otra
-    // pestaña, guardar sobre una copia vieja borraría lo que se agregó en el medio.
-    const actual = await pedir({ token: sesion.token, accion: 'get', key: clave });
-    let ideas = [];
-    try { ideas = JSON.parse(actual.value || '[]') || []; } catch (e) { ideas = []; }
-
-    ideas.push({
-      id: idAlAzar(),
-      text: texto.slice(0, 500),
+  // El borrador va por storage y no por la URL de la ventana: una imagen en base64 son
+  // cientos de miles de caracteres y no entra en una dirección.
+  await chrome.storage.session.set({
+    borrador: {
+      texto: (info.selectionText || '').trim(),
       link: info.pageUrl || info.srcUrl || '',
-      thumb: thumb || (info.srcUrl || ''),
-      angle: null,
-      kind: '',
-      origen: 'extension',
-      createdAt: new Date().toISOString()
-    });
+      thumb,
+      tituloPagina: (tab && tab.title) || ''
+    },
+    sesion
+  });
 
-    await pedir({ token: sesion.token, accion: 'set', key: clave, value: JSON.stringify(ideas) });
-
-    const dondeMenu = info.menuItemId === 'guardar::' ? 'Calendario principal' : null;
-    avisar('Idea guardada', dondeMenu || (slug ? 'En el calendario de ' + slug : 'En tu calendario'));
-  } catch (e) {
-    avisar('No se pudo guardar', (e && e.message) || 'Revisá tu conexión.');
-  }
+  chrome.windows.create({
+    url: chrome.runtime.getURL('guardar.html'),
+    type: 'popup',
+    width: VENTANA.ancho,
+    height: VENTANA.alto
+  });
 });
