@@ -967,23 +967,6 @@
   .idea-row .actions{display:flex;gap:6px;flex-shrink:0;}
   .ideas-empty{color:var(--muted-2);font-size:12.5px;text-align:center;padding:20px 0;}
 
-  /* ---------- tabs del modal de Ideas ---------- */
-  .tabs-header{
-    display:flex; gap:var(--s-1); margin-bottom:var(--s-4);
-    border-bottom:1px solid var(--border);
-  }
-  .tab-btn{
-    background:none; border:none; color:var(--muted); cursor:pointer;
-    padding:var(--s-2) var(--s-3); font-size:var(--t-sm); font-weight:var(--w-semibold);
-    font-family:'Inter',sans-serif; letter-spacing:-0.005em;
-    border-bottom:2px solid transparent; margin-bottom:-1px;
-    transition:color .15s var(--ease-out), border-color .15s var(--ease-out);
-  }
-  .tab-btn:hover{color:var(--text);}
-  .tab-btn.active{color:var(--text); border-bottom-color:var(--accent);}
-  .tab-panel{display:none;}
-  .tab-panel.active{display:block;}
-
   /* ---------- tabs por tipo (Todo/Reels/Carruseles/Stories) ---------- */
   .ideas-kind-tabs{display:flex; gap:var(--s-1); flex:1;}
   .ik-tab{
@@ -1028,8 +1011,6 @@
     margin:0; font-size:var(--t-md); font-weight:var(--w-semibold);
     letter-spacing:-0.01em;
   }
-  /* Pestañas Mis ideas / Pinterest, en línea dentro del panel (ya no en un modal). */
-  .ideas-inline-tabs{margin-bottom:var(--s-3);}
   /* Formulario de alta compacto: mismo contenido que tenía el modal, pero con menos aire
      porque acá compite por espacio con la lista, no ocupa una ventana entera. */
   .idea-add-box.compact{padding:var(--s-3); margin-bottom:var(--s-3);}
@@ -1544,7 +1525,8 @@
         <!-- Ideas guardadas: editor completo, siempre visible. Antes vivía en un modal
              separado y en el dashboard solo se veía un mini-listado; ahora el widget es
              el editor entero — agregar, editar, clasificar, borrar y pegar miniatura se
-             hace acá mismo, y la pestaña de Pinterest queda al lado sin abrir nada. -->
+             hace acá mismo. Las ideas se cargan a mano: la imagen de referencia entra
+             copiando y pegando con Ctrl+V, sin depender de ninguna cuenta externa. -->
         <div class="ideas-dashboard" id="ideasDashboard">
           <div class="ideas-dashboard-head">
             <h3>💡 Ideas guardadas</h3>
@@ -1553,50 +1535,36 @@
                  controles se comía media caja sin que nadie lo pidiera. -->
             <button class="btn ghost small" id="toggleNuevaIdeaBtn" title="Escribir una idea nueva"><i class="fa-solid fa-plus"></i>Nueva idea</button>
           </div>
-          <div class="tabs-header ideas-inline-tabs">
-            <button class="tab-btn active" data-tab="mis-ideas" title="Ideas propias que fuiste guardando">Mis ideas</button>
-            <button class="tab-btn" data-tab="pinterest" title="Referencias visuales de tus tableros de Pinterest">Inspo Pinterest</button>
-          </div>
 
-          <div class="tab-panel active" data-tab-panel="mis-ideas">
-            <div class="idea-add-box compact" id="ideaAddBox" hidden>
-              <textarea id="newIdeaText" placeholder="Ej: colaboración con influencer local, video de detrás de escena en la cocina..."></textarea>
-              <input type="url" id="newIdeaLink" class="idea-link-input" placeholder="🔗 Link de referencia (opcional): un reel, un artículo, una foto…" />
-              <div id="newIdeaImagen"></div>
-              <div class="idea-add-row">
-                <!-- Tipo: sirve para clasificar y para prellenar cuando se lleva al calendario.
-                     '' = sin tipo, se elige después al asignar. -->
-                <select id="newIdeaKind" class="idea-kind-select" title="Tipo de posteo al que apunta esta idea">
-                  <option value="">Cualquier tipo</option>
-                  <option value="reel">Reel</option>
-                  <option value="carrusel">Carrusel</option>
-                  <option value="story">Story</option>
-                </select>
-                <div class="angle-picker" id="newIdeaAnglePicker" style="flex:1;"></div>
-                <button class="btn ghost small" id="cancelIdeaBtn" title="Cerrar sin guardar">Cancelar</button>
-                <button class="btn primary small" id="addIdeaBtn" title="Guardar esta idea para usarla más adelante">Agregar</button>
-              </div>
-            </div>
-
-            <div class="ideas-filter-row">
-              <div class="ideas-kind-tabs" id="ideaKindTabs">
-                <button type="button" class="ik-tab active" data-kind="">Todo</button>
-                <button type="button" class="ik-tab" data-kind="reel">Reels</button>
-                <button type="button" class="ik-tab" data-kind="carrusel">Carruseles</button>
-                <button type="button" class="ik-tab" data-kind="story">Stories</button>
-              </div>
-              <select id="ideaFilterSelect" title="Filtrar por ángulo"><option value="">Todos los ángulos</option></select>
-            </div>
-            <div id="ideasList"></div>
-          </div>
-
-          <div class="tab-panel" data-tab-panel="pinterest">
-            <p class="hint">Conectá tus tableros de Pinterest y traé pines como referencia visual. Con un click convertís cualquier pin en una idea del calendario.</p>
-            <div id="pinterestBody">
-              <!-- Se llena por JS: puede mostrar el estado "no conectado" con instrucciones, o
-                   la grilla de pines si ya está conectado. -->
+          <div class="idea-add-box compact" id="ideaAddBox" hidden>
+            <textarea id="newIdeaText" placeholder="Ej: colaboración con influencer local, video de detrás de escena en la cocina..."></textarea>
+            <input type="url" id="newIdeaLink" class="idea-link-input" placeholder="🔗 Link de referencia (opcional): un reel, un artículo, una foto…" />
+            <div id="newIdeaImagen"></div>
+            <div class="idea-add-row">
+              <!-- Tipo: sirve para clasificar y para prellenar cuando se lleva al calendario.
+                   '' = sin tipo, se elige después al asignar. -->
+              <select id="newIdeaKind" class="idea-kind-select" title="Tipo de posteo al que apunta esta idea">
+                <option value="">Cualquier tipo</option>
+                <option value="reel">Reel</option>
+                <option value="carrusel">Carrusel</option>
+                <option value="story">Story</option>
+              </select>
+              <div class="angle-picker" id="newIdeaAnglePicker" style="flex:1;"></div>
+              <button class="btn ghost small" id="cancelIdeaBtn" title="Cerrar sin guardar">Cancelar</button>
+              <button class="btn primary small" id="addIdeaBtn" title="Guardar esta idea para usarla más adelante">Agregar</button>
             </div>
           </div>
+
+          <div class="ideas-filter-row">
+            <div class="ideas-kind-tabs" id="ideaKindTabs">
+              <button type="button" class="ik-tab active" data-kind="">Todo</button>
+              <button type="button" class="ik-tab" data-kind="reel">Reels</button>
+              <button type="button" class="ik-tab" data-kind="carrusel">Carruseles</button>
+              <button type="button" class="ik-tab" data-kind="story">Stories</button>
+            </div>
+            <select id="ideaFilterSelect" title="Filtrar por ángulo"><option value="">Todos los ángulos</option></select>
+          </div>
+          <div id="ideasList"></div>
         </div>
       </div>
     </div>
@@ -1867,9 +1835,9 @@
 </div>
 
 <!-- El modal de Ideas se retiró: todo su contenido vive ahora dentro del widget
-     "Ideas guardadas" del dashboard (agregar, editar, clasificar, borrar, pegar
-     miniatura y la pestaña de Pinterest). El botón del header sigue funcionando pero
-     ahora hace scroll hasta el widget en vez de abrir una ventana aparte. -->
+     "Ideas guardadas" del dashboard (agregar, editar, clasificar, borrar y pegar
+     miniatura). El botón del header sigue funcionando pero ahora hace scroll hasta el
+     widget en vez de abrir una ventana aparte. -->
 
 <!-- LLEVAR IDEA AL CALENDARIO -->
 <div class="modal-back" id="ideaToCalendarModal">
@@ -6100,23 +6068,9 @@
     w.scrollIntoView({ behavior: 'smooth', block: 'center' });
     w.classList.add('flash');
     setTimeout(()=> w.classList.remove('flash'), 1200);
-    // Aseguro que la pestaña "Mis ideas" quede activa.
-    document.querySelectorAll('#ideasDashboard .tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === 'mis-ideas'));
-    document.querySelectorAll('#ideasDashboard .tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tabPanel === 'mis-ideas'));
     // Quien viene desde el botón del header quiere anotar algo: se abre el formulario
     // ya listo para escribir, después de que termine el scroll.
     setTimeout(()=> mostrarFormularioIdea(true), 400);
-  });
-
-  // Tabs "Mis ideas" / "Inspo Pinterest": intercambian qué panel está visible dentro
-  // del widget de ideas. Un solo handler para todos los botones de tab.
-  document.querySelectorAll('#ideasDashboard .tab-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const tab = btn.dataset.tab;
-      document.querySelectorAll('#ideasDashboard .tab-btn').forEach(b => b.classList.toggle('active', b === btn));
-      document.querySelectorAll('#ideasDashboard .tab-panel').forEach(p => p.classList.toggle('active', p.dataset.tabPanel === tab));
-      if(tab === 'pinterest') renderPinterestPanel();
-    });
   });
 
   // Filtro por tipo (Todo/Reels/Carruseles/Stories) del propio widget.
@@ -6213,102 +6167,6 @@
       btn.disabled = false; btn.textContent = 'Llevar';
     }
   });
-
-  // ---------- Pinterest ----------
-  // Requiere un token de acceso (Pinterest lo da desde la config de la cuenta) puesto
-  // como variable de entorno PINTEREST_TOKEN en Vercel. Sin token, la pestaña muestra
-  // instrucciones concretas de qué hacer, en vez de un error genérico o una lista vacía.
-  async function renderPinterestPanel(){
-    const body = $('pinterestBody');
-    body.innerHTML = '<div class="ideas-empty">Cargando tableros…</div>';
-    try{
-      const res = await fetch('/api/pinterest?accion=boards', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ token: TOKEN })
-      });
-      const json = await res.json().catch(()=>null);
-      if(res.status === 501){
-        // Falta configurar el token: instrucciones, no un error seco.
-        // Falta el token. El texto no promete un botón de "generar token" que no existe:
-        // Pinterest pide cuenta business, aprobación manual de la app (revisan cada día
-        // hábil) y recién después el permiso se otorga con un OAuth, que es trabajo de
-        // programación y no algo que se resuelva pegando un dato acá.
-        body.innerHTML = `
-          <div class="ideas-empty" style="text-align:left;line-height:1.6;padding:var(--s-3);">
-            <strong>Pinterest no está conectado.</strong><br><br>
-            Conectarlo tiene dos partes. La tuya:<br>
-            1. Tener la cuenta de Pinterest como <em>business</em> (es gratis, se convierte desde la cuenta que ya usás).<br>
-            2. Entrar a <a href="https://developers.pinterest.com/apps/" target="_blank" rel="noopener noreferrer" style="color:var(--accent);">developers.pinterest.com/apps</a>, tocar <strong>Connect app</strong> y completar el formulario.<br>
-            3. Esperar el mail de aprobación: la revisan a mano, un día hábil.<br><br>
-            Cuando llegue la aprobación, avisame y hago la segunda parte del lado del servidor.
-            Mientras tanto podés usar las ideas con imagen pegada, que funciona igual.
-          </div>`;
-        return;
-      }
-      if(!res.ok || !json) throw new Error((json && json.error) || ('http ' + res.status));
-      const boards = json.boards || [];
-      if(boards.length === 0){
-        body.innerHTML = '<div class="ideas-empty">No hay tableros en esta cuenta.</div>';
-        return;
-      }
-      body.innerHTML = boards.map(b =>
-        `<button class="btn ghost" data-board="${escapeHtml(b.id)}" style="width:100%;margin-bottom:var(--s-2);justify-content:space-between;">
-           ${escapeHtml(b.name)}
-           <span style="color:var(--muted-2);font-family:'IBM Plex Mono',monospace;font-size:var(--t-xs);">${b.pin_count || 0} pines</span>
-         </button>`
-      ).join('');
-      body.querySelectorAll('[data-board]').forEach(btn=>{
-        btn.addEventListener('click', ()=> mostrarPinesDeBoard(btn.dataset.board));
-      });
-    }catch(e){
-      body.innerHTML = `<div class="ideas-empty" style="color:var(--danger);">No se pudo cargar Pinterest: ${escapeHtml(e.message)}</div>`;
-    }
-  }
-
-  async function mostrarPinesDeBoard(boardId){
-    const body = $('pinterestBody');
-    body.innerHTML = '<div class="ideas-empty">Cargando pines…</div>';
-    try{
-      const res = await fetch('/api/pinterest?accion=pins', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ token: TOKEN, boardId })
-      });
-      const json = await res.json().catch(()=>null);
-      if(!res.ok) throw new Error((json && json.error) || ('http ' + res.status));
-      const pins = json.pins || [];
-      const back = '<button class="btn ghost small" id="volverBoards" style="margin-bottom:var(--s-3);"><i class="fa-solid fa-arrow-left"></i>Tableros</button>';
-      if(pins.length === 0){ body.innerHTML = back + '<div class="ideas-empty">Este tablero no tiene pines.</div>'; }
-      else{
-        body.innerHTML = back + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--s-2);">' +
-          pins.map(p => `
-            <div class="pin-card" style="position:relative;">
-              <img src="${escapeHtml(p.image)}" alt="" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:var(--r-2);display:block;" />
-              <button class="btn primary small" data-pin='${escapeHtml(JSON.stringify(p))}' style="position:absolute;bottom:6px;left:6px;right:6px;font-size:var(--t-xs);padding:var(--s-1) var(--s-2);">Convertir en idea</button>
-            </div>`).join('') +
-          '</div>';
-        body.querySelectorAll('[data-pin]').forEach(btn=>{
-          btn.addEventListener('click', async ()=>{
-            const pin = JSON.parse(btn.dataset.pin);
-            ideas.push({
-              id: genId(),
-              text: pin.description || pin.title || 'Pin de Pinterest',
-              link: pin.link || '',
-              thumb: pin.image || '',
-              angle: null, kind: '',
-              origen: 'pinterest',
-              createdAt: new Date().toISOString()
-            });
-            await saveIdeas();
-            renderIdeasList();
-            showToast('Idea creada desde el pin');
-          });
-        });
-      }
-      $('volverBoards').addEventListener('click', renderPinterestPanel);
-    }catch(e){
-      body.innerHTML = `<div class="ideas-empty" style="color:var(--danger);">No se pudieron cargar los pines: ${escapeHtml(e.message)}</div>`;
-    }
-  }
 
   // El editor de ideas está siempre en pantalla, así que se pinta apenas termina de
   // cargar la lista, sin esperar a que nadie abra nada.
