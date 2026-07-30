@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8" />
+<style>
+  :root{
+    --fondo:#0f0f12; --superficie:#16161b; --superficie-2:#1c1c22;
+    --borde:#26262e; --texto:#e8e6ef; --apagado:#a09daf; --apagado-2:#6e6b7d;
+    --acento:#8b5cf6; --ok:#3fd399; --mal:#e0574f;
+  }
+  *{box-sizing:border-box;}
+  body{
+    width:320px; margin:0; padding:16px;
+    background:var(--fondo); color:var(--texto);
+    font-family:'Segoe UI',system-ui,-apple-system,sans-serif; font-size:13px;
+  }
+  h1{
+    font-size:14px; margin:0 0 4px; font-weight:600; letter-spacing:-0.01em;
+    display:flex; align-items:center; gap:8px;
+  }
+  h1 img{width:20px; height:20px; border-radius:5px;}
+  p.sub{margin:0 0 14px; color:var(--apagado); font-size:11.5px; line-height:1.5;}
+  label{display:block; font-size:11px; color:var(--apagado); margin-bottom:5px;}
+  input{
+    width:100%; background:var(--superficie-2); border:1px solid var(--borde);
+    border-radius:8px; color:var(--texto); padding:9px 11px;
+    font-family:'Consolas',monospace; font-size:16px; letter-spacing:3px; text-align:center;
+  }
+  input:focus{outline:none; border-color:var(--acento);}
+  button{
+    width:100%; margin-top:9px; padding:9px 12px; border:none; border-radius:8px;
+    background:var(--acento); color:#fff; font-size:13px; font-weight:600;
+    cursor:pointer; font-family:inherit;
+  }
+  button:hover:not(:disabled){filter:brightness(1.12);}
+  button:disabled{opacity:.55; cursor:default;}
+  button.suave{background:none; border:1px solid var(--borde); color:var(--apagado);}
+  button.suave:hover{color:var(--texto); border-color:var(--apagado-2);}
+  .aviso{margin-top:10px; font-size:11.5px; line-height:1.5; min-height:16px;}
+  .aviso.mal{color:var(--mal);}
+  .aviso.ok{color:var(--ok);}
+  .conectado{
+    background:var(--superficie); border:1px solid var(--borde); border-radius:9px;
+    padding:11px 12px; margin-bottom:12px;
+  }
+  .conectado .quien{font-weight:600; font-size:13px; margin-bottom:2px;}
+  .conectado .rol{color:var(--apagado); font-size:11px;}
+  .como{
+    margin:12px 0 0; padding:11px 12px; background:var(--superficie);
+    border:1px solid var(--borde); border-radius:9px;
+    color:var(--apagado); font-size:11.5px; line-height:1.6;
+  }
+  .como strong{color:var(--texto);}
+  a{color:var(--acento);}
+  .oculto{display:none;}
+</style>
+</head>
+<body>
+
+<h1><img src="iconos/icono-48.png" alt="" />Ideas al Calendario</h1>
+
+<!-- Sin conectar -->
+<div id="vistaEntrar">
+  <p class="sub">Pegá el PIN de 6 dígitos de tu calendario. Queda guardado en esta computadora, no hay que ponerlo cada vez.</p>
+  <label for="pin">Tu PIN</label>
+  <input type="text" id="pin" inputmode="numeric" maxlength="6" placeholder="······" autocomplete="off" />
+  <button id="entrarBtn">Conectar</button>
+  <div class="aviso" id="avisoEntrar"></div>
+</div>
+
+<!-- Conectado -->
+<div id="vistaConectado" class="oculto">
+  <div class="conectado">
+    <div class="quien" id="quien">—</div>
+    <div class="rol" id="rol">—</div>
+  </div>
+
+  <div class="como">
+    <strong>Cómo guardar una idea:</strong><br>
+    Click derecho sobre una imagen o un texto de cualquier página → <strong>Guardar como idea</strong>.
+  </div>
+
+  <button class="suave" id="abrirBtn" style="margin-top:12px;">Abrir mi calendario</button>
+  <button class="suave" id="salirBtn">Desconectar esta computadora</button>
+  <div class="aviso" id="avisoConectado"></div>
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
