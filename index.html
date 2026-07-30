@@ -1083,6 +1083,18 @@
     border:1px solid var(--border);background:var(--card-bg-2);
   }
   .idea-thumb.chico{width:40px;height:40px;}
+  /* Fotograma de un video de referencia: la miniatura es un enlace y lleva el ▶ encima.
+     El triángulo va sobre un círculo oscuro porque un fotograma puede ser claro y un
+     símbolo suelto se perdería contra el fondo. */
+  .idea-thumb-video{position:relative;flex:none;display:block;line-height:0;}
+  .idea-thumb-video .play{
+    position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:24px;height:24px;border-radius:50%;
+    background:rgba(0,0,0,.55);border:1.5px solid rgba(255,255,255,.85);
+    color:#fff;font-size:9px;line-height:21px;text-align:center;padding-left:2px;
+    transition:background .15s var(--ease-out);
+  }
+  .idea-thumb-video:hover .play{background:rgba(0,0,0,.75);}
   .idea-img-row{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;}
 
   /* ---------- multilink del encabezado ---------- */
@@ -5757,6 +5769,24 @@
   let ideaFilterAngle = '';
   let ideaFilterKind = ''; // '' = todos | 'reel' | 'carrusel' | 'story'
 
+  // ¿El link de referencia apunta a un video? Sirve para marcar la miniatura con un ▶ y que
+  // se entienda que hay algo para mirar, no solo una foto.
+  //
+  // Se mira el dominio y la forma del camino, no la extensión del archivo: casi ningún
+  // video de red social termina en .mp4, y en cambio /reel/ o /shorts/ son inequívocos. Es
+  // una ayuda visual: si acierta de menos, lo único que pasa es que no aparece el ▶.
+  function pareceVideo(url){
+    if(!url) return false;
+    let u;
+    try{ u = new URL(url); }catch(e){ return false; }
+    const host = u.hostname.replace(/^www\./,'').toLowerCase();
+    const camino = u.pathname.toLowerCase();
+    if(/^(youtube\.com|youtu\.be|vimeo\.com|tiktok\.com|dailymotion\.com|twitch\.tv)$/.test(host)) return true;
+    if(/\/(reel|reels|shorts|video|videos|watch|clip)s?\//.test(camino)) return true;
+    if(/\.(mp4|webm|mov|m4v|avi)$/.test(camino)) return true;
+    return false;
+  }
+
   async function loadIdeas(){
     try{
       const val = await storageGet('ideas');
@@ -5900,15 +5930,35 @@
     const info = document.createElement('div');
     info.className = 'info';
 
-    // Miniatura de referencia, si la idea tiene una.
+    // Miniatura de referencia, si la idea tiene una. Cuando la referencia es un video, la
+    // miniatura es el fotograma capturado y se marca con un ▶: sin eso se leería como una
+    // foto y se perdería que hay algo para mirar detrás del enlace.
     if(idea.thumb){
       const mini = document.createElement('img');
       mini.className = 'idea-thumb';
       mini.src = idea.thumb;
       mini.alt = 'Referencia';
-      mini.title = 'Referencia visual de esta idea';
-      mini.onerror = ()=> mini.remove();
-      row.insertBefore(mini, row.firstChild);
+      mini.onerror = ()=> (mini.parentElement || mini).remove();
+
+      if(idea.esVideo && idea.link){
+        // Envuelto en un enlace: la referencia de un video se termina de entender
+        // viéndolo, así que la miniatura lleva ahí en un click.
+        const marco = document.createElement('a');
+        marco.className = 'idea-thumb-video';
+        marco.href = idea.link;
+        marco.target = '_blank';
+        marco.rel = 'noopener noreferrer';
+        marco.title = 'Ver el video de referencia';
+        marco.appendChild(mini);
+        const play = document.createElement('span');
+        play.className = 'play';
+        play.textContent = '▶';
+        marco.appendChild(play);
+        row.insertBefore(marco, row.firstChild);
+      }else{
+        mini.title = idea.esVideo ? 'Fotograma del video de referencia' : 'Referencia visual de esta idea';
+        row.insertBefore(mini, row.firstChild);
+      }
     }
 
     const txt = document.createElement('div');
@@ -6050,6 +6100,9 @@
       idea.text = textarea.value.trim();
       idea.link = normalizarUrl(linkInput.value);
       idea.thumb = porta.thumb;
+      // Se recalcula al editar, por si el link pasó de una nota a un reel. Se respeta lo
+      // que marcó la extensión, que capturó el fotograma y sabe mejor que esta heurística.
+      idea.esVideo = pareceVideo(idea.link) || (idea.origen === 'extension' && !!idea.esVideo);
       idea.angle = editingIdeaAngle;
       idea.kind = kindSelect.value; // '' = cualquier tipo
       editingIdeaId = null;
@@ -6087,10 +6140,12 @@
   $('addIdeaBtn').addEventListener('click', async ()=>{
     const text = $('newIdeaText').value.trim();
     if(!text){ showToast('Escribí una idea primero'); return; }
+    const link = normalizarUrl($('newIdeaLink').value);
     ideas.push({
       id: genId(), text,
-      link: normalizarUrl($('newIdeaLink').value),
+      link,
       thumb: nuevaIdeaThumb,
+      esVideo: pareceVideo(link),
       angle: newIdeaAngleId,
       kind: $('newIdeaKind').value || '', // '' = sin tipo asignado
       createdAt: new Date().toISOString()

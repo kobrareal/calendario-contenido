@@ -34,9 +34,22 @@
     padding:11px; background:var(--superficie); border:1px solid var(--borde);
     border-radius:9px;
   }
+  .previa .marco{position:relative; flex:none;}
   .previa img{
-    width:84px; height:84px; flex:none; object-fit:cover;
+    width:84px; height:84px; display:block; object-fit:cover;
     border-radius:6px; border:1px solid var(--borde); background:var(--superficie-3);
+  }
+  /* Sobre un fotograma de video: sin esto la miniatura parece una foto y se pierde que
+     detrás hay algo que se mira, no que se ve. */
+  .previa .play{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    pointer-events:none;
+  }
+  .previa .play span{
+    width:28px; height:28px; border-radius:50%;
+    background:rgba(0,0,0,.55); border:1.5px solid rgba(255,255,255,.85);
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:11px; padding-left:2px;
   }
   .previa .de{font-size:11px; color:var(--apagado); line-height:1.55; min-width:0;}
   .previa .de b{color:var(--texto); font-weight:600;}
@@ -84,10 +97,14 @@
 <h1>Guardar como idea</h1>
 
 <div class="previa" id="previa" hidden>
-  <img id="previaImg" alt="" />
+  <div class="marco">
+    <img id="previaImg" alt="" />
+    <div class="play" id="previaPlay" hidden><span>▶</span></div>
+  </div>
   <div class="de">
     <b id="previaTitulo">—</b>
     <span id="previaSitio"></span>
+    <span id="previaNota" style="color:var(--acento-2);margin-top:4px;font-family:inherit;font-size:10.5px;white-space:normal;" hidden></span>
   </div>
 </div>
 

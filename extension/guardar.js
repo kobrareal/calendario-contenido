@@ -78,6 +78,22 @@ function pintarAngulos(lista) {
     $('previaImg').onerror = () => { $('previa').hidden = true; };
     $('previaTitulo').textContent = borrador.tituloPagina || 'Referencia';
     $('previaSitio').textContent = borrador.link || '';
+    $('previaPlay').hidden = !borrador.esVideo;
+    if (borrador.esVideo) {
+      $('previaNota').textContent = 'Fotograma del video. El enlace queda guardado para verlo completo.';
+      $('previaNota').hidden = false;
+    }
+    $('previa').hidden = false;
+  } else if (borrador.esVideo) {
+    // Sin fotograma la idea se guarda igual, pero conviene decir por qué no hay imagen en
+    // vez de dejar un hueco sin explicación.
+    $('previaTitulo').textContent = borrador.tituloPagina || 'Referencia';
+    $('previaSitio').textContent = borrador.link || '';
+    $('previaImg').style.display = 'none';
+    $('previaNota').textContent = 'No se pudo capturar el fotograma' +
+      (borrador.avisoCaptura ? ' (' + borrador.avisoCaptura + ')' : '') +
+      '. La idea se guarda con el enlace al video.';
+    $('previaNota').hidden = false;
     $('previa').hidden = false;
   }
 
@@ -170,6 +186,9 @@ $('guardar').addEventListener('click', async () => {
       text: texto.slice(0, 500),
       link: $('link').value.trim(),
       thumb: borrador.thumb || '',
+      // El calendario lo usa para dibujar el ▶ sobre la miniatura: sin esto, un fotograma
+      // se vería igual que una foto y no se sabría que hay un video detrás del enlace.
+      esVideo: !!borrador.esVideo,
       angle: $('angulo').value || null,
       kind: tipoElegido,
       origen: 'extension',
