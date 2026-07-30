@@ -5,6 +5,7 @@
     }
   },
   "rewrites": [
+    { "source": "/wayfarer/privacidad", "destination": "/privacidad.html" },
     { "source": "/privacidad", "destination": "/privacidad.html" },
     { "source": "/:token", "destination": "/index.html" }
   ]
