@@ -871,6 +871,19 @@
   }
   .copy-contador.cerca{color:#d9a441;}
   .copy-contador.pasado{color:var(--danger); font-weight:500;}
+
+  /* Fila de ClickUp al pie de cada tarjeta. Va separada por una línea porque no es parte de
+     escribir el posteo, sino lo que se hace después con él. */
+  .clickup-row{
+    display:flex; align-items:center; gap:var(--s-3); flex-wrap:wrap;
+    margin-top:var(--s-3); padding-top:var(--s-3);
+    border-top:1px solid var(--border);
+  }
+  .clickup-link{
+    font-size:var(--t-xs); color:var(--accent); text-decoration:none;
+    font-family:'IBM Plex Mono',monospace;
+  }
+  .clickup-link:hover{text-decoration:underline;}
   .ai-btn-row{display:flex;gap:8px;}
   .acciones-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;}
   .ai-generate-btn{flex:1;justify-content:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;font-weight:600;}
@@ -1892,6 +1905,18 @@
      miniatura). El botón del header sigue funcionando pero ahora hace scroll hasta el
      widget en vez de abrir una ventana aparte. -->
 
+<!-- CLICKUP -->
+<div class="modal-back" id="clickupModal">
+  <div class="modal" style="width:520px;">
+    <h2>ClickUp</h2>
+    <div id="clickupBody"><!-- se llena por JS: instrucciones o el selector de lista --></div>
+    <div class="modal-close-row" style="margin-top:14px;">
+      <button class="btn ghost" id="clickupCancel" style="margin-right:auto;">Cerrar</button>
+      <button class="btn primary" id="clickupGuardar">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- LLEVAR IDEA AL CALENDARIO -->
 <div class="modal-back" id="ideaToCalendarModal">
   <div class="modal" style="width:420px;">
@@ -2487,7 +2512,7 @@
   async function precargarArranque(){
     const claves = [
       'angles', 'client-name', 'calendar-title', 'client-photo',
-      'ideas', 'quick-links', 'papelera', 'recurring-rules', 'notifications',
+      'ideas', 'quick-links', 'papelera', 'recurring-rules', 'notifications', 'clickup',
       claveAnotaciones(viewYear, viewMonth), claveNotasMes(),
       // El blob de la versión vieja se consulta en cada arranque para migrarlo. Viene en
       // el mismo pedido: casi siempre no existe, y así no cuesta una ida y vuelta propia.
@@ -3779,6 +3804,195 @@
     return box;
   }
 
+  // ---------- ClickUp ----------
+  // Cada posteo puede mandarse como tarea. No se manda solo al crearlo: un calendario se
+  // arma con borradores, y una tarea por cada idea a medio pensar convierte el tablero en
+  // ruido. Se manda cuando quien lo escribió decide que ya está.
+  //
+  // El id de la tarea queda guardado en el posteo, así el mismo botón después actualiza en
+  // vez de crear otra: sin eso, tocarlo dos veces dejaría tareas duplicadas.
+  let clickupConfig = null; // { listId, listaNombre } — de la marca que se está mirando
+
+  async function loadClickup(){
+    try{
+      const val = await storageGet('clickup');
+      clickupConfig = val ? JSON.parse(val) : null;
+    }catch(e){ clickupConfig = null; }
+  }
+  async function saveClickup(){
+    try{ await storageSet('clickup', JSON.stringify(clickupConfig || {})); }
+    catch(e){ showToast('No se pudo guardar la configuración de ClickUp'); }
+  }
+
+  async function pedirClickup(cuerpo){
+    const res = await fetch('/api/clickup', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(Object.assign({ token: TOKEN }, cuerpo)),
+      cache:'no-store'
+    });
+    const json = await res.json().catch(()=>null);
+    if(res.status === 501){ const e = new Error('ClickUp no está conectado.'); e.sinConfigurar = true; throw e; }
+    if(!res.ok || !json) throw new Error((json && json.error) || ('error ' + res.status));
+    return json;
+  }
+
+  // Arma la tarea a partir del posteo. El título es lo que se ve en el tablero, así que
+  // lleva la fecha y el tipo: en una lista de treinta tareas, "Reel" repetido no orienta.
+  function tareaDesde(key, item, esStory){
+    const [anio, mes, dia] = key.split('-').map(Number);
+    const tipo = esStory ? 'Story' : (item.kind === 'carrusel' ? 'Carrusel' : 'Reel');
+    const angulo = item.angle ? ((angleById(item.angle) || {}).name || '') : '';
+    const titulo = (item.title || '').trim();
+
+    const partes = [];
+    if(item.context) partes.push('CONTEXTO / IDEA\n' + item.context);
+    if(item.text) partes.push('COPY\n' + item.text);
+    if(item.script) partes.push('GUION\n' + item.script);
+    if(item.clientNote) partes.push('NOTAS\n' + item.clientNote);
+    partes.push('—\nDesde el Calendario de Contenido · ' + dia + '/' + mes + '/' + anio +
+      (item.time ? ' ' + item.time : ''));
+
+    const tarea = {
+      name: `${dia}/${mes} · ${tipo}` + (titulo ? ' — ' + titulo : ''),
+      description: partes.join('\n\n'),
+      tags: [tipo.toLowerCase(), angulo].filter(Boolean)
+    };
+
+    // La fecha de entrega sale del día y la hora del posteo. Se arma en horario local y no
+    // en UTC: una story de las 21:00 en Argentina caería al día siguiente si se usara UTC.
+    if(item.time && /^\d{1,2}:\d{2}$/.test(item.time)){
+      const [h, m] = item.time.split(':').map(Number);
+      tarea.due_date = new Date(anio, mes - 1, dia, h, m).getTime();
+      tarea.due_date_time = true;
+    }else{
+      tarea.due_date = new Date(anio, mes - 1, dia, 12, 0).getTime();
+      tarea.due_date_time = false;
+    }
+    return tarea;
+  }
+
+  // Fila con el botón de mandar a ClickUp y, si ya se mandó, el enlace a la tarea.
+  function buildClickupRow(key, item, esStory){
+    const row = document.createElement('div');
+    row.className = 'clickup-row';
+
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.className = 'btn ghost small';
+
+    const enlace = document.createElement('a');
+    enlace.className = 'clickup-link';
+    enlace.target = '_blank'; enlace.rel = 'noopener noreferrer';
+    enlace.textContent = 'Ver la tarea';
+
+    const pintar = ()=>{
+      const hecha = !!item.clickupId;
+      btn.innerHTML = hecha
+        ? '<i class="fa-solid fa-rotate"></i>Actualizar en ClickUp'
+        : '<i class="fa-solid fa-list-check"></i>Mandar a ClickUp';
+      btn.title = hecha
+        ? 'Vuelve a mandar el título, el copy y la fecha a la tarea que ya existe'
+        : 'Crea una tarea en ClickUp con este posteo';
+      enlace.style.display = hecha && item.clickupUrl ? '' : 'none';
+      if(item.clickupUrl) enlace.href = item.clickupUrl;
+    };
+
+    btn.addEventListener('click', async ()=>{
+      if(!clickupConfig || !clickupConfig.listId){
+        abrirConfigClickup(()=> btn.click()); // configurada la lista, sigue con el envío
+        return;
+      }
+      btn.disabled = true;
+      const original = btn.innerHTML;
+      btn.innerHTML = item.clickupId ? 'Actualizando…' : 'Creando…';
+      try{
+        const tarea = tareaDesde(key, item, esStory);
+        const r = item.clickupId
+          ? await pedirClickup({ accion:'actualizar', taskId: item.clickupId, tarea })
+          : await pedirClickup({ accion:'crear', listId: clickupConfig.listId, tarea });
+        item.clickupId = r.id || item.clickupId;
+        if(r.url) item.clickupUrl = r.url;
+        scheduleSaveDay(key);
+        pintar();
+        showToast(item.clickupId ? 'Tarea actualizada en ClickUp' : 'Tarea creada en ClickUp');
+      }catch(e){
+        if(e.sinConfigurar) mostrarAyudaClickup();
+        else showToast('ClickUp: ' + e.message);
+        btn.innerHTML = original;
+      }finally{
+        btn.disabled = false;
+        pintar();
+      }
+    });
+
+    row.appendChild(btn);
+    row.appendChild(enlace);
+    pintar();
+    return row;
+  }
+
+  function mostrarAyudaClickup(){
+    $('clickupBody').innerHTML = `
+      <p class="hint" style="text-align:left;line-height:1.65;">
+        <strong>Falta conectar ClickUp.</strong><br><br>
+        A diferencia de otras integraciones, acá no hay que pedirle permiso a nadie:<br>
+        1. En ClickUp, tocá tu foto de perfil (arriba a la derecha) → <strong>Settings</strong>.<br>
+        2. En la lista de la izquierda, <strong>Apps</strong>.<br>
+        3. En <strong>API Token</strong>, tocá <strong>Generate</strong> y copiá el código (empieza con <code>pk_</code>).<br>
+        4. Pasámelo por chat y lo dejo configurado en el servidor.
+      </p>`;
+    $('clickupModal').classList.add('open');
+  }
+
+  // Elegir en qué lista de ClickUp caen las tareas de esta marca.
+  let alConfigurarClickup = null;
+  async function abrirConfigClickup(alTerminar){
+    alConfigurarClickup = alTerminar || null;
+    const cuerpo = $('clickupBody');
+    cuerpo.innerHTML = '<div class="ideas-empty">Buscando tus listas…</div>';
+    $('clickupModal').classList.add('open');
+    try{
+      const { listas } = await pedirClickup({ accion:'listas' });
+      if(!listas || !listas.length){
+        cuerpo.innerHTML = '<div class="ideas-empty">No se encontró ninguna lista en tu espacio de trabajo.</div>';
+        return;
+      }
+      cuerpo.innerHTML = `
+        <p class="hint">Elegí en qué lista se van a crear las tareas de esta marca. Se puede cambiar cuando quieras.</p>
+        <label class="field-label" for="clickupLista">Lista de destino</label>
+        <select id="clickupLista" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;"></select>`;
+      const sel = $('clickupLista');
+      listas.forEach(l=>{
+        const o = document.createElement('option');
+        o.value = l.id; o.textContent = l.ruta;
+        sel.appendChild(o);
+      });
+      if(clickupConfig && clickupConfig.listId) sel.value = clickupConfig.listId;
+      sel._listas = listas;
+    }catch(e){
+      if(e.sinConfigurar) mostrarAyudaClickup();
+      else cuerpo.innerHTML = `<div class="ideas-empty" style="color:var(--danger);">No se pudo leer ClickUp: ${escapeHtml(e.message)}</div>`;
+    }
+  }
+
+  $('clickupCancel').addEventListener('click', ()=>{
+    $('clickupModal').classList.remove('open');
+    alConfigurarClickup = null;
+  });
+  $('clickupGuardar').addEventListener('click', async ()=>{
+    const sel = $('clickupLista');
+    // El modal también se usa para mostrar las instrucciones, y ahí no hay nada que guardar.
+    if(!sel){ $('clickupModal').classList.remove('open'); return; }
+    const elegida = (sel._listas || []).find(l => l.id === sel.value);
+    clickupConfig = { listId: sel.value, listaNombre: elegida ? elegida.ruta : '' };
+    await saveClickup();
+    $('clickupModal').classList.remove('open');
+    showToast('Las tareas van a ir a: ' + (clickupConfig.listaNombre || 'la lista elegida'));
+    // Si se llegó acá desde el botón de un posteo, se retoma el envío que quedó a medias.
+    const seguir = alConfigurarClickup;
+    alConfigurarClickup = null;
+    if(seguir) seguir();
+  });
+
   // Estado de producción (tuyo) + cómo quedó la revisión del cliente, en una sola fila
   // dentro de cada tarjeta de administración.
   function buildEstadoRow(key, item){
@@ -4203,6 +4417,7 @@
     cuerpo.appendChild(thumbRow);
     cuerpo.appendChild(buildEstadoRow(key, item));
     cuerpo.appendChild(buildClientNoteBox(key, item));
+    cuerpo.appendChild(buildClickupRow(key, item, false));
 
     return card;
   }
@@ -4374,6 +4589,7 @@
 
     cuerpo.appendChild(buildEstadoRow(key, item));
     cuerpo.appendChild(buildClientNoteBox(key, item));
+    cuerpo.appendChild(buildClickupRow(key, item, true));
 
     return card;
   }
@@ -7450,6 +7666,7 @@
       {name: 'Avatar', fn: loadClientPhoto, peso: 1},
       {name: 'Ideas', fn: async ()=>{ await loadIdeas(); refrescarPanelIdeas(); }, peso: 1},
       {name: 'Links', fn: loadQuickLinks, peso: 1},
+      {name: 'ClickUp', fn: loadClickup, peso: 1},
       {name: 'Reglas', fn: loadRecurringRules, peso: 1},
       {name: 'Mes', fn: loadMonth, peso: 4}
     ];
