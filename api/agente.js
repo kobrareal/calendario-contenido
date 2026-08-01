@@ -50,6 +50,9 @@ Cada cambio es uno de estos tres:
 {"accion":"eliminar","dia":"YYYY-MM-DD","itemId":"id del posteo"}
 
 Reglas para los cambios:
+- El campo "texto" no puede pasar de 480 caracteres contando espacios: apuntá a tres o cuatro
+  frases cortas y cerrá la idea. Es preferible quedarse corto que pasarse, y nunca dejes una
+  frase por la mitad para entrar en el largo.
 - Usá solo días del mes que te pasaron.
 - En "angulo" usá el nombre EXACTO de uno de los ángulos disponibles, o dejalo vacío si ninguno encaja.
 - En "modificar" y "eliminar", el itemId tiene que ser uno de los que figuran en el calendario.

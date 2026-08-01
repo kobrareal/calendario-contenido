@@ -862,6 +862,15 @@
   .ai-box textarea{height:34px;min-height:34px;overflow-y:auto;background:var(--card-bg-2);color:var(--text);margin-bottom:8px;}
   .ai-box textarea::placeholder{color:var(--muted-2);}
   .copy-textarea{min-height:110px;}
+  /* Cuenta de caracteres del copy. Alineada a la derecha y en tono apagado: mientras el
+     largo está bien no tiene por qué llamar la atención, y recién avisa cuando importa. */
+  .copy-contador{
+    text-align:right; margin-top:4px;
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; color:var(--muted-2);
+    transition:color .15s var(--ease-out);
+  }
+  .copy-contador.cerca{color:#d9a441;}
+  .copy-contador.pasado{color:var(--danger); font-weight:500;}
   .ai-btn-row{display:flex;gap:8px;}
   .acciones-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;}
   .ai-generate-btn{flex:1;justify-content:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;font-weight:600;}
@@ -1961,7 +1970,32 @@
   const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
   // Empieza en lunes, igual que la grilla del mes.
   const DIAS_SEMANA = ["lunes","martes","miércoles","jueves","viernes","sábado","domingo"];
-  const COPY_MAX_LEN = 499; // keeps generated/typed copy under 500 characters
+  // Largo al que se apunta para el copy. Es una guía, no un tope duro: el número se le pide
+  // a la IA al generar y acá se cuenta a la vista, pero nada recorta el texto por su cuenta.
+  // Cortar en el caracter 499 deja la última frase por la mitad, y un copy así hay que
+  // reescribirlo entero — sale más caro que uno que se pasó por veinte caracteres.
+  const COPY_MAX_LEN = 499;
+
+  // Contador debajo de un campo de copy. Se pone en rojo al pasarse, y en ámbar cuando está
+  // cerca: enterarse a los 480 permite ir cerrando la idea, enterarse a los 500 obliga a
+  // rehacer el final.
+  function agregarContador(textarea){
+    const cont = document.createElement('div');
+    cont.className = 'copy-contador';
+    const pintar = ()=>{
+      const n = textarea.value.length;
+      cont.textContent = n + ' / ' + COPY_MAX_LEN;
+      cont.classList.toggle('pasado', n > COPY_MAX_LEN);
+      cont.classList.toggle('cerca', n <= COPY_MAX_LEN && n > COPY_MAX_LEN - 40);
+      if(n > COPY_MAX_LEN) cont.textContent = n + ' / ' + COPY_MAX_LEN + ' — sobran ' + (n - COPY_MAX_LEN);
+    };
+    textarea.addEventListener('input', pintar);
+    // El generador escribe en el textarea sin disparar 'input', así que el contador se
+    // refresca desde afuera cuando llega un copy nuevo.
+    textarea._refrescarContador = pintar;
+    pintar();
+    return cont;
+  }
 
   // Cada emoji va con las palabras por las que uno lo buscaría. Antes la lista eran solo los
   // dibujos y el buscador comparaba el emoji contra el texto tecleado, así que no encontraba
@@ -2410,11 +2444,16 @@
   // variables de entorno de Vercel y nunca llegue al navegador. Antes esto lo hacía un Apps
   // Script cuya URL había que pegar a mano en cada navegador; ahora no se configura nada.
   const AI = {
-    async generateCopy({context, kind, angle}){
+    // maxLen viaja como parte del encargo: el largo se le pide a la IA en vez de recortar lo
+    // que vuelve. Un copy cortado a mano termina a mitad de frase y no sirve para publicar.
+    async generateCopy({context, kind, angle, maxLen}){
       const res = await fetch('/api/generar-copy', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ context: context||'', kind: kind||'', angle: angle||'' }),
+        body: JSON.stringify({
+          context: context||'', kind: kind||'', angle: angle||'',
+          maxLen: maxLen || undefined
+        }),
         cache: 'no-store'
       });
       let json = null;
@@ -3673,14 +3712,22 @@
       genBtn.textContent = 'Generando…';
       try{
         const angleName = item.angle ? ((angleById(item.angle)||{}).name || '') : '';
-        const rawText = await AI.generateCopy({context: item.context, kind: kindForPrompt, angle: angleName});
-        const text = rawText.slice(0, COPY_MAX_LEN);
+        const rawText = await AI.generateCopy({
+          context: item.context, kind: kindForPrompt, angle: angleName, maxLen: COPY_MAX_LEN
+        });
+        // Se guarda entero. El largo ya se pidió al generar, y si aun así se pasó de unos
+        // pocos caracteres, es preferible un copy completo que uno cortado a mitad de frase:
+        // el que escribe lo edita en dos segundos, mientras que un texto truncado hay que
+        // rehacerlo. El aviso le dice cuánto tiene que recortar.
+        const text = rawText;
         pushUndo(key);
         item.text = text;
         scheduleSaveDay(key);
         onGenerated(text);
         copyBtn.disabled = !text || !text.trim();
-        showToast('Copy generado');
+        showToast(text.length > COPY_MAX_LEN
+          ? `Copy generado, ${text.length - COPY_MAX_LEN} caracteres por encima del límite`
+          : 'Copy generado');
       }catch(err){
         showToast('No se pudo generar el copy: ' + (err && err.message ? err.message : 'error desconocido'));
       }finally{
@@ -3966,16 +4013,22 @@
     textLabel.className = 'field-label'; textLabel.style.marginTop = '10px'; textLabel.textContent = 'Descripción / copy';
     const textarea = document.createElement('textarea');
     textarea.className = 'copy-textarea';
-    textarea.maxLength = COPY_MAX_LEN;
+    // Sin maxLength: un tope duro impediría editar un copy que llegó unos caracteres pasado,
+    // que es justo cuando más falta hace poder tocarlo. El contador de abajo avisa.
     textarea.placeholder = 'Idea, copy o guion para este posteo...';
     textarea.value = item.text || '';
     textarea.addEventListener('input', ()=>{
       item.text = textarea.value;
       scheduleSaveDay(key);
     });
-    cuerpo.appendChild(buildAiBox(key, item, item.kind==='carrusel' ? 'carrusel' : 'reel', (text)=>{ textarea.value = text; }));
+    const contador = agregarContador(textarea);
+    cuerpo.appendChild(buildAiBox(key, item, item.kind==='carrusel' ? 'carrusel' : 'reel', (text)=>{
+      textarea.value = text;
+      textarea._refrescarContador();
+    }));
     cuerpo.appendChild(textLabel);
     cuerpo.appendChild(textarea);
+    cuerpo.appendChild(contador);
 
     // Los dos botones comparten renglón: uno debajo del otro gastaban dos líneas enteras
     // para dos controles chicos que entran de sobra en una.
@@ -4236,16 +4289,21 @@
     textLabel.className = 'field-label'; textLabel.style.marginTop = '10px'; textLabel.textContent = 'Descripción / guion';
     const textarea = document.createElement('textarea');
     textarea.className = 'copy-textarea';
-    textarea.maxLength = COPY_MAX_LEN;
+    // Sin maxLength, igual que en el feed: el contador avisa en vez de bloquear.
     textarea.placeholder = 'Idea o guion para esta story...';
     textarea.value = item.text || '';
     textarea.addEventListener('input', ()=>{
       item.text = textarea.value;
       scheduleSaveDay(key);
     });
-    cuerpo.appendChild(buildAiBox(key, item, 'story', (text)=>{ textarea.value = text; }));
+    const contador = agregarContador(textarea);
+    cuerpo.appendChild(buildAiBox(key, item, 'story', (text)=>{
+      textarea.value = text;
+      textarea._refrescarContador();
+    }));
     cuerpo.appendChild(textLabel);
     cuerpo.appendChild(textarea);
+    cuerpo.appendChild(contador);
 
     // Los dos botones comparten renglón: uno debajo del otro gastaban dos líneas enteras
     // para dos controles chicos que entran de sobra en una.
@@ -5153,7 +5211,9 @@
         id: genId(),
         kind: lista === 'feed' ? (c.kind === 'carrusel' ? 'carrusel' : 'reel') : undefined,
         angle: anguloPorNombre(c.angulo),
-        text: String(c.texto || '').slice(0, COPY_MAX_LEN),
+        // Sin recortar: el largo se le pide al asistente en su propio encargo. Cortar acá
+        // dejaría la última frase por la mitad, y el texto habría que rehacerlo igual.
+        text: String(c.texto || ''),
         thumb: '', hideFromPreview: false,
         context: '', clientNote: '', time: '',
         title: String(c.titulo || '').slice(0, 120),
@@ -5167,7 +5227,7 @@
       const it = [...entrada.feed, ...entrada.stories].find(x => x.id === c.itemId);
       if(!it) return false; // el posteo ya no existe: se saltea sin romper el resto
       if(c.titulo) it.title = String(c.titulo).slice(0, 120);
-      if(c.texto)  it.text  = String(c.texto).slice(0, COPY_MAX_LEN);
+      if(c.texto)  it.text  = String(c.texto);
       if(c.angulo) it.angle = anguloPorNombre(c.angulo);
     }
 
