@@ -872,6 +872,108 @@
   .copy-contador.cerca{color:#d9a441;}
   .copy-contador.pasado{color:var(--danger); font-weight:500;}
 
+  /* ---------- kit de marca ---------- */
+  .kit-seccion{
+    margin-bottom:var(--s-5); padding-bottom:var(--s-4);
+    border-bottom:1px solid var(--border);
+  }
+  .kit-seccion:last-of-type{border-bottom:none; padding-bottom:0; margin-bottom:0;}
+  .kit-seccion-head{
+    display:flex; align-items:center; justify-content:space-between; gap:var(--s-3);
+    margin-bottom:var(--s-2);
+  }
+  .kit-seccion-head h3{
+    margin:0; font-size:var(--t-md); font-weight:var(--w-semibold); letter-spacing:-0.01em;
+  }
+  .kit-nota{margin:0 0 var(--s-3); font-size:var(--t-xs);}
+
+  /* Galería de archivos. El fondo a cuadros deja ver la transparencia: un logo blanco sobre
+     una caja blanca parecería vacío, y sobre una oscura no se sabría si el fondo es propio
+     del archivo o del panel. */
+  .kit-grilla{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(124px, 1fr)); gap:var(--s-3);
+  }
+  .kit-archivo{
+    border:1px solid var(--border); border-radius:var(--r-2); overflow:hidden;
+    background:var(--surface-2); display:flex; flex-direction:column;
+  }
+  .kit-vista{
+    height:96px; display:flex; align-items:center; justify-content:center; padding:var(--s-2);
+    background-color:#2a2a32;
+    background-image:
+      linear-gradient(45deg, #22222a 25%, transparent 25%, transparent 75%, #22222a 75%),
+      linear-gradient(45deg, #22222a 25%, transparent 25%, transparent 75%, #22222a 75%);
+    background-size:14px 14px;
+    background-position:0 0, 7px 7px;
+  }
+  .kit-vista img{max-width:100%; max-height:100%; object-fit:contain;}
+  .kit-pie{
+    padding:var(--s-2); display:flex; align-items:center; gap:var(--s-1);
+    border-top:1px solid var(--border);
+  }
+  .kit-nombre{
+    flex:1; min-width:0; font-size:var(--t-xs); color:var(--text);
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+    background:none; border:none; padding:2px 3px; border-radius:var(--r-1);
+    font-family:inherit;
+  }
+  .kit-nombre:hover{background:var(--surface-3);}
+  .kit-nombre:focus{outline:none; background:var(--surface-3); box-shadow:0 0 0 1px var(--accent);}
+  .kit-accion{
+    background:none; border:none; color:var(--muted); cursor:pointer; flex:none;
+    padding:3px 5px; border-radius:var(--r-1); font-size:11px;
+  }
+  .kit-accion:hover{color:var(--accent); background:var(--surface-3);}
+  .kit-accion.borrar:hover{color:var(--danger);}
+  .kit-vacio{
+    grid-column:1/-1; color:var(--muted-2); font-size:var(--t-xs);
+    padding:var(--s-4) 0; text-align:center;
+  }
+
+  /* Colores: la muestra manda, el código va abajo en monoespaciada para poder leerlo bien. */
+  .kit-colores{display:flex; flex-wrap:wrap; gap:var(--s-3);}
+  .kit-color{
+    width:118px; border:1px solid var(--border); border-radius:var(--r-2);
+    overflow:hidden; background:var(--surface-2);
+  }
+  .kit-muestra{
+    height:58px; width:100%; border:none; padding:0; cursor:pointer; display:block;
+    /* El input de color nativo dibuja su propio marco; se saca para que la muestra
+       ocupe el bloque entero y se lea como un color y no como un control. */
+    appearance:none; -webkit-appearance:none;
+  }
+  .kit-muestra::-webkit-color-swatch-wrapper{padding:0;}
+  .kit-muestra::-webkit-color-swatch{border:none;}
+  .kit-muestra::-moz-color-swatch{border:none;}
+  .kit-color-datos{padding:var(--s-2); display:flex; flex-direction:column; gap:3px;}
+  .kit-color-nombre{
+    background:none; border:none; color:var(--text); font-size:var(--t-xs);
+    font-family:inherit; padding:2px 3px; border-radius:var(--r-1); width:100%;
+  }
+  .kit-color-nombre:hover{background:var(--surface-3);}
+  .kit-color-nombre:focus{outline:none; background:var(--surface-3); box-shadow:0 0 0 1px var(--accent);}
+  .kit-color-pie{display:flex; align-items:center; gap:2px;}
+  .kit-hex{
+    flex:1; min-width:0; background:none; border:none; color:var(--muted);
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; text-transform:uppercase;
+    padding:2px 3px; border-radius:var(--r-1);
+  }
+  .kit-hex:hover{background:var(--surface-3); color:var(--text);}
+  .kit-hex:focus{outline:none; background:var(--surface-3); color:var(--text); box-shadow:0 0 0 1px var(--accent);}
+
+  .kit-input, .kit-textarea{
+    width:100%; background:var(--surface-2); border:1px solid var(--border);
+    border-radius:8px; color:var(--text); padding:9px 11px;
+    font-family:'Inter',sans-serif; font-size:13px; line-height:1.55;
+  }
+  .kit-textarea{min-height:70px; resize:vertical;}
+  .kit-input:focus, .kit-textarea:focus{outline:none; border-color:var(--accent);}
+
+  @media(max-width:640px){
+    .kit-grilla{grid-template-columns:repeat(auto-fill, minmax(104px, 1fr));}
+    .kit-color{width:calc(50% - var(--s-3));}
+  }
+
   /* Fila de ClickUp al pie de cada tarjeta. Va separada por una línea porque no es parte de
      escribir el posteo, sino lo que se hace después con él. */
   .clickup-row{
@@ -1533,6 +1635,7 @@
       <button class="btn ghost icon-only" id="agenteBtn" title="Asistente: analiza tu mes, da consejos y propone contenido"><i class="fa-solid fa-wand-magic-sparkles"></i><span class="label">Asistente de contenido</span></button>
       <button class="btn ghost icon-only admin-only" id="trashBtn" title="Papelera: lo eliminado en los últimos 7 días"><i class="fa-solid fa-trash-can"></i><span class="label">Papelera: lo borrado en 7 días</span></button>
       <button class="btn ghost icon-only admin-only" id="ideasBtn" title="Ideas de contenido para más adelante"><i class="fa-solid fa-lightbulb"></i><span class="label">Ideas guardadas para más adelante</span></button>
+      <button class="btn ghost icon-only" id="kitBtn" title="Kit de marca: logos, colores y elementos gráficos"><i class="fa-solid fa-palette"></i><span class="label">Kit de marca: logos y colores</span></button>
       <button class="btn ghost icon-only admin-only solo-admin" id="clientsBtn" title="Panel de marcas"><i class="fa-solid fa-users"></i><span class="label">Marcas y sus links de acceso</span></button>
       <button class="btn ghost icon-only admin-only solo-admin" id="settingsBtn" aria-label="Configuración" title="Herramientas de diagnóstico y sincronización"><i class="fa-solid fa-gear"></i><span class="label">Diagnóstico y sincronización</span></button>
     </div>
@@ -1904,6 +2007,61 @@
      "Ideas guardadas" del dashboard (agregar, editar, clasificar, borrar y pegar
      miniatura). El botón del header sigue funcionando pero ahora hace scroll hasta el
      widget en vez de abrir una ventana aparte. -->
+
+<!-- KIT DE MARCA -->
+<div class="modal-back" id="kitModal">
+  <div class="modal" style="width:680px;">
+    <h2 id="kitTitulo">🎨 Kit de marca</h2>
+    <p class="hint">Los logos, colores y elementos gráficos de esta marca, a mano cuando armás una pieza. Cada archivo se puede descargar con un click y cada color se copia al portapapeles.</p>
+
+    <!-- LOGOS -->
+    <div class="kit-seccion">
+      <div class="kit-seccion-head">
+        <h3>Logos</h3>
+        <button class="btn small btn-nueva-idea" data-subir="logo"><i class="fa-solid fa-upload"></i>Subir logo</button>
+      </div>
+      <p class="hint kit-nota">PNG con fondo transparente o SVG. Se conserva la transparencia.</p>
+      <div class="kit-grilla" id="kitLogos"></div>
+    </div>
+
+    <!-- COLORES -->
+    <div class="kit-seccion">
+      <div class="kit-seccion-head">
+        <h3>Colores</h3>
+        <button class="btn small btn-nueva-idea" id="kitAgregarColor"><i class="fa-solid fa-plus"></i>Agregar color</button>
+      </div>
+      <div class="kit-colores" id="kitColores"></div>
+    </div>
+
+    <!-- ELEMENTOS GRÁFICOS -->
+    <div class="kit-seccion">
+      <div class="kit-seccion-head">
+        <h3>Elementos gráficos</h3>
+        <button class="btn small btn-nueva-idea" data-subir="grafico"><i class="fa-solid fa-upload"></i>Subir elemento</button>
+      </div>
+      <p class="hint kit-nota">Texturas, íconos, marcos, sellos: lo que se repite en las piezas.</p>
+      <div class="kit-grilla" id="kitGraficos"></div>
+    </div>
+
+    <!-- TIPOGRAFÍAS Y NOTAS -->
+    <div class="kit-seccion">
+      <div class="kit-seccion-head"><h3>Tipografías y notas</h3></div>
+      <label class="field-label" for="kitTipografias">Tipografías</label>
+      <input type="text" id="kitTipografias" class="kit-input"
+        placeholder="Ej: Títulos en Poppins SemiBold · Textos en Inter Regular" />
+      <label class="field-label" for="kitNotas" style="margin-top:10px;">Cómo se usa la marca</label>
+      <textarea id="kitNotas" class="kit-textarea"
+        placeholder="Ej: el logo siempre sobre fondo claro, nunca deformarlo. Dejar aire alrededor…"></textarea>
+    </div>
+
+    <input type="file" id="kitArchivoInput" accept="image/png,image/svg+xml,image/jpeg,image/webp" style="display:none;" />
+
+    <div class="modal-close-row" style="margin-top:16px;">
+      <span class="hint" id="kitEstado" style="margin:0;margin-right:auto;"></span>
+      <button class="btn primary" id="kitCerrar">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <!-- CLICKUP -->
 <div class="modal-back" id="clickupModal">
@@ -2513,6 +2671,10 @@
     const claves = [
       'angles', 'client-name', 'calendar-title', 'client-photo',
       'ideas', 'quick-links', 'papelera', 'recurring-rules', 'notifications', 'clickup',
+      // Solo el índice del kit (nombres y colores). Los archivos viven en claves aparte y
+      // se piden al abrir el panel: traer los logos en cada arranque sería cargar medio
+      // megabyte que casi nunca se mira.
+      'brandkit',
       claveAnotaciones(viewYear, viewMonth), claveNotasMes(),
       // El blob de la versión vieja se consulta en cada arranque para migrarlo. Viene en
       // el mismo pedido: casi siempre no existe, y así no cuesta una ida y vuelta propia.
@@ -3803,6 +3965,329 @@
     box.appendChild(textarea);
     return box;
   }
+
+  // ---------- kit de marca ----------
+  // Logos, colores, elementos gráficos y las notas de uso de cada marca.
+  //
+  // Los archivos no viven en el índice sino cada uno en su propia clave. Un logo en buena
+  // calidad pesa cientos de veces más que una miniatura de posteo, y meterlos todos en un
+  // solo dato haría que abrir el calendario arrastre medio megabyte que casi nunca se mira.
+  // Así el arranque solo trae la lista —nombres y colores— y los archivos se piden al abrir
+  // el panel.
+  const KIT_LADO_MAX = 900;      // suficiente para una pieza; un logo no se usa más grande
+  const KIT_PRESUPUESTO = 260000; // caracteres por archivo (unos 190 KB reales)
+
+  let brandKit = { archivos: [], colores: [], tipografias: '', notas: '' };
+  const kitCache = {}; // id -> dataUrl, para no volver a pedir lo ya cargado
+
+  async function loadKit(){
+    try{
+      const val = await storageGet('brandkit');
+      const k = val ? JSON.parse(val) : null;
+      brandKit = Object.assign({ archivos: [], colores: [], tipografias: '', notas: '' }, k || {});
+      if(!Array.isArray(brandKit.archivos)) brandKit.archivos = [];
+      if(!Array.isArray(brandKit.colores)) brandKit.colores = [];
+    }catch(e){
+      brandKit = { archivos: [], colores: [], tipografias: '', notas: '' };
+    }
+  }
+  async function saveKit(){
+    try{ await storageSet('brandkit', JSON.stringify(brandKit)); $('kitEstado').textContent = 'Guardado'; }
+    catch(e){ $('kitEstado').textContent = 'No se pudo guardar'; return; }
+    setTimeout(()=>{ if($('kitEstado').textContent === 'Guardado') $('kitEstado').textContent = ''; }, 1800);
+  }
+
+  // Prepara un archivo para guardarlo. A diferencia de las miniaturas de los posteos, acá
+  // NO se convierte a JPEG: un logo sin fondo transparente no sirve, y el JPEG no lo
+  // soporta. Un SVG se guarda tal cual, que además pesa nada y escala sin perder nitidez.
+  function prepararArchivoKit(file){
+    return new Promise((resolve, reject)=>{
+      const lector = new FileReader();
+      lector.onerror = ()=> reject(new Error('No se pudo leer el archivo'));
+
+      if(file.type === 'image/svg+xml'){
+        lector.onload = ()=>{
+          if(String(lector.result).length > KIT_PRESUPUESTO) return reject(new Error('El SVG es demasiado pesado'));
+          resolve({ dataUrl: lector.result, mime: 'image/svg+xml' });
+        };
+        lector.readAsDataURL(file);
+        return;
+      }
+
+      lector.onload = ()=>{
+        const img = new Image();
+        img.onerror = ()=> reject(new Error('No se pudo leer la imagen'));
+        img.onload = ()=>{
+          let w = img.width, h = img.height;
+          const escala = Math.min(1, KIT_LADO_MAX / Math.max(w, h));
+          w = Math.round(w * escala); h = Math.round(h * escala);
+          const lienzo = document.createElement('canvas');
+          lienzo.width = w; lienzo.height = h;
+          lienzo.getContext('2d').drawImage(img, 0, 0, w, h);
+
+          // PNG y WEBP conservan transparencia; un JPG no tiene nada que conservar y pesa
+          // mucho menos como JPEG.
+          const conAlfa = file.type === 'image/png' || file.type === 'image/webp';
+          let dataUrl = conAlfa ? lienzo.toDataURL('image/png') : lienzo.toDataURL('image/jpeg', 0.86);
+
+          // Si un PNG se pasa del presupuesto se achica en vez de pasarlo a JPEG: bajar de
+          // tamaño mantiene la transparencia, cambiar de formato la pierde.
+          let intentos = 0;
+          while(dataUrl.length > KIT_PRESUPUESTO && intentos < 5){
+            intentos++;
+            const f = Math.sqrt(KIT_PRESUPUESTO / dataUrl.length) * 0.92;
+            lienzo.width = Math.max(64, Math.round(lienzo.width * f));
+            lienzo.height = Math.max(64, Math.round(lienzo.height * f));
+            const ctx = lienzo.getContext('2d');
+            ctx.clearRect(0, 0, lienzo.width, lienzo.height);
+            ctx.drawImage(img, 0, 0, lienzo.width, lienzo.height);
+            dataUrl = conAlfa ? lienzo.toDataURL('image/png') : lienzo.toDataURL('image/jpeg', 0.8);
+          }
+          if(dataUrl.length > KIT_PRESUPUESTO) return reject(new Error('La imagen es demasiado pesada, probá con una más chica'));
+          resolve({ dataUrl, mime: conAlfa ? 'image/png' : 'image/jpeg' });
+        };
+        img.src = lector.result;
+      };
+      lector.readAsDataURL(file);
+    });
+  }
+
+  const claveArchivoKit = (id) => 'brandkit-file:' + id;
+
+  // Trae los archivos que todavía no están en memoria. Se piden todos juntos: uno por uno
+  // serían diez idas y vueltas para abrir un panel.
+  async function cargarArchivosKit(){
+    const faltan = brandKit.archivos.filter(a => !kitCache[a.id]).map(a => a.id);
+    if(!faltan.length) return;
+    try{
+      const valores = await storageGetMany(faltan.map(claveArchivoKit));
+      faltan.forEach((id, i)=>{
+        if(valores[i]) kitCache[id] = valores[i];
+      });
+    }catch(e){ /* lo que no llegue se muestra como archivo ausente */ }
+  }
+
+  function renderKit(){
+    $('kitTitulo').textContent = '🎨 Kit de ' + (($('clientName').value || '').trim() || 'marca');
+    renderKitArchivos('logo', $('kitLogos'), 'Todavía no subiste ningún logo.');
+    renderKitArchivos('grafico', $('kitGraficos'), 'Todavía no subiste elementos gráficos.');
+    renderKitColores();
+    $('kitTipografias').value = brandKit.tipografias || '';
+    $('kitNotas').value = brandKit.notas || '';
+    const editable = !IS_READONLY;
+    $('kitTipografias').disabled = !editable;
+    $('kitNotas').disabled = !editable;
+    document.querySelectorAll('#kitModal [data-subir], #kitAgregarColor').forEach(b => b.style.display = editable ? '' : 'none');
+  }
+
+  function renderKitArchivos(seccion, cont, vacio){
+    cont.innerHTML = '';
+    const lista = brandKit.archivos.filter(a => a.seccion === seccion);
+    if(!lista.length){
+      cont.innerHTML = `<div class="kit-vacio">${vacio}</div>`;
+      return;
+    }
+    lista.forEach(a=>{
+      const caja = document.createElement('div');
+      caja.className = 'kit-archivo';
+
+      const vista = document.createElement('div');
+      vista.className = 'kit-vista';
+      const img = document.createElement('img');
+      img.alt = a.nombre || '';
+      img.src = kitCache[a.id] || '';
+      img.onerror = ()=>{ vista.textContent = 'No se pudo cargar'; vista.style.fontSize = '10px'; vista.style.color = 'var(--muted-2)'; };
+      vista.appendChild(img);
+      caja.appendChild(vista);
+
+      const pie = document.createElement('div');
+      pie.className = 'kit-pie';
+      const nombre = document.createElement('input');
+      nombre.className = 'kit-nombre';
+      nombre.value = a.nombre || '';
+      nombre.title = 'Tocá para renombrarlo';
+      nombre.disabled = IS_READONLY;
+      nombre.addEventListener('change', async ()=>{ a.nombre = nombre.value.trim(); await saveKit(); });
+      pie.appendChild(nombre);
+
+      // Descargar: el kit sirve justamente para llevarse el archivo a la pieza que se
+      // está armando, así que el enlace guarda con el nombre puesto acá.
+      const bajar = document.createElement('a');
+      bajar.className = 'kit-accion';
+      bajar.title = 'Descargar';
+      bajar.innerHTML = '<i class="fa-solid fa-download"></i>';
+      bajar.href = kitCache[a.id] || '#';
+      const ext = a.mime === 'image/svg+xml' ? '.svg' : (a.mime === 'image/jpeg' ? '.jpg' : '.png');
+      bajar.download = (a.nombre || 'archivo').replace(/[\\/:*?"<>|]/g, '-') + ext;
+      pie.appendChild(bajar);
+
+      if(!IS_READONLY){
+        const borrar = document.createElement('button');
+        borrar.className = 'kit-accion borrar';
+        borrar.title = 'Eliminar';
+        borrar.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        borrar.addEventListener('click', async ()=>{
+          if(!confirm('¿Eliminar "' + (a.nombre || 'este archivo') + '" del kit?')) return;
+          brandKit.archivos = brandKit.archivos.filter(x => x.id !== a.id);
+          delete kitCache[a.id];
+          // El archivo en sí se vacía, porque su clave vive aparte del índice y si no
+          // quedaría ocupando lugar sin que nada lo nombre.
+          try{ await storageSet(claveArchivoKit(a.id), ''); }catch(e){}
+          await saveKit();
+          renderKit();
+        });
+        pie.appendChild(borrar);
+      }
+
+      caja.appendChild(pie);
+      cont.appendChild(caja);
+    });
+  }
+
+  function renderKitColores(){
+    const cont = $('kitColores');
+    cont.innerHTML = '';
+    if(!brandKit.colores.length){
+      cont.innerHTML = '<div class="kit-vacio">Todavía no cargaste los colores de la marca.</div>';
+      return;
+    }
+    brandKit.colores.forEach(c=>{
+      const caja = document.createElement('div');
+      caja.className = 'kit-color';
+
+      const muestra = document.createElement('input');
+      muestra.type = 'color';
+      muestra.className = 'kit-muestra';
+      muestra.value = c.hex || '#000000';
+      muestra.disabled = IS_READONLY;
+      muestra.title = 'Elegir el color';
+      muestra.addEventListener('input', ()=>{ c.hex = muestra.value; hex.value = muestra.value.toUpperCase(); });
+      muestra.addEventListener('change', saveKit);
+      caja.appendChild(muestra);
+
+      const datos = document.createElement('div');
+      datos.className = 'kit-color-datos';
+
+      const nombre = document.createElement('input');
+      nombre.className = 'kit-color-nombre';
+      nombre.value = c.nombre || '';
+      nombre.placeholder = 'Sin nombre';
+      nombre.disabled = IS_READONLY;
+      nombre.addEventListener('change', async ()=>{ c.nombre = nombre.value.trim(); await saveKit(); });
+      datos.appendChild(nombre);
+
+      const pie = document.createElement('div');
+      pie.className = 'kit-color-pie';
+      const hex = document.createElement('input');
+      hex.className = 'kit-hex';
+      hex.value = (c.hex || '#000000').toUpperCase();
+      hex.disabled = IS_READONLY;
+      hex.title = 'Se puede escribir el código a mano';
+      hex.addEventListener('change', async ()=>{
+        // Se acepta con o sin numeral, y en tres o seis dígitos: es como uno lo copia de
+        // cualquier lado. Si no se entiende, vuelve al valor anterior en vez de guardar algo roto.
+        let v = hex.value.trim().replace(/^#/, '');
+        if(/^[0-9a-f]{3}$/i.test(v)) v = v.split('').map(x => x + x).join('');
+        if(!/^[0-9a-f]{6}$/i.test(v)){ hex.value = (c.hex || '#000000').toUpperCase(); return; }
+        c.hex = '#' + v.toLowerCase();
+        muestra.value = c.hex;
+        hex.value = c.hex.toUpperCase();
+        await saveKit();
+      });
+      pie.appendChild(hex);
+
+      const copiar = document.createElement('button');
+      copiar.className = 'kit-accion';
+      copiar.title = 'Copiar el código';
+      copiar.innerHTML = '<i class="fa-regular fa-copy"></i>';
+      copiar.addEventListener('click', async ()=>{
+        try{ await navigator.clipboard.writeText((c.hex || '').toUpperCase()); showToast('Color copiado: ' + (c.hex || '').toUpperCase()); }
+        catch(e){ showToast('No se pudo copiar'); }
+      });
+      pie.appendChild(copiar);
+
+      if(!IS_READONLY){
+        const borrar = document.createElement('button');
+        borrar.className = 'kit-accion borrar';
+        borrar.title = 'Eliminar';
+        borrar.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        borrar.addEventListener('click', async ()=>{
+          brandKit.colores = brandKit.colores.filter(x => x.id !== c.id);
+          await saveKit();
+          renderKitColores();
+        });
+        pie.appendChild(borrar);
+      }
+
+      datos.appendChild(pie);
+      caja.appendChild(datos);
+      cont.appendChild(caja);
+    });
+  }
+
+  // Subida de archivos. El botón guarda en qué sección cae, porque el input de archivos es
+  // uno solo para las dos.
+  let kitSeccionDestino = 'logo';
+  document.querySelectorAll('#kitModal [data-subir]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      kitSeccionDestino = btn.dataset.subir;
+      $('kitArchivoInput').click();
+    });
+  });
+
+  $('kitArchivoInput').addEventListener('change', async (e)=>{
+    const file = e.target.files[0];
+    e.target.value = '';
+    if(!file) return;
+    $('kitEstado').textContent = 'Procesando…';
+    try{
+      const { dataUrl, mime } = await prepararArchivoKit(file);
+      const id = genId();
+      // Primero el archivo y después el índice: si falla la subida, no queda una entrada
+      // en la lista apuntando a algo que no existe.
+      await storageSet(claveArchivoKit(id), dataUrl);
+      kitCache[id] = dataUrl;
+      brandKit.archivos.push({
+        id,
+        nombre: file.name.replace(/\.[^.]+$/, '').slice(0, 40),
+        seccion: kitSeccionDestino,
+        mime
+      });
+      await saveKit();
+      renderKit();
+    }catch(err){
+      $('kitEstado').textContent = '';
+      showToast(err.message || 'No se pudo procesar el archivo');
+    }
+  });
+
+  $('kitAgregarColor').addEventListener('click', async ()=>{
+    brandKit.colores.push({ id: genId(), nombre: '', hex: '#8b5cf6' });
+    await saveKit();
+    renderKitColores();
+    // Foco en el nombre del que se acaba de crear: lo primero es decir qué color es.
+    const ultimos = $('kitColores').querySelectorAll('.kit-color-nombre');
+    if(ultimos.length) ultimos[ultimos.length - 1].focus();
+  });
+
+  let kitTemporizador = null;
+  ['kitTipografias', 'kitNotas'].forEach(id=>{
+    $(id).addEventListener('input', ()=>{
+      brandKit[id === 'kitTipografias' ? 'tipografias' : 'notas'] = $(id).value;
+      clearTimeout(kitTemporizador);
+      kitTemporizador = setTimeout(saveKit, 700);
+    });
+  });
+
+  $('kitBtn').addEventListener('click', async ()=>{
+    $('kitModal').classList.add('open');
+    $('kitEstado').textContent = 'Cargando…';
+    renderKit();               // se pinta lo que ya se sabe, para no mostrar el panel vacío
+    await cargarArchivosKit(); // y las imágenes llegan enseguida
+    $('kitEstado').textContent = '';
+    renderKit();
+  });
+  $('kitCerrar').addEventListener('click', ()=> $('kitModal').classList.remove('open'));
 
   // ---------- ClickUp ----------
   // Cada posteo puede mandarse como tarea. No se manda solo al crearlo: un calendario se
@@ -7667,6 +8152,7 @@
       {name: 'Ideas', fn: async ()=>{ await loadIdeas(); refrescarPanelIdeas(); }, peso: 1},
       {name: 'Links', fn: loadQuickLinks, peso: 1},
       {name: 'ClickUp', fn: loadClickup, peso: 1},
+      {name: 'Kit', fn: loadKit, peso: 1},
       {name: 'Reglas', fn: loadRecurringRules, peso: 1},
       {name: 'Mes', fn: loadMonth, peso: 4}
     ];
