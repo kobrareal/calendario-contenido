@@ -71,7 +71,12 @@ module.exports = async (req, res) => {
     : 'FORMATO OBLIGATORIO: escribí cada frase en un renglón aparte, separadas por un salto ' +
       'de línea, y que cada frase incluya al menos un emoji que acompañe lo que dice. ' +
       'El emoji tiene que aportar sentido, no ser decoración al azar: si una frase no pide ' +
-      'ninguno en particular, elegí el más neutro antes que forzar uno que no venga al caso. ';
+      'ninguno en particular, elegí el más neutro antes que forzar uno que no venga al caso. ' +
+      'Terminá SIEMPRE con exactamente 4 hashtags, todos juntos en el último renglón, ' +
+      'separados por espacios. Tienen que salir del tema del posteo y de su ángulo: ' +
+      'hashtags genéricos como #instagood o #love no sirven para que a este contenido lo ' +
+      'encuentre quien le interesa. Los 4 hashtags cuentan dentro del límite de caracteres, ' +
+      'así que dejales lugar al escribir el texto. ';
 
   const base =
     'Sos un/a community manager escribiendo el copy para un ' + etiqueta + ' de Instagram' +
@@ -81,7 +86,8 @@ module.exports = async (req, res) => {
     'Apuntá a ' + frases + '. Es preferible quedarse corto que pasarse. ' +
     'Tiene que terminar de forma completa: nunca cortes una idea por la mitad. ' +
     formato +
-    'No agregues hashtags a menos que el contexto los pida explícitamente. ' +
+    // Los guiones son lo único que sigue sin hashtags: son notas para filmar, no un pie.
+    (esGuion ? 'No agregues hashtags. ' : '') +
     'No repitas el contexto de forma literal, escribilo como copy real. ' +
     'Idea / contexto: "' + contexto + '". ' +
     'Devolvé SOLO el texto del copy, sin explicaciones, sin comillas, sin encabezados.';
@@ -129,7 +135,7 @@ module.exports = async (req, res) => {
         // Se repite el formato: al pedir solo "acortalo", el modelo devuelve un párrafo
         // corrido y se pierden los renglones y los emojis que se acababan de pedir.
         'Mantené el formato: cada frase en un renglón aparte' +
-        (esGuion ? '. ' : ' y con al menos un emoji. ') +
+        (esGuion ? '. ' : ', con al menos un emoji, y los 4 hashtags juntos en el último renglón. ') +
         'Devolvé SOLO el copy acortado, sin explicaciones ni comillas.\n\n' + texto
       );
       // El condensado se acepta solo si mejora: a veces vuelve más largo que el original.
