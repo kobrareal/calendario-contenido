@@ -62,6 +62,17 @@ module.exports = async (req, res) => {
                : largoMax <= 700 ? 'tres o cuatro frases cortas'
                : 'un par de párrafos breves';
 
+  // Formato de salida. El mismo endpoint genera copys y guiones, y los emojis por línea
+  // sirven en un pie de Instagram pero desentonan en un guión de rodaje, que se lee para
+  // filmar. La separación por renglones, en cambio, le viene bien a los dos.
+  const esGuion = cuerpo.formato === 'guion';
+  const formato = esGuion
+    ? 'Escribí cada frase en un renglón aparte, separadas por un salto de línea. '
+    : 'FORMATO OBLIGATORIO: escribí cada frase en un renglón aparte, separadas por un salto ' +
+      'de línea, y que cada frase incluya al menos un emoji que acompañe lo que dice. ' +
+      'El emoji tiene que aportar sentido, no ser decoración al azar: si una frase no pide ' +
+      'ninguno en particular, elegí el más neutro antes que forzar uno que no venga al caso. ';
+
   const base =
     'Sos un/a community manager escribiendo el copy para un ' + etiqueta + ' de Instagram' +
     (angulo ? (' con ángulo de contenido "' + angulo + '"') : '') + '. ' +
@@ -69,6 +80,7 @@ module.exports = async (req, res) => {
     'IMPORTANTE: el copy no puede superar los ' + largoMax + ' caracteres contando espacios. ' +
     'Apuntá a ' + frases + '. Es preferible quedarse corto que pasarse. ' +
     'Tiene que terminar de forma completa: nunca cortes una idea por la mitad. ' +
+    formato +
     'No agregues hashtags a menos que el contexto los pida explícitamente. ' +
     'No repitas el contexto de forma literal, escribilo como copy real. ' +
     'Idea / contexto: "' + contexto + '". ' +
@@ -114,6 +126,10 @@ module.exports = async (req, res) => {
       const condensado = await llamar(
         'Acortá este copy de Instagram a menos de ' + largoMax + ' caracteres contando espacios, ' +
         'sin perder la idea principal ni el tono. Tiene que terminar de forma completa. ' +
+        // Se repite el formato: al pedir solo "acortalo", el modelo devuelve un párrafo
+        // corrido y se pierden los renglones y los emojis que se acababan de pedir.
+        'Mantené el formato: cada frase en un renglón aparte' +
+        (esGuion ? '. ' : ' y con al menos un emoji. ') +
         'Devolvé SOLO el copy acortado, sin explicaciones ni comillas.\n\n' + texto
       );
       // El condensado se acepta solo si mejora: a veces vuelve más largo que el original.

@@ -2849,13 +2849,16 @@
   const AI = {
     // maxLen viaja como parte del encargo: el largo se le pide a la IA en vez de recortar lo
     // que vuelve. Un copy cortado a mano termina a mitad de frase y no sirve para publicar.
-    async generateCopy({context, kind, angle, maxLen}){
+    // formato:'guion' saca la instrucción de emojis por frase, que sirve en un pie de
+    // Instagram y desentona en un guión de rodaje. La separación por renglones queda en los dos.
+    async generateCopy({context, kind, angle, maxLen, formato}){
       const res = await fetch('/api/generar-copy', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body: JSON.stringify({
           context: context||'', kind: kind||'', angle: angle||'',
-          maxLen: maxLen || undefined
+          maxLen: maxLen || undefined,
+          formato: formato || 'copy'
         }),
         cache: 'no-store'
       });
@@ -5093,7 +5096,7 @@
           scriptGenBtn.disabled = true; scriptGenBtn.textContent = 'Generando…';
           try{
             const angleName = item.angle ? ((angleById(item.angle)||{}).name || '') : '';
-            const rawText = await AI.generateCopy({context: `Guión para: ${item.context}`, kind: item.kind==='carrusel' ? 'carrusel' : 'reel', angle: angleName});
+            const rawText = await AI.generateCopy({context: `Guión para: ${item.context}`, kind: item.kind==='carrusel' ? 'carrusel' : 'reel', angle: angleName, formato: 'guion'});
             scriptTextarea.value += (scriptTextarea.value ? '\n\n' : '') + rawText;
             item.script = scriptTextarea.value;
             scheduleSaveDay(key);
@@ -5376,7 +5379,7 @@
           scriptGenBtn.disabled = true; scriptGenBtn.textContent = 'Generando…';
           try{
             const angleName = item.angle ? ((angleById(item.angle)||{}).name || '') : '';
-            const rawText = await AI.generateCopy({context: `Guión para story: ${item.context}`, kind: 'story', angle: angleName});
+            const rawText = await AI.generateCopy({context: `Guión para story: ${item.context}`, kind: 'story', angle: angleName, formato: 'guion'});
             scriptTextarea.value += (scriptTextarea.value ? '\n\n' : '') + rawText;
             item.script = scriptTextarea.value;
             scheduleSaveDay(key);
