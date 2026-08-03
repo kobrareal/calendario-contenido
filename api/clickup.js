@@ -72,6 +72,10 @@ module.exports = async (req, res) => {
           }
         }
       }
+      // Ordenadas por ruta: ClickUp las devuelve en el orden interno de cada espacio, que a
+      // quien busca una lista por su nombre no le dice nada. Con localeCompare en español
+      // las tildes y la ñ caen donde uno espera.
+      salida.sort((a, b) => a.ruta.localeCompare(b.ruta, 'es', { sensitivity: 'base' }));
       return res.status(200).json({ listas: salida });
     }
 
