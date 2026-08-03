@@ -313,7 +313,13 @@
   .item-card:last-child{margin-bottom:0;}
   /* cursor:pointer en todo el encabezado: el click para plegar/desplegar ya no depende de
      acertarle a la flechita de 20px, así que el puntero debe reflejar eso en toda el área. */
-  .item-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;cursor:pointer;}
+  .item-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;cursor:pointer;min-width:0;}
+  /* min-width:0 en toda la cadena: un elemento flex se niega por defecto a achicarse por
+     debajo de su contenido, así que sin esto el encabezado entero crecía con el título en
+     vez de recortarlo — que es por lo que el texto se salía del casillero. El grupo de la
+     derecha no se encoge nunca: son botones de tamaño fijo. */
+  .item-head-left{display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0;}
+  .item-head-right{display:flex;align-items:center;gap:4px;flex:none;}
   .item-card.colapsada{padding:7px 9px;}
   .item-card.colapsada .item-card-head{margin-bottom:0;}
   /* Fundido en vez de corte seco con display:none. Deliberadamente NO uso una animación
@@ -339,11 +345,53 @@
   }
   .item-toggle:hover{color:var(--text);background:var(--surface-2);}
   .item-toggle:active{transform:scale(.9);}
+  /* El resumen del posteo plegado. Cuando el texto no entra, al pasar el mouse se desplaza
+     solo hacia la izquierda hasta mostrarse entero y vuelve. La animación se arma en JS
+     porque la distancia depende de cuánto sobra en cada caso: un desplazamiento fijo se
+     quedaría corto en los títulos largos y se pasaría de largo en los cortos.
+
+     El texto queda dentro de un span propio (.item-resumen-txt) para poder moverlo sin
+     tocar la caja, que es la que recorta. */
   .item-resumen{
-    display:none;font-size:12px;color:var(--muted);min-width:0;
-    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+    display:none;font-size:12px;color:var(--muted);
+    overflow:hidden;white-space:nowrap;position:relative;
   }
-  .item-card.colapsada .item-resumen{display:block;}
+  /* flex:1 1 0 con min-width:0: toma el ancho que sobra en el encabezado y ni un pixel
+     más, que es la condición para que overflow:hidden tenga algo que recortar. */
+  .item-card.colapsada .item-resumen{display:block;flex:1 1 0;min-width:0;}
+  /* width:max-content y no inline-block a secas: un inline-block se achica al ancho
+     disponible del contenedor, así que medirlo devolvía siempre "entra justo" —justo lo
+     contrario de lo que hay que detectar—. Con max-content el span mide exactamente su
+     texto y es la caja de afuera la que recorta. */
+  .item-resumen-txt{
+    display:block;width:max-content;max-width:none;white-space:nowrap;
+    /* Sin animación en reposo: vuelve a su lugar con una transición corta para que al
+       sacar el mouse no pegue un salto. */
+    transition:transform 260ms var(--ease-out);
+  }
+  /* Degradado en el borde derecho cuando hay texto de más. Reemplaza a los puntos
+     suspensivos, que no se llevan bien con un elemento que se mueve: el "…" quedaría
+     clavado en el borde mientras el texto corre por debajo. */
+  .item-resumen.desborda::after{
+    content:'';position:absolute;top:0;right:0;bottom:0;width:28px;
+    background:linear-gradient(90deg, transparent, var(--card-bg));
+    pointer-events:none;
+  }
+  .item-resumen.desborda:hover .item-resumen-txt{
+    animation:resumenCorrer var(--dur-resumen, 6s) linear infinite;
+    transition:none;
+  }
+  @keyframes resumenCorrer{
+    /* Pausas en las puntas: sin ellas el texto arranca a moverse antes de que el ojo
+       alcance a leer el principio, y vuelve sin dejar ver el final. */
+    0%, 12%   { transform:translateX(0); }
+    50%, 62%  { transform:translateX(var(--corrida, 0px)); }
+    100%      { transform:translateX(0); }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .item-resumen.desborda:hover .item-resumen-txt{animation:none;}
+    .item-resumen.desborda .item-resumen-txt{text-overflow:ellipsis;overflow:hidden;display:block;}
+  }
   .kind-toggle{display:flex;gap:6px;}
   .kind-opt{
     background:var(--card-bg-2);border:1px solid var(--border);color:var(--muted);
@@ -889,6 +937,21 @@
   }
   .copy-contador.cerca{color:#d9a441;}
   .copy-contador.pasado{color:var(--danger); font-weight:500;}
+  /* Etiqueta a la izquierda y contador a la derecha, en el mismo renglón. */
+  .copy-label-row{
+    display:flex; align-items:baseline; justify-content:space-between; gap:var(--s-3);
+    margin-top:10px; margin-bottom:4px;
+  }
+  .copy-label-row .copy-contador{margin-top:0; flex:none;}
+
+  /* "No mostrar en el feed" y el estado, arriba de la tarjeta y en la misma línea. Se
+     apilan en pantalla angosta: los dos controles juntos no entran en un teléfono. */
+  .fila-preview-estado{
+    display:flex; align-items:center; justify-content:space-between;
+    gap:var(--s-3); flex-wrap:wrap;
+    margin:2px 0 12px;
+  }
+  .fila-preview-estado .estado-row{margin:0;}
 
   /* ---------- kit de marca ---------- */
   .kit-seccion{
@@ -1328,6 +1391,124 @@
 
   /* ---------- notificaciones ---------- */
   /* Puntito en el botón cuando el mes tiene notas escritas. */
+  /* ============================================================================
+     COLOR EN LOS BOTONES
+     ============================================================================
+     Ningún botón queda gris. El color se asigna por función y no al azar: cada
+     familia de acciones tiene su tinte, así el color no es solo decoración sino
+     que ayuda a reconocer qué hace cada botón antes de leerlo.
+
+        azul     → acción principal y navegación
+        violeta  → todo lo que involucra IA
+        cian     → archivos e imágenes
+        verde    → crear y sumar contenido
+        ámbar    → herramientas y configuración
+        rojo     → borrar y vaciar
+
+     Los tintes se aplican como capa translúcida sobre la superficie, no como
+     color pleno: sobre un fondo oscuro, seis botones de color sólido compiten y
+     terminan cansando. El pleno queda reservado para el botón primario, que es
+     el único que debe ganar siempre. */
+  :root{
+    --t-azul:79,142,247;
+    --t-violeta:139,92,246;
+    --t-cian:56,189,203;
+    --t-verde:63,211,153;
+    --t-ambar:217,164,65;
+    --t-rojo:242,97,122;
+  }
+
+  /* Base tintada: reemplaza el gris de var(--surface-2) por un azul muy diluido y
+     un degradado apenas perceptible que le da volumen. */
+  .btn{
+    background:
+      linear-gradient(180deg, rgba(var(--tinte, var(--t-azul)),.20), rgba(var(--tinte, var(--t-azul)),.11));
+    border-color:rgba(var(--tinte, var(--t-azul)),.30);
+  }
+  .btn:hover{
+    background:
+      linear-gradient(180deg, rgba(var(--tinte, var(--t-azul)),.32), rgba(var(--tinte, var(--t-azul)),.19));
+    border-color:rgba(var(--tinte, var(--t-azul)),.55);
+  }
+  .btn i:not(.fa-lg){color:rgb(var(--tinte, var(--t-azul)));opacity:1;}
+
+  /* Primario: el único con color pleno y degradado marcado. Es el que tiene que
+     ganarle a todos los demás, y solo puede hacerlo si el resto se contiene. */
+  .btn.primary{
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-color:transparent;color:#fff;
+    box-shadow:var(--sh-1), inset 0 1px 0 rgba(255,255,255,.14);
+  }
+  .btn.primary:hover{
+    background:linear-gradient(135deg, #5f9bff, #9a6dff);
+    border-color:transparent;
+    box-shadow:var(--sh-2), inset 0 1px 0 rgba(255,255,255,.2);
+  }
+  .btn.primary i{color:#fff !important;}
+
+  /* Fantasma: en reposo se mantiene liviano —son botones que acompañan, no que
+     llaman— pero al pasar el mouse se enciende con su tinte en vez del gris. */
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--muted);}
+  .btn.ghost:hover{
+    background:rgba(var(--tinte, var(--t-azul)),.16);
+    border-color:rgba(var(--tinte, var(--t-azul)),.34);
+    color:var(--text);
+  }
+  .btn.ghost i{color:rgb(var(--tinte, var(--t-azul)));opacity:.85;}
+  .btn.ghost:hover i{opacity:1;}
+
+  /* Los de la barra superior: cada uno con el tinte de su función, para que la
+     fila de íconos se lea de un vistazo en vez de ser nueve grises iguales. */
+  .btn.icon-only{background:transparent;border-color:transparent;}
+  .btn.icon-only:hover{
+    background:rgba(var(--tinte, var(--t-azul)),.18);
+    border-color:rgba(var(--tinte, var(--t-azul)),.36);
+  }
+  .btn.icon-only i{color:rgb(var(--tinte, var(--t-azul)));opacity:.9;}
+  .btn.icon-only:hover i{opacity:1;}
+
+  #quickLinksBtn,#statsBtn,#searchBtn{--tinte:var(--t-azul);}
+  #agenteBtn{--tinte:var(--t-violeta);}
+  #exportBtn,#kitBtn{--tinte:var(--t-cian);}
+  #ideasBtn{--tinte:var(--t-verde);}
+  #clientsBtn,#settingsBtn,#notifBtn{--tinte:var(--t-ambar);}
+  #trashBtn{--tinte:var(--t-rojo);}
+  #undoBtn,#redoBtn{--tinte:var(--t-azul);}
+
+  /* Por familia de acción, en el resto de la app. */
+  #addReelBtn,#addCarruselBtn,#addStoryBtn,#addIdeaBtn,#addAngleBtn,
+  .btn-nueva-idea,#kitAgregarColor,[data-subir]{--tinte:var(--t-verde);}
+  .ai-generate-btn,#agenteEnviarBtn{--tinte:var(--t-violeta);}
+  #manageImagesBtn,.thumb-row .btn{--tinte:var(--t-cian);}
+  #manageAnglesBtn,#resyncBtn,#diagBtn{--tinte:var(--t-ambar);}
+  #manageClearBtn,#cerrarSesionBtn,#vaciarDiaBtn{--tinte:var(--t-rojo);}
+
+  /* Cualquier botón que se pinte de rojo por su cuenta (Quitar, Eliminar) hereda
+     el tinte rojo completo, en vez de quedar con texto rojo sobre caja azul. */
+  .btn[style*="--danger"],.btn.peligro{--tinte:var(--t-rojo);}
+  .btn.peligro{color:#ffb3c0;}
+
+  /* El de IA conserva su degradado propio: es la acción más llamativa dentro de
+     su caja y ahí sí corresponde que grite un poco. */
+  .ai-generate-btn{
+    background:linear-gradient(135deg,var(--accent),var(--accent-2));
+    border-color:transparent;color:#fff;font-weight:600;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.14);
+  }
+  .ai-generate-btn:hover{
+    background:linear-gradient(135deg,#5f9bff,#9a6dff);
+    border-color:transparent;
+  }
+  .ai-generate-btn i{color:#fff !important;}
+
+  /* Los de tipo (Reel / Carrusel) y el resto de los chips siguen su propio camino:
+     son selectores de estado, no acciones, y tintarlos los haría parecer botones. */
+  .kind-opt{--tinte:var(--t-azul);}
+
+  @media (prefers-reduced-motion: reduce){
+    .btn{transition:background .15s var(--ease-out), border-color .15s var(--ease-out);}
+  }
+
   .btn.con-contenido{position:relative;}
   .btn.con-contenido::after{
     content:'';position:absolute;top:5px;right:5px;width:6px;height:6px;
@@ -3850,6 +4031,13 @@
       const abierta = tarjetasAbiertas.has(itemId);
       card.classList.toggle('colapsada', !abierta);
       toggleBtn.textContent = abierta ? '▼' : '▶';
+      // Recién plegada, el resumen pasa a estar visible y se puede medir si su texto entra.
+      // Va en el próximo cuadro porque en este el navegador todavía no aplicó el cambio de
+      // display, y medir ahora daría cero.
+      if(!abierta){
+        const resumen = head.querySelector('.item-resumen');
+        if(resumen && resumen._medir) requestAnimationFrame(resumen._medir);
+      }
     };
     head.addEventListener('click', (e)=>{
       if(e.target.closest('.kind-opt, .horario-row, .item-remove')) return;
@@ -4499,6 +4687,58 @@
     if(seguir) seguir();
   });
 
+  // Pone el texto del resumen de un posteo plegado y, si no entra en su renglón, lo prepara
+  // para que se desplace solo al pasar el mouse.
+  //
+  // La medición va en el mouseenter y no al crear la tarjeta: el resumen solo se muestra
+  // cuando la tarjeta está plegada, y medir un elemento oculto devuelve cero. Al pasar el
+  // mouse encima ya está a la vista, así que ahí la medida siempre es la buena.
+  // Arma el texto del renglón plegado. Orden fijo Hora · Título · Ángulo: el horario ubica
+  // en el día, el título es lo que uno reconoce, y el ángulo cierra como etiqueta. Si no hay
+  // título cae en el copy o el contexto, para no dejar un renglón mudo.
+  function textoResumen(item){
+    const a = item.angle ? angleById(item.angle) : null;
+    const titulo = (item.title || item.text || item.context || '').trim();
+    const angulo = a
+      ? ((a.emoji ? a.emoji + ' ' : '') + a.name)
+      : (titulo ? null : 'Sin ángulo'); // "Sin ángulo" solo si no hay nada más que decir
+    return [item.time || null, titulo || null, angulo].filter(Boolean).join(' · ');
+  }
+
+  function llenarResumen(resumen, texto){
+    let span = resumen.querySelector('.item-resumen-txt');
+    if(!span){
+      span = document.createElement('span');
+      span.className = 'item-resumen-txt';
+      resumen.textContent = '';
+      resumen.appendChild(span);
+
+      // Medir solo sirve con el resumen a la vista: mientras la tarjeta está desplegada
+      // el renglón no se muestra, y medir algo oculto devuelve cero. Por eso se mide al
+      // plegar (desde hacerPlegable) y al pasar el mouse, que son los dos momentos en que
+      // el elemento seguro está en pantalla.
+      const medir = ()=>{
+        const sobra = span.scrollWidth - resumen.clientWidth;
+        resumen.classList.toggle('desborda', sobra > 4);
+        if(sobra <= 4) return;
+        // Unos píxeles de más para que la última letra no quede pegada al borde.
+        resumen.style.setProperty('--corrida', (-(sobra + 10)) + 'px');
+        // Duración proporcional al sobrante, para que la velocidad de lectura sea siempre la
+        // misma: con un tiempo fijo, un título largo pasaría volando y uno corto se arrastraría.
+        // El tope evita que un texto enorme tarde medio minuto en volver.
+        const seg = Math.min(14, Math.max(4, sobra / 17));
+        resumen.style.setProperty('--dur-resumen', seg.toFixed(1) + 's');
+      };
+      resumen._medir = medir;
+      resumen.addEventListener('mouseenter', medir);
+    }
+    span.textContent = texto;
+    resumen.title = texto; // respaldo: en pantalla táctil no hay mouse que pasar
+    // Al cambiar el texto la medida anterior ya no sirve. Se limpia y se vuelve a medir en
+    // el próximo hover, que es cuando se necesita.
+    resumen.classList.remove('desborda');
+  }
+
   // Estado de producción (tuyo) + cómo quedó la revisión del cliente, en una sola fila
   // dentro de cada tarjeta de administración.
   function buildEstadoRow(key, item){
@@ -4653,7 +4893,7 @@
     }));
 
     const leftGroup = document.createElement('div');
-    leftGroup.style.cssText = 'display:flex;align-items:center;gap:10px;';
+    leftGroup.className = 'item-head-left';
     leftGroup.appendChild(kindToggle); leftGroup.appendChild(timeInput);
 
     const removeBtn = document.createElement('button');
@@ -4667,7 +4907,7 @@
       renderDayPanelItems(key);
     });
     const rightGroup = document.createElement('div');
-    rightGroup.style.cssText = 'display:flex;align-items:center;gap:4px;';
+    rightGroup.className = 'item-head-right';
     rightGroup.appendChild(botonDuplicarItem(item, 'feed', key));
     rightGroup.appendChild(removeBtn);
     // Plegado individual: un día con cinco posteos obligaba a scrollear hasta el final para
@@ -4678,20 +4918,7 @@
 
     const resumen = document.createElement('span');
     resumen.className = 'item-resumen';
-    const anguloResumen = item.angle ? angleById(item.angle) : null;
-    // Orden fijo Hora · Título · Ángulo. El horario va primero para ubicar en el día,
-    // el título es la identidad del posteo (lo que uno reconoce), y el ángulo cierra
-    // — sirve como etiqueta, no como identidad. Si el posteo no tiene título, cae en
-    // text o context para no dejar un renglón mudo.
-    const tituloResumen = (item.title || item.text || item.context || '').trim();
-    const anguloTexto = anguloResumen
-      ? ((anguloResumen.emoji ? anguloResumen.emoji + ' ' : '') + anguloResumen.name)
-      : (tituloResumen ? null : 'Sin ángulo'); // solo mostrar "Sin ángulo" si no hay título
-    resumen.textContent = [
-      item.time || null,
-      tituloResumen || null,
-      anguloTexto
-    ].filter(Boolean).join(' · ');
+    llenarResumen(resumen, textoResumen(item));
 
     leftGroup.prepend(toggleBtn);
     leftGroup.appendChild(resumen);
@@ -4703,9 +4930,15 @@
     card.appendChild(cuerpo);
     hacerPlegable(head, card, toggleBtn, item.id);
 
+    // "No mostrar en el feed" y el estado de producción comparten renglón, arriba de todo:
+    // son las dos decisiones que se toman de un vistazo sobre el posteo entero, y el estado
+    // al final obligaba a bajar hasta el fondo de la tarjeta para marcar algo como listo.
+    const filaSuperior = document.createElement('div');
+    filaSuperior.className = 'fila-preview-estado';
+
     const previewRow = document.createElement('label');
     previewRow.className = 'gen-checkbox-row';
-    previewRow.style.margin = '2px 0 10px';
+    previewRow.style.margin = '0';
     const previewCheck = document.createElement('input');
     previewCheck.type = 'checkbox';
     previewCheck.checked = !!item.hideFromPreview;
@@ -4716,12 +4949,22 @@
     });
     previewRow.appendChild(previewCheck);
     previewRow.appendChild(document.createTextNode('No mostrar en el feed (preview)'));
-    cuerpo.appendChild(previewRow);
+    filaSuperior.appendChild(previewRow);
+    filaSuperior.appendChild(buildEstadoRow(key, item));
+    cuerpo.appendChild(filaSuperior);
 
     const titleInput = document.createElement('input');
     titleInput.type = 'text'; titleInput.className = 'rule-text-input'; titleInput.placeholder = 'Ej: CAMPERAS, DESCUENTO 30%...';
     titleInput.value = item.title || '';
-    titleInput.addEventListener('input', ()=>{ item.title = titleInput.value; scheduleSaveDay(key); renderCalendarPronto(); });
+    titleInput.addEventListener('input', ()=>{
+      item.title = titleInput.value;
+      // El renglón que se ve al plegar la tarjeta se actualiza mientras se escribe. Antes
+      // conservaba el texto viejo hasta volver a abrir el día, y al plegar aparecía un
+      // resumen que no tenía nada que ver con lo que uno acababa de escribir.
+      llenarResumen(resumen, textoResumen(item));
+      scheduleSaveDay(key);
+      renderCalendarPronto();
+    });
     cuerpo.appendChild(filaCampo('Título', titleInput));
 
     const pickerContainer = document.createElement('div');
@@ -4729,8 +4972,9 @@
     cuerpo.appendChild(filaCampo('Ángulo', pickerContainer));
     buildPickerEl(pickerContainer, item.angle, (id)=> mutateAndRerender(key, ()=>{ item.angle = id; }));
 
-    const textLabel = document.createElement('label');
-    textLabel.className = 'field-label'; textLabel.style.marginTop = '10px'; textLabel.textContent = 'Descripción / copy';
+    const textLabel = document.createElement('div');
+    textLabel.className = 'copy-label-row';
+    textLabel.innerHTML = '<label class="field-label" style="margin:0;">Descripción / copy</label>';
     const textarea = document.createElement('textarea');
     textarea.className = 'copy-textarea';
     // Sin maxLength: un tope duro impediría editar un copy que llegó unos caracteres pasado,
@@ -4741,14 +4985,16 @@
       item.text = textarea.value;
       scheduleSaveDay(key);
     });
-    const contador = agregarContador(textarea);
+    // El contador va en el mismo renglón que la etiqueta, a la derecha: abajo del campo
+    // gastaba un renglón entero para tres cifras, y arriba queda a la vista mientras se
+    // escribe sin tener que buscarlo al pie.
+    textLabel.appendChild(agregarContador(textarea));
     cuerpo.appendChild(buildAiBox(key, item, item.kind==='carrusel' ? 'carrusel' : 'reel', (text)=>{
       textarea.value = text;
       textarea._refrescarContador();
     }));
     cuerpo.appendChild(textLabel);
     cuerpo.appendChild(textarea);
-    cuerpo.appendChild(contador);
 
     // Los dos botones comparten renglón: uno debajo del otro gastaban dos líneas enteras
     // para dos controles chicos que entran de sobra en una.
@@ -4921,7 +5167,7 @@
     // Sin etiqueta "Miniatura": los botones ya dicen qué hacen, y ponerla al costado
     // gastaba la columna izquierda entera para un control que ocupa dos renglones.
     cuerpo.appendChild(thumbRow);
-    cuerpo.appendChild(buildEstadoRow(key, item));
+    // El estado ya no va acá: comparte el renglón de arriba con "No mostrar en el feed".
     cuerpo.appendChild(buildClientNoteBox(key, item));
     cuerpo.appendChild(buildClickupRow(key, item, false));
 
@@ -4945,7 +5191,7 @@
     }));
 
     const leftGroup = document.createElement('div');
-    leftGroup.style.cssText = 'display:flex;align-items:center;gap:10px;';
+    leftGroup.className = 'item-head-left';
     leftGroup.appendChild(label); leftGroup.appendChild(timeInput);
 
     const removeBtn = document.createElement('button');
@@ -4959,7 +5205,7 @@
       renderDayPanelItems(key);
     });
     const rightGroup = document.createElement('div');
-    rightGroup.style.cssText = 'display:flex;align-items:center;gap:4px;';
+    rightGroup.className = 'item-head-right';
     rightGroup.appendChild(botonDuplicarItem(item, 'stories', key));
     rightGroup.appendChild(removeBtn);
     // Plegado individual: un día con cinco posteos obligaba a scrollear hasta el final para
@@ -4970,20 +5216,7 @@
 
     const resumen = document.createElement('span');
     resumen.className = 'item-resumen';
-    const anguloResumen = item.angle ? angleById(item.angle) : null;
-    // Orden fijo Hora · Título · Ángulo. El horario va primero para ubicar en el día,
-    // el título es la identidad del posteo (lo que uno reconoce), y el ángulo cierra
-    // — sirve como etiqueta, no como identidad. Si el posteo no tiene título, cae en
-    // text o context para no dejar un renglón mudo.
-    const tituloResumen = (item.title || item.text || item.context || '').trim();
-    const anguloTexto = anguloResumen
-      ? ((anguloResumen.emoji ? anguloResumen.emoji + ' ' : '') + anguloResumen.name)
-      : (tituloResumen ? null : 'Sin ángulo'); // solo mostrar "Sin ángulo" si no hay título
-    resumen.textContent = [
-      item.time || null,
-      tituloResumen || null,
-      anguloTexto
-    ].filter(Boolean).join(' · ');
+    llenarResumen(resumen, textoResumen(item));
 
     leftGroup.prepend(toggleBtn);
     leftGroup.appendChild(resumen);
@@ -4995,10 +5228,25 @@
     card.appendChild(cuerpo);
     hacerPlegable(head, card, toggleBtn, item.id);
 
+    // Una story no va al feed, así que no tiene la casilla de ocultarla; pero el estado va
+    // igual arriba de todo, en el mismo lugar que en los posteos.
+    const filaSuperior = document.createElement('div');
+    filaSuperior.className = 'fila-preview-estado';
+    filaSuperior.appendChild(buildEstadoRow(key, item));
+    cuerpo.appendChild(filaSuperior);
+
     const titleInput = document.createElement('input');
     titleInput.type = 'text'; titleInput.className = 'rule-text-input'; titleInput.placeholder = 'Ej: ANUNCIO IMPORTANTE...';
     titleInput.value = item.title || '';
-    titleInput.addEventListener('input', ()=>{ item.title = titleInput.value; scheduleSaveDay(key); renderCalendarPronto(); });
+    titleInput.addEventListener('input', ()=>{
+      item.title = titleInput.value;
+      // El renglón que se ve al plegar la tarjeta se actualiza mientras se escribe. Antes
+      // conservaba el texto viejo hasta volver a abrir el día, y al plegar aparecía un
+      // resumen que no tenía nada que ver con lo que uno acababa de escribir.
+      llenarResumen(resumen, textoResumen(item));
+      scheduleSaveDay(key);
+      renderCalendarPronto();
+    });
     cuerpo.appendChild(filaCampo('Título', titleInput));
 
     const pickerContainer = document.createElement('div');
@@ -5006,8 +5254,9 @@
     cuerpo.appendChild(filaCampo('Ángulo', pickerContainer));
     buildPickerEl(pickerContainer, item.angle, (id)=> mutateAndRerender(key, ()=>{ item.angle = id; }));
 
-    const textLabel = document.createElement('label');
-    textLabel.className = 'field-label'; textLabel.style.marginTop = '10px'; textLabel.textContent = 'Descripción / guion';
+    const textLabel = document.createElement('div');
+    textLabel.className = 'copy-label-row';
+    textLabel.innerHTML = '<label class="field-label" style="margin:0;">Descripción / guion</label>';
     const textarea = document.createElement('textarea');
     textarea.className = 'copy-textarea';
     // Sin maxLength, igual que en el feed: el contador avisa en vez de bloquear.
@@ -5017,14 +5266,14 @@
       item.text = textarea.value;
       scheduleSaveDay(key);
     });
-    const contador = agregarContador(textarea);
+    // El contador comparte renglón con la etiqueta, igual que en los posteos de feed.
+    textLabel.appendChild(agregarContador(textarea));
     cuerpo.appendChild(buildAiBox(key, item, 'story', (text)=>{
       textarea.value = text;
       textarea._refrescarContador();
     }));
     cuerpo.appendChild(textLabel);
     cuerpo.appendChild(textarea);
-    cuerpo.appendChild(contador);
 
     // Los dos botones comparten renglón: uno debajo del otro gastaban dos líneas enteras
     // para dos controles chicos que entran de sobra en una.
@@ -5093,7 +5342,7 @@
     cuerpo.appendChild(accionesRow);
     cuerpo.appendChild(scriptContainer); // acá se despliega el textarea del guión al pedirlo
 
-    cuerpo.appendChild(buildEstadoRow(key, item));
+    // El estado ya se puso arriba, junto al resto de las decisiones de la tarjeta.
     cuerpo.appendChild(buildClientNoteBox(key, item));
     cuerpo.appendChild(buildClickupRow(key, item, true));
 
