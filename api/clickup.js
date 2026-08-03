@@ -54,20 +54,39 @@ module.exports = async (req, res) => {
     if (cuerpo.accion === 'listas') {
       const { teams } = await llamar('/team');
       const salida = [];
+      // Se anota qué se fue encontrando para poder explicar una lista corta. Sin esto, que
+      // falte un espacio entero se ve igual que no tener listas, y son problemas distintos:
+      // uno es de permisos en ClickUp y el otro no.
+      const diagnostico = { equipos: [], espacios: [], carpetas: 0 };
 
       for (const equipo of (teams || [])) {
+        diagnostico.equipos.push(equipo.name || equipo.id);
         const { spaces } = await llamar('/team/' + equipo.id + '/space?archived=false');
+        // Con más de un espacio de trabajo el nombre del espacio solo no alcanza para
+        // ubicarse: dos empresas distintas pueden tener un "Marketing" cada una.
+        const prefijo = (teams.length > 1 ? (equipo.name || 'Equipo') + ' / ' : '');
+
         for (const espacio of (spaces || [])) {
+          diagnostico.espacios.push(espacio.name);
+
           // Listas sueltas del espacio, sin carpeta.
           const sueltas = await llamar('/space/' + espacio.id + '/list?archived=false');
           (sueltas.lists || []).forEach(l => salida.push({
-            id: l.id, ruta: espacio.name + ' / ' + l.name
+            id: l.id, ruta: prefijo + espacio.name + ' / ' + l.name
           }));
-          // Y las que cuelgan de cada carpeta.
+
           const { folders } = await llamar('/space/' + espacio.id + '/folder?archived=false');
           for (const carpeta of (folders || [])) {
-            (carpeta.lists || []).forEach(l => salida.push({
-              id: l.id, ruta: espacio.name + ' / ' + carpeta.name + ' / ' + l.name
+            diagnostico.carpetas++;
+            // Las listas se piden por carpeta en vez de leerlas del objeto que vino con el
+            // listado: ese trae solo las primeras, así que una carpeta con muchas listas
+            // perdía las de abajo sin avisar. Si el pedido falla, se cae a las embebidas
+            // antes que dejar la carpeta afuera del todo.
+            let lists = [];
+            try { lists = (await llamar('/folder/' + carpeta.id + '/list?archived=false')).lists || []; }
+            catch (e) { lists = carpeta.lists || []; }
+            lists.forEach(l => salida.push({
+              id: l.id, ruta: prefijo + espacio.name + ' / ' + carpeta.name + ' / ' + l.name
             }));
           }
         }
@@ -76,7 +95,7 @@ module.exports = async (req, res) => {
       // quien busca una lista por su nombre no le dice nada. Con localeCompare en español
       // las tildes y la ñ caen donde uno espera.
       salida.sort((a, b) => a.ruta.localeCompare(b.ruta, 'es', { sensitivity: 'base' }));
-      return res.status(200).json({ listas: salida });
+      return res.status(200).json({ listas: salida, diagnostico });
     }
 
     // ---------- crear o actualizar una tarea ----------

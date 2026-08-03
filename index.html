@@ -4663,15 +4663,29 @@
     cuerpo.innerHTML = '<div class="ideas-empty">Buscando tus listas…</div>';
     $('clickupModal').classList.add('open');
     try{
-      const { listas } = await pedirClickup({ accion:'listas' });
+      const { listas, diagnostico } = await pedirClickup({ accion:'listas' });
       if(!listas || !listas.length){
         cuerpo.innerHTML = '<div class="ideas-empty">No se encontró ninguna lista en tu espacio de trabajo.</div>';
         return;
       }
+      // Qué alcanzó a ver el token. Si falta un espacio entero, el problema es de permisos
+      // en ClickUp y no del calendario: sin decirlo, buscar la lista que falta en este
+      // desplegable es perder el tiempo.
+      const d = diagnostico || {};
+      const vistos = (d.espacios || []);
+      const resumen = vistos.length
+        ? `<p class="hint" style="margin-top:var(--s-3);font-size:var(--t-xs);">
+             Con tu token se ven ${vistos.length} espacio${vistos.length === 1 ? '' : 's'}:
+             <strong>${vistos.map(escapeHtml).join(' · ')}</strong>.
+             Si falta alguno, es porque tu usuario de ClickUp no es miembro de ese espacio
+             o el espacio es privado — se arregla del lado de ClickUp, no acá.
+           </p>` : '';
+
       cuerpo.innerHTML = `
         <p class="hint">Elegí en qué lista se van a crear las tareas de esta marca. Se puede cambiar cuando quieras.</p>
         <label class="field-label" for="clickupLista">Lista de destino</label>
-        <select id="clickupLista" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;"></select>`;
+        <select id="clickupLista" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 11px;font-size:13px;"></select>
+        ${resumen}`;
       const sel = $('clickupLista');
       listas.forEach(l=>{
         const o = document.createElement('option');
