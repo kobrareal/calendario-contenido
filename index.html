@@ -172,7 +172,7 @@
 
   /* Instalada en el teléfono no hay barra del navegador, así que el contenido llegaba
      hasta el borde y quedaba debajo de la barra del sistema. */
-  .app{padding-bottom:calc(60px + env(safe-area-inset-bottom));}
+  .app{padding-bottom:calc(24px + env(safe-area-inset-bottom));}
   .panel > .panel-footer{padding-bottom:calc(10px + env(safe-area-inset-bottom));}
   .mono{font-family:'IBM Plex Mono',monospace;}
   .display{font-family:'Inter',sans-serif;font-weight:800;letter-spacing:-.3px;}
@@ -185,12 +185,16 @@
   body.rol-editor .solo-admin{display:none !important;}
 
   /* ---------- shell ---------- */
-  .app{max-width:1400px;margin:0 auto;padding:28px 28px 60px;}
+  /* Los espacios de esta zona se recortaron para que entre más contenido sin scrollear.
+     Se bajó donde el aire no cumplía ninguna función —el colchón al pie de la página, la
+     distancia del encabezado al calendario— y se dejó intacto el interlineado y el aire
+     dentro de cada tarjeta, que es lo que hace legible el contenido. */
+  .app{max-width:1400px;margin:0 auto;padding:18px 24px 24px;}
   header.top{
     display:flex;align-items:center;justify-content:space-between;
-    flex-wrap:wrap;gap:var(--s-4);
-    margin-bottom:var(--s-6);
-    padding:var(--s-4) var(--s-5);
+    flex-wrap:wrap;gap:var(--s-3);
+    margin-bottom:var(--s-4);
+    padding:var(--s-3) var(--s-4);
     background:var(--surface);border:1px solid var(--border);border-radius:var(--r-3);
     backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
     /* Sombra más discreta: la anterior era 0 20px 50px @45%, muy dramática — parecía
@@ -308,7 +312,7 @@
   .block.collapsed .block-title-row{margin-bottom:0;}
   .item-card{
     border:1px solid var(--border);border-radius:var(--r-2);background:var(--card-bg);
-    padding:var(--s-3);margin-bottom:var(--s-2);
+    padding:var(--s-2) var(--s-3);margin-bottom:6px;
   }
   .item-card:last-child{margin-bottom:0;}
   /* cursor:pointer en todo el encabezado: el click para plegar/desplegar ya no depende de
@@ -320,8 +324,22 @@
      derecha no se encoge nunca: son botones de tamaño fijo. */
   .item-head-left{display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0;}
   .item-head-right{display:flex;align-items:center;gap:4px;flex:none;}
-  .item-card.colapsada{padding:7px 9px;}
+  .item-card.colapsada{padding:6px 9px 6px 0;}
   .item-card.colapsada .item-card-head{margin-bottom:0;}
+  /* Barra del color del ángulo al costado izquierdo. En una lista de posteos plegados, el
+     color es lo que se reconoce antes de leer: identifica el ángulo de un vistazo sin
+     gastar ancho en un chip con texto. Va como borde y no como fondo tintado porque el
+     fondo competiría con el texto del resumen, que es lo que hay que poder leer.
+     El color lo pone el JS en --color-angulo; sin ángulo asignado queda gris. */
+  .item-card{border-left:3px solid transparent;}
+  .item-card.colapsada{
+    border-left:3px solid var(--color-angulo, var(--muted-2));
+    padding-left:9px;
+  }
+  /* Desplegada la barra se atenúa: ahí adentro el ángulo ya se ve en su propio selector,
+     y mantenerla a full color duplicaría el dato compitiendo con el contenido. */
+  .item-card:not(.colapsada){border-left-color:var(--color-angulo, transparent);opacity:1;}
+  .item-card:not(.colapsada){border-left-width:2px;}
   /* Fundido en vez de corte seco con display:none. Deliberadamente NO uso una animación
      de alto (max-height o grid-rows): el ángulo y el selector de emojis viven adentro de
      item-body como menús position:absolute, y cualquier técnica de alto necesita
@@ -422,10 +440,10 @@
 
   .client-note-box{
     background:rgba(63,211,153,.08);border:1px dashed rgba(63,211,153,.4);border-radius:10px;
-    padding:10px;margin-top:12px;
+    padding:8px 10px;margin-top:8px;
   }
   .client-note-box .field-label{color:var(--ok);}
-  .client-note-box textarea{background:var(--card-bg-2);min-height:50px;}
+  .client-note-box textarea{background:var(--card-bg-2);min-height:42px;}
 
   .save-indicator{
     font-size:11.5px;color:var(--muted-2);font-family:'IBM Plex Mono',monospace;
@@ -830,9 +848,9 @@
   .close-x:hover{background:var(--surface-2);color:var(--text);}
   .close-x:active{transform:scale(.9);}
 
-  .block{margin-bottom:8px;border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--surface-2);backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);}
+  .block{margin-bottom:6px;border:1px solid var(--border);border-radius:10px;padding:8px 10px;background:var(--surface-2);backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);}
   .block-title{
-    display:flex;align-items:center;gap:8px;margin-bottom:8px;
+    display:flex;align-items:center;gap:8px;margin-bottom:6px;
     font-size:12px;letter-spacing:.6px;text-transform:uppercase;color:var(--muted);font-weight:600;
   }
   .dot-icon{width:8px;height:8px;border-radius:50%;}
@@ -949,7 +967,7 @@
   .fila-preview-estado{
     display:flex; align-items:center; justify-content:space-between;
     gap:var(--s-3); flex-wrap:wrap;
-    margin:2px 0 12px;
+    margin:0 0 8px;
   }
   .fila-preview-estado .estado-row{margin:0;}
 
@@ -1059,7 +1077,7 @@
      escribir el posteo, sino lo que se hace después con él. */
   .clickup-row{
     display:flex; align-items:center; gap:var(--s-3); flex-wrap:wrap;
-    margin-top:var(--s-3); padding-top:var(--s-3);
+    margin-top:var(--s-2); padding-top:var(--s-2);
     border-top:1px solid var(--border);
   }
   .clickup-link{
@@ -1638,7 +1656,7 @@
     position:fixed;top:8px;left:50%;transform:translateX(-50%);font-size:11px;color:var(--muted-2);z-index:998;
   }
 
-  .footer-note{margin-top:30px;color:var(--muted-2);font-size:11.5px;text-align:center;line-height:1.6;}
+  .footer-note{margin-top:16px;color:var(--muted-2);font-size:11.5px;text-align:center;line-height:1.6;}
 
   /* ---------- stats modal ---------- */
   .stats-modal{width:560px;}
@@ -4693,6 +4711,14 @@
   // La medición va en el mouseenter y no al crear la tarjeta: el resumen solo se muestra
   // cuando la tarjeta está plegada, y medir un elemento oculto devuelve cero. Al pasar el
   // mouse encima ya está a la vista, así que ahí la medida siempre es la buena.
+  // Pinta la barra lateral de una tarjeta con el color de su ángulo. Sin ángulo asignado se
+  // quita la variable y el CSS cae al gris apagado, que ya dice "todavía sin definir".
+  function pintarColorAngulo(card, item){
+    const a = item.angle ? angleById(item.angle) : null;
+    if(a && a.color) card.style.setProperty('--color-angulo', a.color);
+    else card.style.removeProperty('--color-angulo');
+  }
+
   // Arma el texto del renglón plegado. Orden fijo Hora · Título · Ángulo: el horario ubica
   // en el día, el título es lo que uno reconoce, y el ángulo cierra como etiqueta. Si no hay
   // título cae en el copy o el contexto, para no dejar un renglón mudo.
@@ -4770,14 +4796,16 @@
   }
 
   function buildAprobacionChip(item){
-    const a = APROBACIONES[item.approval] || APROBACIONES['sin-revisar'];
     const chip = document.createElement('span');
     chip.className = 'aprob-chip';
+    // "Sin revisar" es el estado de todo posteo recién creado: mostrarlo ocupa el renglón
+    // entero para no decir nada. El chip aparece recién cuando el cliente se pronunció, que
+    // es cuando hay novedad. Sin esto, el chip empujaba el selector de estado a otra línea.
+    if(item.approval === 'sin-revisar' || !APROBACIONES[item.approval]) return chip;
+    const a = APROBACIONES[item.approval];
     chip.style.color = a.color;
     chip.textContent = a.icono + ' ' + a.label +
-      (item.approvalAt && item.approval !== 'sin-revisar'
-        ? ' · ' + new Date(item.approvalAt).toLocaleDateString('es-AR')
-        : '');
+      (item.approvalAt ? ' · ' + new Date(item.approvalAt).toLocaleDateString('es-AR') : '');
     return chip;
   }
 
@@ -4828,6 +4856,10 @@
   function createReadOnlyItemCard(key, item, {kindLabel, hasThumb}){
     const card = document.createElement('div');
     card.className = 'item-card';
+    // Barra lateral con el color del ángulo: es lo que identifica al posteo de un vistazo
+    // cuando la lista está plegada. Al cambiar el ángulo la tarjeta se rearma entera, así
+    // que alcanza con ponerlo acá.
+    pintarColorAngulo(card, item);
 
     const head = document.createElement('div');
     head.className = 'item-card-head';
@@ -4875,6 +4907,10 @@
     }
     const card = document.createElement('div');
     card.className = 'item-card';
+    // Barra lateral con el color del ángulo: es lo que identifica al posteo de un vistazo
+    // cuando la lista está plegada. Al cambiar el ángulo la tarjeta se rearma entera, así
+    // que alcanza con ponerlo acá.
+    pintarColorAngulo(card, item);
 
     const head = document.createElement('div');
     head.className = 'item-card-head';
@@ -4936,19 +4972,24 @@
     const filaSuperior = document.createElement('div');
     filaSuperior.className = 'fila-preview-estado';
 
+    // La casilla se lee en positivo —"Mostrar en el feed", tildada por defecto— porque es
+    // lo que pasa en el 99% de los casos y una negación obliga a leerla dos veces. El dato
+    // guardado sigue siendo hideFromPreview: invertirlo también en la base habría que
+    // migrar todo lo ya cargado, y por un nombre interno no vale la pena.
     const previewRow = document.createElement('label');
     previewRow.className = 'gen-checkbox-row';
     previewRow.style.margin = '0';
+    previewRow.title = 'Destildala si este posteo no tiene que aparecer en la vista previa del feed';
     const previewCheck = document.createElement('input');
     previewCheck.type = 'checkbox';
-    previewCheck.checked = !!item.hideFromPreview;
+    previewCheck.checked = !item.hideFromPreview;
     previewCheck.addEventListener('change', ()=>{
-      item.hideFromPreview = previewCheck.checked;
+      item.hideFromPreview = !previewCheck.checked;
       scheduleSaveDay(key);
       renderFeedPreview();
     });
     previewRow.appendChild(previewCheck);
-    previewRow.appendChild(document.createTextNode('No mostrar en el feed (preview)'));
+    previewRow.appendChild(document.createTextNode('Mostrar en el feed'));
     filaSuperior.appendChild(previewRow);
     filaSuperior.appendChild(buildEstadoRow(key, item));
     cuerpo.appendChild(filaSuperior);
@@ -5180,6 +5221,10 @@
     }
     const card = document.createElement('div');
     card.className = 'item-card';
+    // Barra lateral con el color del ángulo: es lo que identifica al posteo de un vistazo
+    // cuando la lista está plegada. Al cambiar el ángulo la tarjeta se rearma entera, así
+    // que alcanza con ponerlo acá.
+    pintarColorAngulo(card, item);
 
     const head = document.createElement('div');
     head.className = 'item-card-head';
