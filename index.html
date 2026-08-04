@@ -792,9 +792,18 @@
   .sheet-empty{
     padding:26px 20px;text-align:center;color:var(--muted-2);font-size:12.5px;line-height:1.6;
   }
-  .legend{padding:14px 18px;border-top:1px solid var(--border);}
+  /* La leyenda de ángulos queda en su propia caja, igual que el resto de los paneles: sin
+     recuadro flotaba sobre el fondo y no se leía como una pieza de la interfaz. */
+  .legend{
+    margin-top:var(--s-4); padding:var(--s-4);
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--r-3);
+    backdrop-filter:var(--glass-blur-sm); -webkit-backdrop-filter:var(--glass-blur-sm);
+  }
   .legend h3{margin:0 0 10px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted-2);font-weight:600;}
-  .legend-row{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .legend-row{
+    display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);
+    padding:3px 0;
+  }
   .swatch{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
 
   .manage-btn{width:100%;margin-top:14px;}
@@ -845,6 +854,17 @@
     background:#15141c;border-top:1px solid var(--border);
   }
   .panel-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
+  /* Flechas para pasar de día. Van pegadas entre sí y antes de la fecha: el par se lee como
+     un solo control de navegación, y separadas parecerían dos botones sin relación. */
+  .dia-nav{display:flex;gap:2px;flex:none;}
+  .dia-flecha{
+    background:var(--surface-2); border:1px solid var(--border); color:var(--muted);
+    width:26px; height:26px; border-radius:var(--r-1); cursor:pointer;
+    font-size:15px; line-height:1; display:flex; align-items:center; justify-content:center;
+    transition:color .15s var(--ease-out), background .15s var(--ease-out), border-color .15s var(--ease-out);
+  }
+  .dia-flecha:hover{color:var(--text); background:var(--surface-3); border-color:var(--muted-2);}
+  .dia-flecha:active{transform:scale(.92);}
   .panel-head h2{flex:none;}
   .anotacion-input{
     flex:1;min-width:0;
@@ -1120,6 +1140,74 @@
     font-family:'IBM Plex Mono',monospace;
   }
   .clickup-link:hover{text-decoration:underline;}
+  /* ---------- guión ---------- */
+  /* Caja propia y no un textarea suelto: el guión tiene su contexto y su botón, y sin un
+     marco que los agrupe se leerían como campos más del copy, que es justo la confusión
+     que se vino a resolver. */
+  .guion-box{
+    margin-top:8px; padding:10px;
+    background:rgba(139,92,246,.06); border:1px solid rgba(139,92,246,.28);
+    border-radius:10px;
+  }
+  .guion-box .field-label{color:var(--accent-2);}
+  .guion-contexto{
+    width:100%; min-height:46px; resize:vertical;
+    background:var(--card-bg-2); border:1px solid var(--border); border-radius:8px;
+    color:var(--text); padding:8px 10px;
+    font-family:'Inter',sans-serif; font-size:12.5px; line-height:1.5;
+  }
+  .guion-contexto:focus{outline:none; border-color:var(--accent-2);}
+
+  /* ---------- frases guardadas ---------- */
+  .frases-panel{
+    position:absolute; top:calc(100% + 6px); left:0; z-index:300;
+    width:320px; max-height:340px; padding:12px;
+    background:var(--card-bg); border:1px solid var(--border); border-radius:12px;
+    box-shadow:0 18px 40px rgba(0,0,0,.55);
+    display:flex; flex-direction:column;
+    transform-origin:top left;
+    transform:scale(1); opacity:1;
+    transition:transform 150ms var(--ease-out), opacity 150ms var(--ease-out);
+  }
+  @starting-style{ .frases-panel{ transform:scale(.95); opacity:0; } }
+  .frases-panel h4{
+    margin:0 0 8px; font-size:11px; letter-spacing:.6px; text-transform:uppercase;
+    color:var(--muted); font-weight:600;
+  }
+  /* El scroll va en la lista y no en el panel, para que el campo de alta quede siempre
+     visible abajo en vez de irse de la vista al acumular frases. */
+  .frases-lista{flex:1 1 auto; min-height:0; overflow-y:auto; margin-bottom:10px;}
+  .frase-fila{
+    display:flex; align-items:center; gap:2px; margin-bottom:4px;
+  }
+  .frase-txt{
+    flex:1; min-width:0; text-align:left; cursor:pointer;
+    background:var(--surface-2); border:1px solid transparent; border-radius:7px;
+    color:var(--text); padding:7px 9px; font-family:'Inter',sans-serif;
+    font-size:12px; line-height:1.45;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
+    transition:border-color .15s var(--ease-out), background .15s var(--ease-out);
+  }
+  .frase-txt:hover{background:var(--surface-3); border-color:var(--accent);}
+  .frase-accion{
+    background:none; border:none; color:var(--muted-2); cursor:pointer; flex:none;
+    padding:5px 6px; border-radius:5px; font-size:11px;
+    transition:color .15s var(--ease-out), background .15s var(--ease-out);
+  }
+  .frase-accion:hover{color:var(--accent); background:var(--surface-2);}
+  .frase-accion.borrar:hover{color:var(--danger);}
+  .frases-vacio{color:var(--muted-2); font-size:11.5px; text-align:center; padding:14px 0; line-height:1.5;}
+  .frase-alta{border-top:1px solid var(--border); padding-top:10px;}
+  .frase-campo{
+    width:100%; min-height:52px; resize:vertical; margin-bottom:8px;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
+    color:var(--text); padding:8px 10px;
+    font-family:'Inter',sans-serif; font-size:12px; line-height:1.45;
+  }
+  .frase-campo:focus{outline:none; border-color:var(--accent);}
+  .frase-alta-row{display:flex; gap:8px; align-items:center;}
+  .frase-alta-row .btn.primary{flex:1; justify-content:center;}
+
   .ai-btn-row{display:flex;gap:8px;}
   .acciones-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px;}
   .ai-generate-btn{flex:1;justify-content:center;background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:#fff;font-weight:600;}
@@ -2054,6 +2142,12 @@
 <div class="overlay" id="dayOverlay">
   <div class="panel">
     <div class="panel-head">
+      <!-- Pasar de día sin cerrar y volver a buscar en la grilla: revisar la semana es ir
+           de un día al siguiente, no entrar y salir por cada uno. -->
+      <div class="dia-nav">
+        <button class="dia-flecha" id="diaAnterior" title="Día anterior">‹</button>
+        <button class="dia-flecha" id="diaSiguiente" title="Día siguiente">›</button>
+      </div>
       <h2 id="panelDate">—</h2>
       <!-- La anotación va acá, en la misma línea que la fecha: abajo se comía un renglón
            entero del scroll para un campo que casi siempre está vacío. -->
@@ -2711,6 +2805,11 @@
         time: it.time || '',
         title: it.title || '',
         script: it.script || '',
+        // Contexto propio del guión. El copy es lo que va escrito en el posteo y el guión es
+        // lo que se dice adentro del video: son dos encargos distintos y cada uno necesita
+        // explicar lo suyo. Antes el guión se generaba a partir del contexto del copy, que
+        // obligaba a escribir uno para pedir el otro.
+        scriptContext: it.scriptContext || '',
         // Dos campos separados a propósito: "status" es tu avance de producción y "approval"
         // es la decisión del cliente. Mezclarlos haría que aprobar borre en qué etapa estaba.
         status: ESTADOS[it.status] ? it.status : 'pendiente',
@@ -2732,6 +2831,11 @@
         time: it.time || '',
         title: it.title || '',
         script: it.script || '',
+        // Contexto propio del guión. El copy es lo que va escrito en el posteo y el guión es
+        // lo que se dice adentro del video: son dos encargos distintos y cada uno necesita
+        // explicar lo suyo. Antes el guión se generaba a partir del contexto del copy, que
+        // obligaba a escribir uno para pedir el otro.
+        scriptContext: it.scriptContext || '',
         status: ESTADOS[it.status] ? it.status : 'pendiente',
         approval: APROBACIONES[it.approval] ? it.approval : 'sin-revisar',
         approvalAt: it.approvalAt || ''
@@ -2940,7 +3044,7 @@
   async function precargarArranque(){
     const claves = [
       'angles', 'client-name', 'calendar-title', 'client-photo',
-      'ideas', 'quick-links', 'papelera', 'recurring-rules', 'notifications', 'clickup',
+      'ideas', 'quick-links', 'papelera', 'recurring-rules', 'notifications', 'clickup', 'frases',
       // Solo el índice del kit (nombres y colores). Los archivos viven en claves aparte y
       // se piden al abrir el panel: traer los logos en cada arranque sería cargar medio
       // megabyte que casi nunca se mira.
@@ -4099,6 +4203,211 @@
     selMin.addEventListener('change', aplicar);
 
     cont.appendChild(selHora); cont.appendChild(sep); cont.appendChild(selMin);
+    return cont;
+  }
+
+  // ---------- frases guardadas ----------
+  // Lo que se repite en muchos copys: la dirección de un local, el horario, el link de
+  // reservas. Se guardan por marca y se insertan donde esté el cursor, que es más útil que
+  // copiarlas al portapapeles y volver a pegar.
+  let frases = [];
+
+  async function loadFrases(){
+    try{
+      const val = await storageGet('frases');
+      frases = val ? JSON.parse(val) : [];
+      if(!Array.isArray(frases)) frases = [];
+    }catch(e){ frases = []; }
+  }
+  async function saveFrases(){
+    try{ await storageSet('frases', JSON.stringify(frases)); }
+    catch(e){ showToast('No se pudieron guardar las frases'); }
+  }
+
+  // Inserta texto donde está el cursor del textarea, respetando lo que ya había escrito.
+  function insertarEnCursor(textarea, texto){
+    const ini = textarea.selectionStart ?? textarea.value.length;
+    const fin = textarea.selectionEnd ?? ini;
+    textarea.value = textarea.value.slice(0, ini) + texto + textarea.value.slice(fin);
+    const pos = ini + texto.length;
+    textarea.setSelectionRange(pos, pos);
+    textarea.focus();
+    // El cambio por JS no dispara 'input', y de ahí cuelgan el guardado y el contador.
+    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  // Panel de frases colgado de su botón. Se arma cada vez que se abre para no tener que
+  // sincronizar una copia con la lista real.
+  function buildPanelFrases(textarea){
+    const panel = document.createElement('div');
+    panel.className = 'frases-panel';
+    panel.addEventListener('click', e => e.stopPropagation());
+
+    const titulo = document.createElement('h4');
+    titulo.textContent = 'Frases guardadas';
+    panel.appendChild(titulo);
+
+    const lista = document.createElement('div');
+    lista.className = 'frases-lista';
+    panel.appendChild(lista);
+
+    const pintar = ()=>{
+      lista.innerHTML = '';
+      if(!frases.length){
+        lista.innerHTML = '<div class="frases-vacio">Todavía no guardaste ninguna. Escribí abajo la primera.</div>';
+        return;
+      }
+      frases.forEach(f=>{
+        const fila = document.createElement('div');
+        fila.className = 'frase-fila';
+
+        // El texto es el botón principal: tocarlo la inserta, que es lo que se viene a hacer.
+        const txt = document.createElement('button');
+        txt.type = 'button'; txt.className = 'frase-txt';
+        txt.textContent = f.texto;
+        txt.title = 'Insertar en el copy';
+        txt.addEventListener('click', ()=>{
+          insertarEnCursor(textarea, f.texto);
+          cerrarPanelFrases();
+        });
+        fila.appendChild(txt);
+
+        const copiar = document.createElement('button');
+        copiar.type = 'button'; copiar.className = 'frase-accion';
+        copiar.innerHTML = '<i class="fa-regular fa-copy"></i>';
+        copiar.title = 'Copiar al portapapeles';
+        copiar.addEventListener('click', async ()=>{
+          try{ await navigator.clipboard.writeText(f.texto); showToast('Frase copiada'); }
+          catch(e){ showToast('No se pudo copiar'); }
+        });
+        fila.appendChild(copiar);
+
+        const borrar = document.createElement('button');
+        borrar.type = 'button'; borrar.className = 'frase-accion borrar';
+        borrar.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        borrar.title = 'Eliminar';
+        borrar.addEventListener('click', async ()=>{
+          frases = frases.filter(x => x.id !== f.id);
+          await saveFrases();
+          pintar();
+        });
+        fila.appendChild(borrar);
+        lista.appendChild(fila);
+      });
+    };
+    pintar();
+
+    // Alta, con su propio selector de emoji.
+    const alta = document.createElement('div');
+    alta.className = 'frase-alta';
+    const campo = document.createElement('textarea');
+    campo.className = 'frase-campo';
+    campo.placeholder = 'Ej: 📍 Av. Santa Fe 1234, Palermo · Lun a Sáb de 9 a 20';
+    alta.appendChild(campo);
+
+    const fila = document.createElement('div');
+    fila.className = 'frase-alta-row';
+
+    const emojiWrap = document.createElement('div');
+    emojiWrap.style.cssText = 'position:relative;display:inline-block;';
+    const emojiBtn = document.createElement('button');
+    emojiBtn.type = 'button'; emojiBtn.className = 'btn ghost small';
+    emojiBtn.innerHTML = '<i class="fa-regular fa-face-smile"></i>Emoji';
+    emojiBtn.title = 'Insertar un emoji en la frase';
+    emojiBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      document.querySelectorAll('[data-emoji-picker]').forEach(p=>p.remove());
+      const picker = buildEmojiPicker(campo);
+      picker.setAttribute('data-emoji-picker', 'true');
+      emojiWrap.appendChild(picker);
+    });
+    emojiWrap.appendChild(emojiBtn);
+    fila.appendChild(emojiWrap);
+
+    const guardar = document.createElement('button');
+    guardar.type = 'button'; guardar.className = 'btn primary small';
+    guardar.textContent = 'Guardar frase';
+    guardar.addEventListener('click', async ()=>{
+      const texto = campo.value.trim();
+      if(!texto){ campo.focus(); return; }
+      frases.push({ id: genId(), texto });
+      await saveFrases();
+      campo.value = '';
+      pintar();
+      campo.focus();
+    });
+    fila.appendChild(guardar);
+    alta.appendChild(fila);
+    panel.appendChild(alta);
+    return panel;
+  }
+
+  function cerrarPanelFrases(){
+    document.querySelectorAll('.frases-panel').forEach(p=>p.remove());
+  }
+  document.addEventListener('click', cerrarPanelFrases);
+
+  // Bloque del guión, con su propio contexto. El copy es lo que va escrito en el posteo y el
+  // guión es lo que se dice adentro del video o del carrusel: son dos encargos distintos, y
+  // pedir uno no debería obligar a haber escrito el otro. Antes el guión salía del contexto
+  // del copy, así que sin copy no había guión.
+  //
+  // Devuelve el contenedor; el botón que lo despliega lo arma quien lo llama.
+  function buildBloqueGuion(key, item, kindPrompt){
+    const cont = document.createElement('div');
+    cont.className = 'guion-box';
+
+    const ctxLabel = document.createElement('label');
+    ctxLabel.className = 'field-label';
+    ctxLabel.textContent = 'De qué habla el video';
+    const ctx = document.createElement('textarea');
+    ctx.className = 'guion-contexto';
+    ctx.placeholder = 'Ej: mostrar los 3 pasos de la receta, cerrar invitando a probarla…';
+    ctx.value = item.scriptContext || '';
+    ctx.addEventListener('input', ()=>{ item.scriptContext = ctx.value; scheduleSaveDay(key); });
+
+    const guionLabel = document.createElement('label');
+    guionLabel.className = 'field-label';
+    guionLabel.style.marginTop = '8px';
+    guionLabel.textContent = 'Guión';
+    const guion = document.createElement('textarea');
+    guion.className = 'copy-textarea';
+    guion.placeholder = 'Lo que se dice en el video, plano por plano…';
+    guion.value = item.script || '';
+    guion.style.minHeight = '120px';
+    guion.addEventListener('input', ()=>{ item.script = guion.value; scheduleSaveDay(key); });
+
+    const gen = document.createElement('button');
+    gen.type = 'button'; gen.className = 'btn small ai-generate-btn';
+    gen.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
+    gen.style.cssText = 'margin-top:8px;width:100%;';
+    gen.addEventListener('click', async ()=>{
+      // El contexto del guión es lo único que se exige, y ya no el del copy.
+      const base = (item.scriptContext || '').trim();
+      if(!base){ showToast('Contá primero de qué habla el video'); ctx.focus(); return; }
+      gen.disabled = true; gen.textContent = 'Generando…';
+      try{
+        const angleName = item.angle ? ((angleById(item.angle)||{}).name || '') : '';
+        const rawText = await AI.generateCopy({
+          context: base, kind: kindPrompt, angle: angleName, formato: 'guion'
+        });
+        // Se agrega debajo en vez de reemplazar: si ya había guión escrito a mano, pisarlo
+        // sin avisar sería perder trabajo por tocar un botón.
+        guion.value += (guion.value ? '\n\n' : '') + rawText;
+        item.script = guion.value;
+        scheduleSaveDay(key);
+        showToast('Guión generado');
+      }catch(err){
+        showToast('No se pudo generar el guión: ' + (err && err.message ? err.message : 'error desconocido'));
+      }finally{
+        gen.disabled = false;
+        gen.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
+      }
+    });
+
+    cont.appendChild(ctxLabel); cont.appendChild(ctx);
+    cont.appendChild(guionLabel); cont.appendChild(guion);
+    cont.appendChild(gen);
     return cont;
   }
 
@@ -5308,49 +5617,45 @@
     emojiRow.appendChild(emojiBtn);
     accionesRow.appendChild(emojiRow);
 
-    // Guión IA (sin límite de caracteres)
+    // Frases guardadas: lo que se repite en muchos copys (dirección, horarios, links).
+    const frasesRow = document.createElement('div');
+    frasesRow.style.cssText = 'position:relative;display:inline-block;';
+    const frasesBtn = document.createElement('button');
+    frasesBtn.type = 'button'; frasesBtn.className = 'btn ghost small';
+    frasesBtn.innerHTML = '<i class="fa-solid fa-quote-right"></i>Frases';
+    frasesBtn.title = 'Frases que repetís seguido: dirección, horarios, links';
+    frasesBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const abierto = frasesRow.querySelector('.frases-panel');
+      cerrarPanelFrases();
+      if(abierto) return; // segundo click sobre el mismo botón: cierra
+      frasesRow.appendChild(buildPanelFrases(textarea));
+    });
+    frasesRow.appendChild(frasesBtn);
+    accionesRow.appendChild(frasesRow);
+
+    // Guión: se despliega bajo demanda y trae su propio contexto, independiente del copy.
     const scriptContainer = document.createElement('div');
     const scriptBtn = document.createElement('button');
-    scriptBtn.type = 'button'; scriptBtn.className = 'btn ghost small'; scriptBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
-    let scriptTextarea = null;
-    scriptBtn.addEventListener('click', ()=>{
-      if(!scriptTextarea){
-        scriptTextarea = document.createElement('textarea');
-        scriptTextarea.className = 'copy-textarea'; scriptTextarea.placeholder = 'Guión o detalles para la grabación...';
-        scriptTextarea.value = item.script || '';
-        scriptTextarea.style.cssText = 'min-height:120px;margin-top:8px;';
-        scriptTextarea.addEventListener('input', ()=>{ item.script = scriptTextarea.value; scheduleSaveDay(key); });
-        scriptContainer.appendChild(scriptTextarea);
-
-        const scriptGenBtn = document.createElement('button');
-        scriptGenBtn.type = 'button'; scriptGenBtn.className = 'btn small ai-generate-btn'; scriptGenBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
-        scriptGenBtn.style.cssText = 'margin-top:8px;width:100%;';
-        scriptGenBtn.addEventListener('click', async ()=>{
-          if(!item.context.trim()){ showToast('Escribí primero el contexto del copy'); return; }
-          scriptGenBtn.disabled = true; scriptGenBtn.textContent = 'Generando…';
-          try{
-            const angleName = item.angle ? ((angleById(item.angle)||{}).name || '') : '';
-            const rawText = await AI.generateCopy({context: `Guión para: ${item.context}`, kind: item.kind==='carrusel' ? 'carrusel' : 'reel', angle: angleName, formato: 'guion'});
-            scriptTextarea.value += (scriptTextarea.value ? '\n\n' : '') + rawText;
-            item.script = scriptTextarea.value;
-            scheduleSaveDay(key);
-            showToast('Guión generado');
-          }catch(err){
-            showToast('No se pudo generar el guión: ' + (err && err.message ? err.message : 'error desconocido'));
-          }finally{
-            scriptGenBtn.disabled = false;
-            scriptGenBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
-          }
-        });
-        scriptContainer.appendChild(scriptGenBtn);
-        scriptBtn.textContent = '✏️ Ocultar guión';
+    scriptBtn.type = 'button'; scriptBtn.className = 'btn ghost small';
+    scriptBtn.innerHTML = '<i class="fa-solid fa-clapperboard"></i>Guión';
+    scriptBtn.title = 'Escribir o generar el guión de lo que se dice en el video';
+    // Nace desplegado si ya hay algo escrito: tener guión y que el botón lo esconda hace
+    // pensar que se perdió.
+    let bloqueGuion = null;
+    const alternarGuion = ()=>{
+      if(!bloqueGuion){
+        bloqueGuion = buildBloqueGuion(key, item, item.kind==='carrusel' ? 'carrusel' : 'reel');
+        scriptContainer.appendChild(bloqueGuion);
+        scriptBtn.innerHTML = '<i class="fa-solid fa-clapperboard"></i>Ocultar guión';
       }else{
-        scriptTextarea.remove();
-        scriptContainer.querySelectorAll('button:not(:first-child)').forEach(b=>b.remove());
-        scriptTextarea = null;
-        scriptBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
+        bloqueGuion.remove();
+        bloqueGuion = null;
+        scriptBtn.innerHTML = '<i class="fa-solid fa-clapperboard"></i>Guión';
       }
-    });
+    };
+    scriptBtn.addEventListener('click', alternarGuion);
+    if((item.script || '').trim() || (item.scriptContext || '').trim()) alternarGuion();
     accionesRow.appendChild(scriptBtn); // comparte renglón con el de emoji
     cuerpo.appendChild(accionesRow);
     cuerpo.appendChild(scriptContainer); // acá se despliega el textarea del guión al pedirlo
@@ -5594,49 +5899,43 @@
     emojiRow.appendChild(emojiBtn);
     accionesRow.appendChild(emojiRow);
 
-    // Guión IA (sin límite de caracteres)
+    // Frases guardadas: lo que se repite en muchos copys (dirección, horarios, links).
+    const frasesRow = document.createElement('div');
+    frasesRow.style.cssText = 'position:relative;display:inline-block;';
+    const frasesBtn = document.createElement('button');
+    frasesBtn.type = 'button'; frasesBtn.className = 'btn ghost small';
+    frasesBtn.innerHTML = '<i class="fa-solid fa-quote-right"></i>Frases';
+    frasesBtn.title = 'Frases que repetís seguido: dirección, horarios, links';
+    frasesBtn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      const abierto = frasesRow.querySelector('.frases-panel');
+      cerrarPanelFrases();
+      if(abierto) return; // segundo click sobre el mismo botón: cierra
+      frasesRow.appendChild(buildPanelFrases(textarea));
+    });
+    frasesRow.appendChild(frasesBtn);
+    accionesRow.appendChild(frasesRow);
+
+    // Guión: mismo bloque que en el feed, con su contexto propio.
     const scriptContainer = document.createElement('div');
     const scriptBtn = document.createElement('button');
-    scriptBtn.type = 'button'; scriptBtn.className = 'btn ghost small'; scriptBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
-    let scriptTextarea = null;
-    scriptBtn.addEventListener('click', ()=>{
-      if(!scriptTextarea){
-        scriptTextarea = document.createElement('textarea');
-        scriptTextarea.className = 'copy-textarea'; scriptTextarea.placeholder = 'Guión o detalles para la grabación...';
-        scriptTextarea.value = item.script || '';
-        scriptTextarea.style.cssText = 'min-height:120px;margin-top:8px;';
-        scriptTextarea.addEventListener('input', ()=>{ item.script = scriptTextarea.value; scheduleSaveDay(key); });
-        scriptContainer.appendChild(scriptTextarea);
-
-        const scriptGenBtn = document.createElement('button');
-        scriptGenBtn.type = 'button'; scriptGenBtn.className = 'btn small ai-generate-btn'; scriptGenBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
-        scriptGenBtn.style.cssText = 'margin-top:8px;width:100%;';
-        scriptGenBtn.addEventListener('click', async ()=>{
-          if(!item.context.trim()){ showToast('Escribí primero el contexto del copy'); return; }
-          scriptGenBtn.disabled = true; scriptGenBtn.textContent = 'Generando…';
-          try{
-            const angleName = item.angle ? ((angleById(item.angle)||{}).name || '') : '';
-            const rawText = await AI.generateCopy({context: `Guión para story: ${item.context}`, kind: 'story', angle: angleName, formato: 'guion'});
-            scriptTextarea.value += (scriptTextarea.value ? '\n\n' : '') + rawText;
-            item.script = scriptTextarea.value;
-            scheduleSaveDay(key);
-            showToast('Guión generado');
-          }catch(err){
-            showToast('No se pudo generar el guión: ' + (err && err.message ? err.message : 'error desconocido'));
-          }finally{
-            scriptGenBtn.disabled = false;
-            scriptGenBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar con IA';
-          }
-        });
-        scriptContainer.appendChild(scriptGenBtn);
-        scriptBtn.textContent = '✏️ Ocultar guión';
+    scriptBtn.type = 'button'; scriptBtn.className = 'btn ghost small';
+    scriptBtn.innerHTML = '<i class="fa-solid fa-clapperboard"></i>Guión';
+    scriptBtn.title = 'Escribir o generar el guión de lo que se dice en la story';
+    let bloqueGuion = null;
+    const alternarGuion = ()=>{
+      if(!bloqueGuion){
+        bloqueGuion = buildBloqueGuion(key, item, 'story');
+        scriptContainer.appendChild(bloqueGuion);
+        scriptBtn.innerHTML = '<i class="fa-solid fa-clapperboard"></i>Ocultar guión';
       }else{
-        scriptTextarea.remove();
-        scriptContainer.querySelectorAll('button:not(:first-child)').forEach(b=>b.remove());
-        scriptTextarea = null;
-        scriptBtn.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Generar guión';
+        bloqueGuion.remove();
+        bloqueGuion = null;
+        scriptBtn.innerHTML = '<i class="fa-solid fa-clapperboard"></i>Guión';
       }
-    });
+    };
+    scriptBtn.addEventListener('click', alternarGuion);
+    if((item.script || '').trim() || (item.scriptContext || '').trim()) alternarGuion();
     accionesRow.appendChild(scriptBtn); // comparte renglón con el de emoji
     cuerpo.appendChild(accionesRow);
     cuerpo.appendChild(scriptContainer); // acá se despliega el textarea del guión al pedirlo
@@ -5851,6 +6150,40 @@
       return;
     }
     if($('dayOverlay').classList.contains('open')) $('closePanel').click();
+  });
+
+  // Pasar al día anterior o siguiente sin salir del panel.
+  async function moverDia(paso){
+    if(!openDate) return;
+    // Lo pendiente se escribe antes de cambiar: el guardado es con retardo y saltar de día
+    // sin esto se llevaría puesto lo último que se tecleó.
+    await flushSave();
+    const [y, m, d] = openDate.split('-').map(Number);
+    const destino = new Date(y, m - 1, d + paso);
+    const nueva = dateKey(destino.getFullYear(), destino.getMonth(), destino.getDate());
+
+    // Si el día cae en otro mes hay que traerlo: monthData solo tiene el mes a la vista, y
+    // sin cargarlo el panel abriría un día vacío que en realidad tiene contenido.
+    if(destino.getFullYear() !== viewYear || destino.getMonth() !== viewMonth){
+      viewYear = destino.getFullYear();
+      viewMonth = destino.getMonth();
+      await loadMonth();
+      renderCalendar();
+    }
+    openDayPanel(nueva);
+  }
+  $('diaAnterior').addEventListener('click', ()=> moverDia(-1));
+  $('diaSiguiente').addEventListener('click', ()=> moverDia(1));
+
+  // Flechas del teclado, mientras no se esté escribiendo en un campo.
+  document.addEventListener('keydown', (e)=>{
+    if(!$('dayOverlay').classList.contains('open')) return;
+    if(e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    const foco = document.activeElement;
+    if(foco && /^(INPUT|TEXTAREA|SELECT)$/.test(foco.tagName)) return;
+    if(document.querySelector('.modal-back.open')) return; // hay una ventana encima
+    e.preventDefault();
+    moverDia(e.key === 'ArrowLeft' ? -1 : 1);
   });
 
   $('clearDay').addEventListener('click', async ()=>{
@@ -8782,6 +9115,7 @@
       {name: 'Links', fn: loadQuickLinks, peso: 1},
       {name: 'ClickUp', fn: loadClickup, peso: 1},
       {name: 'Kit', fn: loadKit, peso: 1},
+      {name: 'Frases', fn: loadFrases, peso: 1},
       {name: 'Reglas', fn: loadRecurringRules, peso: 1},
       {name: 'Mes', fn: loadMonth, peso: 4}
     ];
