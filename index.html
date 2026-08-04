@@ -1074,6 +1074,27 @@
   .kit-hex:hover{background:var(--surface-3); color:var(--text);}
   .kit-hex:focus{outline:none; background:var(--surface-3); color:var(--text); box-shadow:0 0 0 1px var(--accent);}
 
+  /* Fuentes: en fila y no en grilla como los logos. No hay nada que mirar —el archivo no se
+     previsualiza sin cargarlo en la página entera— así que lo que importa es el nombre y
+     poder bajarla, y una lista angosta cuesta menos alto que una grilla de cajas vacías. */
+  .kit-fuentes{display:flex; flex-direction:column; gap:var(--s-2);}
+  .kit-fuente{
+    display:flex; align-items:center; gap:var(--s-3);
+    padding:var(--s-2); background:var(--surface-2);
+    border:1px solid var(--border); border-radius:var(--r-2);
+  }
+  .kit-fuente-icono{
+    width:34px; height:34px; flex:none; border-radius:var(--r-1);
+    background:var(--surface-3); color:var(--muted);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Inter',serif; font-size:14px; font-weight:600; letter-spacing:-0.02em;
+  }
+  .kit-fuente-datos{flex:1; min-width:0; display:flex; flex-direction:column; gap:1px;}
+  .kit-fuente-meta{
+    font-family:'IBM Plex Mono',monospace; font-size:10px; color:var(--muted-2);
+    padding-left:3px;
+  }
+
   .kit-input, .kit-textarea{
     width:100%; background:var(--surface-2); border:1px solid var(--border);
     border-radius:8px; color:var(--text); padding:9px 11px;
@@ -2277,18 +2298,30 @@
       <div class="kit-grilla" id="kitGraficos"></div>
     </div>
 
-    <!-- TIPOGRAFÍAS Y NOTAS -->
+    <!-- TIPOGRAFÍAS -->
     <div class="kit-seccion">
-      <div class="kit-seccion-head"><h3>Tipografías y notas</h3></div>
-      <label class="field-label" for="kitTipografias">Tipografías</label>
+      <div class="kit-seccion-head">
+        <h3>Tipografías</h3>
+        <button class="btn small btn-nueva-idea" data-subir="fuente"><i class="fa-solid fa-upload"></i>Subir fuente</button>
+      </div>
+      <p class="hint kit-nota">Los archivos de fuente (.ttf, .otf, .woff, .woff2) quedan guardados acá para poder instalarlos en cualquier computadora.</p>
+      <div class="kit-fuentes" id="kitFuentes"></div>
+      <label class="field-label" for="kitTipografias" style="margin-top:12px;">Cómo se usan</label>
       <input type="text" id="kitTipografias" class="kit-input"
         placeholder="Ej: Títulos en Poppins SemiBold · Textos en Inter Regular" />
-      <label class="field-label" for="kitNotas" style="margin-top:10px;">Cómo se usa la marca</label>
+    </div>
+
+    <!-- NOTAS -->
+    <div class="kit-seccion">
+      <div class="kit-seccion-head"><h3>Cómo se usa la marca</h3></div>
       <textarea id="kitNotas" class="kit-textarea"
         placeholder="Ej: el logo siempre sobre fondo claro, nunca deformarlo. Dejar aire alrededor…"></textarea>
     </div>
 
-    <input type="file" id="kitArchivoInput" accept="image/png,image/svg+xml,image/jpeg,image/webp" style="display:none;" />
+    <!-- Un input por tipo de archivo: mezclar imágenes y fuentes en el mismo "accept" haría
+         que el explorador ofrezca fuentes al buscar un logo y viceversa. -->
+    <input type="file" id="kitArchivoInput" multiple accept="image/png,image/svg+xml,image/jpeg,image/webp" style="display:none;" />
+    <input type="file" id="kitFuenteInput" multiple accept=".ttf,.otf,.woff,.woff2,.zip,font/*" style="display:none;" />
 
     <div class="modal-close-row" style="margin-top:16px;">
       <span class="hint" id="kitEstado" style="margin:0;margin-right:auto;"></span>
@@ -4045,7 +4078,14 @@
 
     const selMin = document.createElement('select');
     selMin.className = 'time-input'; selMin.title = 'Minutos';
-    selMin.innerHTML = ['00','30']
+    // Cuartos de hora. Un horario ya guardado que no caiga en la grilla —porque venía de
+    // cuando solo había 00 y 30, o de una versión futura con más pasos— se agrega como
+    // opción propia: si no, el desplegable saltaría solo al primer valor y le cambiaría
+    // la hora a un posteo sin que nadie se lo pidiera.
+    const pasos = ['00','15','30','45'];
+    if(minActual && !pasos.includes(minActual)) pasos.push(minActual);
+    pasos.sort();
+    selMin.innerHTML = pasos
       .map(v=>`<option value="${v}"${v===minActual ? ' selected' : ''}>${v}</option>`).join('');
 
     const aplicar = ()=>{
@@ -4323,6 +4363,92 @@
 
   const claveArchivoKit = (id) => 'brandkit-file:' + id;
 
+  // Peso máximo de un archivo de fuente. Una fuente de texto anda entre 30 y 200 KB, y en
+  // base64 crece un tercio; con este techo entran las normales y se frena una familia
+  // entera empaquetada, que no tiene sentido guardar dentro de una fila de la base.
+  const KIT_FUENTE_MAX = 1400000; // caracteres, aprox. 1 MB de archivo real
+
+  // Las fuentes no pasan por canvas: no son imágenes, no hay nada que redimensionar ni
+  // recomprimir, y tocarlas rompería el archivo. Se guardan tal cual llegan.
+  function prepararFuenteKit(file){
+    return new Promise((resolve, reject)=>{
+      const lector = new FileReader();
+      lector.onerror = ()=> reject(new Error('No se pudo leer el archivo'));
+      lector.onload = ()=>{
+        const dataUrl = String(lector.result);
+        if(dataUrl.length > KIT_FUENTE_MAX){
+          return reject(new Error('pesa demasiado, subí solo los cortes que uses'));
+        }
+        resolve({ dataUrl, mime: file.type || 'font/ttf' });
+      };
+      lector.readAsDataURL(file);
+    });
+  }
+
+  const EXT_FUENTE = { 'font/ttf':'.ttf', 'font/otf':'.otf', 'font/woff':'.woff', 'font/woff2':'.woff2', 'application/zip':'.zip' };
+
+  function renderKitFuentes(){
+    const cont = $('kitFuentes');
+    cont.innerHTML = '';
+    const lista = brandKit.archivos.filter(a => a.seccion === 'fuente');
+    if(!lista.length){
+      cont.innerHTML = '<div class="kit-vacio">Todavía no subiste archivos de fuente.</div>';
+      return;
+    }
+    lista.forEach(a=>{
+      const fila = document.createElement('div');
+      fila.className = 'kit-fuente';
+
+      const icono = document.createElement('span');
+      icono.className = 'kit-fuente-icono';
+      // La "Aa" dice de qué se trata mejor que un ícono genérico de archivo, y no depende
+      // de poder previsualizar la fuente —que exigiría cargarla en la página entera—.
+      icono.textContent = 'Aa';
+      fila.appendChild(icono);
+
+      const datos = document.createElement('div');
+      datos.className = 'kit-fuente-datos';
+      const nombre = document.createElement('input');
+      nombre.className = 'kit-nombre';
+      nombre.value = a.nombre || '';
+      nombre.title = 'Tocá para renombrarlo';
+      nombre.disabled = IS_READONLY;
+      nombre.addEventListener('change', async ()=>{ a.nombre = nombre.value.trim(); await saveKit(); });
+      datos.appendChild(nombre);
+      const meta = document.createElement('span');
+      meta.className = 'kit-fuente-meta';
+      meta.textContent = (a.ext || EXT_FUENTE[a.mime] || '').replace('.', '').toUpperCase() +
+        (a.peso ? ' · ' + Math.round(a.peso / 1024) + ' KB' : '');
+      datos.appendChild(meta);
+      fila.appendChild(datos);
+
+      const bajar = document.createElement('a');
+      bajar.className = 'kit-accion';
+      bajar.title = 'Descargar para instalarla';
+      bajar.innerHTML = '<i class="fa-solid fa-download"></i>';
+      bajar.href = kitCache[a.id] || '#';
+      bajar.download = (a.nombre || 'fuente').replace(/[\\/:*?"<>|]/g, '-') + (a.ext || EXT_FUENTE[a.mime] || '.ttf');
+      fila.appendChild(bajar);
+
+      if(!IS_READONLY){
+        const borrar = document.createElement('button');
+        borrar.className = 'kit-accion borrar';
+        borrar.title = 'Eliminar';
+        borrar.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        borrar.addEventListener('click', async ()=>{
+          if(!confirm('¿Eliminar "' + (a.nombre || 'esta fuente') + '" del kit?')) return;
+          brandKit.archivos = brandKit.archivos.filter(x => x.id !== a.id);
+          delete kitCache[a.id];
+          try{ await storageSet(claveArchivoKit(a.id), ''); }catch(e){}
+          await saveKit();
+          renderKit();
+        });
+        fila.appendChild(borrar);
+      }
+      cont.appendChild(fila);
+    });
+  }
+
   // Trae los archivos que todavía no están en memoria. Se piden todos juntos: uno por uno
   // serían diez idas y vueltas para abrir un panel.
   async function cargarArchivosKit(){
@@ -4341,6 +4467,7 @@
     renderKitArchivos('logo', $('kitLogos'), 'Todavía no subiste ningún logo.');
     renderKitArchivos('grafico', $('kitGraficos'), 'Todavía no subiste elementos gráficos.');
     renderKitColores();
+    renderKitFuentes();
     $('kitTipografias').value = brandKit.tipografias || '';
     $('kitNotas').value = brandKit.notas || '';
     const editable = !IS_READONLY;
@@ -4500,33 +4627,95 @@
   document.querySelectorAll('#kitModal [data-subir]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       kitSeccionDestino = btn.dataset.subir;
-      $('kitArchivoInput').click();
+      // Las fuentes tienen su propio selector de archivos, con su lista de extensiones.
+      $(kitSeccionDestino === 'fuente' ? 'kitFuenteInput' : 'kitArchivoInput').click();
     });
   });
 
-  $('kitArchivoInput').addEventListener('change', async (e)=>{
-    const file = e.target.files[0];
+  $('kitFuenteInput').addEventListener('change', async (e)=>{
+    const archivos = [...e.target.files];
     e.target.value = '';
-    if(!file) return;
-    $('kitEstado').textContent = 'Procesando…';
-    try{
-      const { dataUrl, mime } = await prepararArchivoKit(file);
-      const id = genId();
-      // Primero el archivo y después el índice: si falla la subida, no queda una entrada
-      // en la lista apuntando a algo que no existe.
-      await storageSet(claveArchivoKit(id), dataUrl);
-      kitCache[id] = dataUrl;
-      brandKit.archivos.push({
-        id,
-        nombre: file.name.replace(/\.[^.]+$/, '').slice(0, 40),
-        seccion: kitSeccionDestino,
-        mime
-      });
-      await saveKit();
-      renderKit();
-    }catch(err){
-      $('kitEstado').textContent = '';
-      showToast(err.message || 'No se pudo procesar el archivo');
+    if(!archivos.length) return;
+    let listos = 0;
+    const fallados = [];
+    for(let i = 0; i < archivos.length; i++){
+      const file = archivos[i];
+      $('kitEstado').textContent = archivos.length > 1
+        ? `Subiendo ${i + 1} de ${archivos.length}…` : 'Subiendo…';
+      try{
+        const { dataUrl, mime } = await prepararFuenteKit(file);
+        const id = genId();
+        await storageSet(claveArchivoKit(id), dataUrl);
+        kitCache[id] = dataUrl;
+        // La extensión se guarda del nombre original: los navegadores no siempre completan
+        // el tipo de un .otf o un .woff2, y sin ella la descarga saldría con el nombre
+        // pelado y Windows no sabría con qué abrirla.
+        const ext = (file.name.match(/\.[^.]+$/) || [''])[0].toLowerCase();
+        brandKit.archivos.push({
+          id,
+          nombre: file.name.replace(/\.[^.]+$/, '').slice(0, 40),
+          seccion: 'fuente',
+          mime, ext, peso: file.size
+        });
+        listos++;
+        await saveKit();
+        renderKit();
+      }catch(err){
+        fallados.push(file.name + (err && err.message ? ' — ' + err.message : ''));
+      }
+    }
+    $('kitEstado').textContent = '';
+    if(fallados.length) showToast(listos ? `Subidas ${listos}, falló ${fallados[0]}` : `No se pudo subir: ${fallados[0]}`);
+    else if(listos > 1) showToast(`${listos} fuentes agregadas`);
+  });
+
+  $('kitArchivoInput').addEventListener('change', async (e)=>{
+    const archivos = [...e.target.files];
+    e.target.value = '';
+    if(!archivos.length) return;
+
+    // Se procesan de a uno y en orden, no todos en paralelo: cada uno pasa por un canvas y
+    // se guarda en la base, y largar diez a la vez satura el navegador y la conexión sin
+    // terminar antes. El contador dice por dónde va, que en una tanda de varios es lo único
+    // que separa "está trabajando" de "se colgó".
+    let listos = 0;
+    const fallados = [];
+    for(let i = 0; i < archivos.length; i++){
+      const file = archivos[i];
+      $('kitEstado').textContent = archivos.length > 1
+        ? `Procesando ${i + 1} de ${archivos.length}…`
+        : 'Procesando…';
+      try{
+        const { dataUrl, mime } = await prepararArchivoKit(file);
+        const id = genId();
+        // Primero el archivo y después el índice: si falla la subida, no queda una entrada
+        // en la lista apuntando a algo que no existe.
+        await storageSet(claveArchivoKit(id), dataUrl);
+        kitCache[id] = dataUrl;
+        brandKit.archivos.push({
+          id,
+          nombre: file.name.replace(/\.[^.]+$/, '').slice(0, 40),
+          seccion: kitSeccionDestino,
+          mime,
+          peso: file.size
+        });
+        listos++;
+        // Se guarda y se pinta en cada vuelta: si algo falla en el medio, lo que ya entró
+        // queda guardado, y además se ven aparecer mientras se suben.
+        await saveKit();
+        renderKit();
+      }catch(err){
+        fallados.push(file.name + (err && err.message ? ' (' + err.message + ')' : ''));
+      }
+    }
+
+    $('kitEstado').textContent = '';
+    if(fallados.length){
+      showToast(listos
+        ? `Se subieron ${listos}, fallaron ${fallados.length}: ${fallados[0]}`
+        : `No se pudo subir: ${fallados[0]}`);
+    }else if(listos > 1){
+      showToast(`${listos} archivos agregados`);
     }
   });
 
