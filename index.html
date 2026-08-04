@@ -324,6 +324,14 @@
      derecha no se encoge nunca: son botones de tamaño fijo. */
   .item-head-left{display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0;}
   .item-head-right{display:flex;align-items:center;gap:4px;flex:none;}
+  /* Destello al llegar desde un chip del calendario: el panel abre con varias tarjetas y
+     sin esto hay que buscar con el ojo cuál era la que se pidió. Dura poco y no mueve nada
+     de lugar, solo enciende el borde. */
+  .item-card.recien-abierta{animation:tarjetaLlega 1.4s var(--ease-out);}
+  @keyframes tarjetaLlega{
+    0%{box-shadow:0 0 0 2px var(--accent), 0 0 22px rgba(79,142,247,.5);}
+    100%{box-shadow:0 0 0 0 transparent, 0 0 0 transparent;}
+  }
   .item-card.colapsada{padding:6px 9px 6px 0;}
   .item-card.colapsada .item-card-head{margin-bottom:0;}
   /* Barra del color del ángulo al costado izquierdo. En una lista de posteos plegados, el
@@ -612,6 +620,12 @@
   .tag[draggable="true"]{cursor:grab;}
   .tag[draggable="true"]:active{cursor:grabbing;}
   .tag.dragging{opacity:.35;}
+  /* Un chip abre su propio posteo, así que responde al pasar el mouse. El realce es apenas
+     un aclarado: en una celda con varios, algo más fuerte haría parpadear medio calendario
+     al recorrerlo con el puntero. En modo lectura no lleva cursor de arrastre pero igual
+     abre, por eso el estilo va aparte de [draggable]. */
+  .tag.tag-clickable{cursor:pointer;transition:filter .12s var(--ease-out);}
+  .tag.tag-clickable:hover{filter:brightness(1.18);}
   .tag .k{font-family:'IBM Plex Mono',monospace;font-size:9px;opacity:.75;text-transform:uppercase;}
   /* Dos cosas parecidas que NO son lo mismo:
      - .tag.sin-contenido es el marcador R/S de un día al que todavía no se le cargó nada.
@@ -3773,11 +3787,18 @@
         tag.title = tooltipText + detalleEstado + detalleAprob;
         tag.innerHTML = `${puntoEstado}<span>${escapeHtml(timePrefix + titleText + kindLabel + hiddenMark + marcaAprob)}</span>`;
       }
+      // Click en el chip: abre ese posteo, no solo el día. Se detiene la propagación porque
+      // la celda tiene su propio click que abre el día con todo plegado, y sin esto el
+      // segundo handler pisaría lo que hizo el primero.
+      if(key){
+        tag.classList.add('tag-clickable');
+        tag.addEventListener('click', (e)=>{
+          e.stopPropagation();
+          abrirPosteo(key, it.id);
+        });
+      }
       if(key && listName && !IS_READONLY){
         tag.draggable = true;
-        tag.title = it.hideFromPreview
-          ? 'No se muestra en la vista previa del feed'
-          : '';
         tag.addEventListener('dragstart', (e)=>{
           e.stopPropagation();
           tag.classList.add('dragging');
@@ -3788,6 +3809,37 @@
       }
       container.appendChild(tag);
     });
+  }
+
+  // Abre el día y deja desplegado justo ese posteo, en vez de dejarlos todos plegados y
+  // hacerte buscar cuál era. Lo usan tanto los chips de la grilla del mes como las
+  // miniaturas de la vista previa del feed: en los dos casos se está señalando un posteo
+  // concreto, no el día entero.
+  function abrirPosteo(key, itemId){
+    openDayPanel(key);
+    // openDayPanel limpia tarjetasAbiertas para arrancar con todo plegado, así que el id
+    // se agrega después y se vuelve a pintar la lista.
+    tarjetasAbiertas.add(itemId);
+    renderDayPanelItems(key);
+
+    // El panel entra con una animación; correr esto de una haría scroll sobre algo que
+    // todavía se está acomodando y quedaría a mitad de camino.
+    // FEED y STORIES son excluyentes: abrir uno pliega el otro. Si el posteo es una story y
+    // quedó abierto el feed, la tarjeta existe pero no se ve y el scroll no lleva a ningún
+    // lado. Se pide la sección que corresponde antes de buscarla.
+    const entrada = monthData[key] || {};
+    const esStory = (entrada.stories || []).some(x => x.id === itemId);
+    openPanelSection(esStory ? 'stories' : 'feed');
+
+    setTimeout(()=>{
+      const tarjeta = document.querySelector(`#dayOverlay .item-card[data-item-id="${itemId}"]`);
+      if(!tarjeta) return;
+      tarjeta.scrollIntoView({ behavior:'smooth', block:'center' });
+      // Un destello corto: al abrirse un panel entero, sin esto hay que buscar con el ojo
+      // cuál de las tarjetas era la que se pidió.
+      tarjeta.classList.add('recien-abierta');
+      setTimeout(()=> tarjeta.classList.remove('recien-abierta'), 1400);
+    }, 320);
   }
 
   // Moves a single feed/story item from one day to another (used by drag & drop).
@@ -3858,20 +3910,7 @@
         }
         f.innerHTML = `<span class="fnum">${String(idx+1).padStart(2,'0')}</span><span class="fdate">${p.d}</span><span class="fover" style="background:${p.angle ? p.angle.color : '#4a4757'}"></span><span class="flabel">${escapeHtml(p.angle ? p.angle.name : '')}</span>`;
         f.title = `${p.d} de ${MESES[viewMonth]} — ${p.angle ? p.angle.name : ''}`;
-        // Abre el día y despliega justo ese posteo, en vez de dejarlos todos plegados y
-        // hacerte buscar cuál era. openDayPanel siempre limpia tarjetasAbiertas al abrir,
-        // así que se agrega el id después.
-        f.addEventListener('click', ()=>{
-          openDayPanel(dateKey(viewYear, viewMonth, p.d));
-          tarjetasAbiertas.add(p.id);
-          renderDayPanelItems(dateKey(viewYear, viewMonth, p.d));
-          // Un rato después de que el panel entre, scrolleá la tarjeta a la vista.
-          setTimeout(()=>{
-            const target = [...document.querySelectorAll('#feedItemsList .item-card')]
-              .find(c => !c.classList.contains('colapsada'));
-            if(target) target.scrollIntoView({behavior:'smooth', block:'start'});
-          }, 320);
-        });
+        f.addEventListener('click', ()=> abrirPosteo(dateKey(viewYear, viewMonth, p.d), p.id));
         frames.appendChild(f);
       });
     }
@@ -4873,6 +4912,9 @@
   function createReadOnlyItemCard(key, item, {kindLabel, hasThumb}){
     const card = document.createElement('div');
     card.className = 'item-card';
+    // Lo usa abrirPosteo() para encontrar esta tarjeta cuando se llega desde un chip del
+    // calendario o desde la vista previa del feed.
+    card.dataset.itemId = item.id;
     // Barra lateral con el color del ángulo: es lo que identifica al posteo de un vistazo
     // cuando la lista está plegada. Al cambiar el ángulo la tarjeta se rearma entera, así
     // que alcanza con ponerlo acá.
@@ -4924,6 +4966,9 @@
     }
     const card = document.createElement('div');
     card.className = 'item-card';
+    // Lo usa abrirPosteo() para encontrar esta tarjeta cuando se llega desde un chip del
+    // calendario o desde la vista previa del feed.
+    card.dataset.itemId = item.id;
     // Barra lateral con el color del ángulo: es lo que identifica al posteo de un vistazo
     // cuando la lista está plegada. Al cambiar el ángulo la tarjeta se rearma entera, así
     // que alcanza con ponerlo acá.
@@ -5238,6 +5283,9 @@
     }
     const card = document.createElement('div');
     card.className = 'item-card';
+    // Lo usa abrirPosteo() para encontrar esta tarjeta cuando se llega desde un chip del
+    // calendario o desde la vista previa del feed.
+    card.dataset.itemId = item.id;
     // Barra lateral con el color del ángulo: es lo que identifica al posteo de un vistazo
     // cuando la lista está plegada. Al cambiar el ángulo la tarjeta se rearma entera, así
     // que alcanza con ponerlo acá.
