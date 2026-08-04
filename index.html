@@ -4450,9 +4450,25 @@
     };
     head.addEventListener('click', (e)=>{
       if(e.target.closest('.kind-opt, .horario-row, .item-remove')) return;
-      if(tarjetasAbiertas.has(itemId)) tarjetasAbiertas.delete(itemId);
-      else tarjetasAbiertas.add(itemId);
-      pintar();
+      if(tarjetasAbiertas.has(itemId)){
+        tarjetasAbiertas.delete(itemId);
+        pintar();
+        return;
+      }
+      // Acordeón: abrir uno pliega el resto. Un posteo desplegado ocupa mucho alto, y con
+      // varios abiertos a la vez el que se está editando queda enterrado entre los otros.
+      // Como los demás también cambian de estado, se repinta la lista entera en vez de
+      // esta sola tarjeta.
+      tarjetasAbiertas.clear();
+      tarjetasAbiertas.add(itemId);
+      if(openDate){
+        renderDayPanelItems(openDate);
+        // Al plegarse los de arriba, la tarjeta se corre de lugar: sin esto quedaría fuera
+        // de la vista justo cuando se la acaba de abrir.
+        enfocarTarjeta(itemId, { tope:true });
+      }else{
+        pintar();
+      }
     });
     pintar();
   }
@@ -4463,6 +4479,22 @@
     scheduleSaveDay(key);
     renderCalendar();
     renderDayPanelItems(key);
+  }
+
+  // Trae una tarjeta a la vista. Después de repintar la lista, el nodo anterior ya no existe
+  // —se rearma entera— así que hay que buscarlo de nuevo por su id, y esperar un cuadro para
+  // que el navegador haya terminado de acomodar lo nuevo antes de medir dónde quedó.
+  function enfocarTarjeta(itemId, opciones){
+    const { destello = false, tope = false } = opciones || {};
+    requestAnimationFrame(()=>{
+      const tarjeta = document.querySelector(`#dayOverlay .item-card[data-item-id="${itemId}"]`);
+      if(!tarjeta) return;
+      tarjeta.scrollIntoView({ behavior:'smooth', block: tope ? 'start' : 'center' });
+      if(destello){
+        tarjeta.classList.add('recien-abierta');
+        setTimeout(()=> tarjeta.classList.remove('recien-abierta'), 1400);
+      }
+    });
   }
 
   // Builds the "context/idea" + "<i class="fa-solid fa-wand-magic-sparkles"></i>Generar copy" box shared by Reel/Carrusel/Story cards.
@@ -5484,9 +5516,13 @@
     carruselBtn.addEventListener('click', ()=> mutateAndRerender(key, ()=>{ item.kind = 'carrusel'; }));
     kindToggle.appendChild(reelBtn); kindToggle.appendChild(carruselBtn);
 
-    const timeInput = buildSelectorHorario(item, ()=> mutateAndRerender(key, ()=>{
-      monthData[key].feed.sort(compareByTime);
-    }));
+    // Al cambiar la hora el posteo se reordena dentro del día, así que se lo sigue: sin
+    // esto la tarjeta saltaba a otro lugar de la lista y la vista se quedaba mirando la que
+    // pasó a ocupar su lugar.
+    const timeInput = buildSelectorHorario(item, ()=>{
+      mutateAndRerender(key, ()=>{ monthData[key].feed.sort(compareByTime); });
+      enfocarTarjeta(item.id);
+    });
 
     const leftGroup = document.createElement('div');
     leftGroup.className = 'item-head-left';
@@ -5790,9 +5826,10 @@
     const label = document.createElement('div');
     label.className = 'item-kind-label'; label.textContent = '📱 Story';
 
-    const timeInput = buildSelectorHorario(item, ()=> mutateAndRerender(key, ()=>{
-      monthData[key].stories.sort(compareByTime);
-    }));
+    const timeInput = buildSelectorHorario(item, ()=>{
+      mutateAndRerender(key, ()=>{ monthData[key].stories.sort(compareByTime); });
+      enfocarTarjeta(item.id);
+    });
 
     const leftGroup = document.createElement('div');
     leftGroup.className = 'item-head-left';
@@ -5947,43 +5984,30 @@
     return card;
   }
 
-  $('addReelBtn').addEventListener('click', ()=>{
-    if(!openDate) return;
-    pushUndo(openDate);
-    ensureEntry(openDate);
-    // Nace desplegado: se acaba de crear y lo próximo es escribirlo.
-    const nuevoId = genId();
-    tarjetasAbiertas.add(nuevoId);
-    monthData[openDate].feed.push({id:nuevoId, kind:'reel', angle:null, text:'', thumb:''});
-    scheduleSaveDay(openDate);
-    renderCalendar();
-    renderDayPanelItems(openDate);
-    openPanelSection('feed'); // si estabas en Stories, mostrar lo que acabás de agregar
-  });
-  $('addCarruselBtn').addEventListener('click', ()=>{
+  // Alta de un posteo. Nace desplegado y con el resto plegado —se acaba de crear y lo
+  // próximo es escribirlo, no mirar los otros— y la vista va hasta él: agregarlo al final
+  // de una lista larga y dejar el scroll donde estaba hacía parecer que no había pasado nada.
+  function agregarPosteo(lista, nuevo, seccion){
     if(!openDate) return;
     pushUndo(openDate);
     ensureEntry(openDate);
     const nuevoId = genId();
+    tarjetasAbiertas.clear();
     tarjetasAbiertas.add(nuevoId);
-    monthData[openDate].feed.push({id:nuevoId, kind:'carrusel', angle:null, text:'', thumb:''});
+    monthData[openDate][lista].push(Object.assign({ id: nuevoId }, nuevo));
     scheduleSaveDay(openDate);
     renderCalendar();
     renderDayPanelItems(openDate);
-    openPanelSection('feed');
-  });
-  $('addStoryBtn').addEventListener('click', ()=>{
-    if(!openDate) return;
-    pushUndo(openDate);
-    ensureEntry(openDate);
-    const nuevoId = genId();
-    tarjetasAbiertas.add(nuevoId);
-    monthData[openDate].stories.push({id:nuevoId, angle:null, text:''});
-    scheduleSaveDay(openDate);
-    renderCalendar();
-    renderDayPanelItems(openDate);
-    openPanelSection('stories'); // idem al revés: abrir Stories para ver el que se sumó
-  });
+    openPanelSection(seccion); // si estabas en la otra sección, mostrar lo que se agregó
+    enfocarTarjeta(nuevoId, { tope:true, destello:true });
+  }
+
+  $('addReelBtn').addEventListener('click', ()=>
+    agregarPosteo('feed', {kind:'reel', angle:null, text:'', thumb:''}, 'feed'));
+  $('addCarruselBtn').addEventListener('click', ()=>
+    agregarPosteo('feed', {kind:'carrusel', angle:null, text:'', thumb:''}, 'feed'));
+  $('addStoryBtn').addEventListener('click', ()=>
+    agregarPosteo('stories', {angle:null, text:''}, 'stories'));
 
   function ensureEntry(key){
     if(!monthData[key]) monthData[key] = {feed:[], stories:[]};
