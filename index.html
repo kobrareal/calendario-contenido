@@ -626,7 +626,17 @@
      abre, por eso el estilo va aparte de [draggable]. */
   .tag.tag-clickable{cursor:pointer;transition:filter .12s var(--ease-out);}
   .tag.tag-clickable:hover{filter:brightness(1.18);}
-  .tag .k{font-family:'IBM Plex Mono',monospace;font-size:9px;opacity:.75;text-transform:uppercase;}
+  /* La letra del tipo no se encoge nunca: en un flex con overflow, sin flex:none el
+     navegador la achica antes que al título y terminaba desapareciendo. Va un punto más
+     grande y más opaca que antes —a 9px y al 75% se perdía contra el fondo del ángulo—
+     porque es el dato que se busca primero al recorrer el mes. */
+  .tag .k{
+    font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;
+    opacity:.95;text-transform:uppercase;flex:none;
+  }
+  /* El recorte va acá y no en el .tag: en un contenedor flex el ellipsis del padre no se
+     aplica a los hijos, así que el título se cortaba de golpe y sin puntos suspensivos. */
+  .tag .tag-txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   /* Dos cosas parecidas que NO son lo mismo:
      - .tag.sin-contenido es el marcador R/S de un día al que todavía no se le cargó nada.
        Va sin fondo y con borde punteado, justamente para que se lea como un hueco.
@@ -4039,16 +4049,22 @@
       const detalleAprob = (it.approval && it.approval !== 'sin-revisar')
         ? `\nCliente: ${APROBACIONES[it.approval].label}` : '';
 
+      // La letra del tipo (R/C/S) va SIEMPRE primera y en su propio span, con o sin ángulo.
+      // Antes, cuando el posteo no tenía ángulo, iba al final del mismo texto que el título:
+      // con un título medianamente largo el recorte se la comía y quedaba un chip sin decir
+      // de qué tipo era. Es el dato que menos ocupa y el que más rápido se lee, así que va
+      // adelante y no se encoge nunca.
+      const marca = `<span class="k">${timePrefix}${kindLabel}</span>`;
       if(a){
         tag.className = 'tag tag-truncated';
         tag.style.background = a.color;
         tag.title = tooltipText + detalleEstado + detalleAprob;
         const emoji = a.emoji ? `${a.emoji} ` : '';
-        tag.innerHTML = `<span class="k">${timePrefix}${kindLabel}</span>${puntoEstado}<span>${escapeHtml(titleText)}${emoji}${escapeHtml(a.name)}${hiddenMark}${marcaAprob}</span>`;
+        tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText)}${emoji}${escapeHtml(a.name)}${hiddenMark}${marcaAprob}</span>`;
       }else{
         tag.className = 'tag tag-empty tag-truncated';
         tag.title = tooltipText + detalleEstado + detalleAprob;
-        tag.innerHTML = `${puntoEstado}<span>${escapeHtml(timePrefix + titleText + kindLabel + hiddenMark + marcaAprob)}</span>`;
+        tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText + hiddenMark + marcaAprob)}</span>`;
       }
       // Click en el chip: abre ese posteo, no solo el día. Se detiene la propagación porque
       // la celda tiene su propio click que abre el día con todo plegado, y sin esto el
