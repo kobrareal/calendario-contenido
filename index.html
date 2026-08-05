@@ -4530,6 +4530,76 @@
     renderDayPanelItems(key);
   }
 
+  // Selector de tipo con las tres opciones. Reel y Carrusel viven en el feed y las Stories
+  // en su propia lista, así que pasar de una a otra no es cambiar un campo sino mover el
+  // posteo de lista. Va como un solo control y no como un botón aparte de "convertir":
+  // para quien escribe son tres formatos del mismo contenido, y el gesto de cambiarlo ya
+  // existía entre Reel y Carrusel.
+  const TIPOS_POSTEO = [
+    { valor:'reel',     etiqueta:'🎬 Reel' },
+    { valor:'carrusel', etiqueta:'🖼 Carrusel' },
+    { valor:'story',    etiqueta:'📱 Story' }
+  ];
+
+  function buildSelectorTipo(key, item, esStory){
+    const cont = document.createElement('div');
+    cont.className = 'kind-toggle';
+    const actual = esStory ? 'story' : (item.kind === 'carrusel' ? 'carrusel' : 'reel');
+
+    TIPOS_POSTEO.forEach(t=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'kind-opt' + (t.valor === actual ? ' active' : '');
+      btn.textContent = t.etiqueta;
+      btn.title = t.valor === 'story'
+        ? 'Pasarlo a Story: sale del feed y va a la lista de stories'
+        : (esStory ? 'Pasarlo al feed como ' + t.etiqueta.replace(/^\S+\s/, '') : '');
+      if(t.valor !== actual) btn.addEventListener('click', ()=> cambiarTipoPosteo(key, item, t.valor));
+      cont.appendChild(btn);
+    });
+    return cont;
+  }
+
+  async function cambiarTipoPosteo(key, item, nuevo){
+    const entrada = monthData[key];
+    if(!entrada) return;
+    const estaEnStories = entrada.stories.some(x => x.id === item.id);
+    const vaAStories = nuevo === 'story';
+
+    // Reel ↔ Carrusel: no se mueve de lista, solo cambia el campo.
+    if(estaEnStories === vaAStories){
+      mutateAndRerender(key, ()=>{ item.kind = nuevo; });
+      enfocarTarjeta(item.id);
+      return;
+    }
+
+    const origen = estaEnStories ? 'stories' : 'feed';
+    const destino = vaAStories ? 'stories' : 'feed';
+
+    // Queda abierto y solo, antes de repintar: así alcanza con un render en vez de pintar
+    // la lista y volver a pintarla para corregir qué tarjeta está desplegada.
+    tarjetasAbiertas.clear();
+    tarjetasAbiertas.add(item.id);
+    // La sección destino puede estar plegada, y sin abrirla el posteo parecería borrado.
+    openPanelSection(destino);
+
+    mutateAndRerender(key, ()=>{
+      const i = entrada[origen].findIndex(x => x.id === item.id);
+      if(i === -1) return;
+      const [movido] = entrada[origen].splice(i, 1);
+      // Una story no tiene "kind" —no existe la story-carrusel— pero el resto del contenido
+      // viaja entero: copy, guión, miniatura, notas y aprobación. Cambiar de formato no
+      // debería costar volver a escribirlo todo.
+      if(vaAStories) delete movido.kind;
+      else movido.kind = nuevo;
+      entrada[destino].push(movido);
+      entrada[destino].sort(compareByTime);
+    });
+
+    enfocarTarjeta(item.id, { tope:true, destello:true });
+    showToast(vaAStories ? 'Pasó a Stories' : 'Pasó al feed como ' + (nuevo === 'carrusel' ? 'carrusel' : 'reel'));
+  }
+
   // Trae una tarjeta a la vista. Después de repintar la lista, el nodo anterior ya no existe
   // —se rearma entera— así que hay que buscarlo de nuevo por su id, y esperar un cuadro para
   // que el navegador haya terminado de acomodar lo nuevo antes de medir dónde quedó.
@@ -5615,15 +5685,8 @@
 
     const head = document.createElement('div');
     head.className = 'item-card-head';
-    const kindToggle = document.createElement('div');
-    kindToggle.className = 'kind-toggle';
-    const reelBtn = document.createElement('button');
-    reelBtn.type = 'button'; reelBtn.className = 'kind-opt' + (item.kind==='reel' ? ' active' : ''); reelBtn.textContent = '🎬 Reel';
-    const carruselBtn = document.createElement('button');
-    carruselBtn.type = 'button'; carruselBtn.className = 'kind-opt' + (item.kind==='carrusel' ? ' active' : ''); carruselBtn.textContent = '🖼 Carrusel';
-    reelBtn.addEventListener('click', ()=> mutateAndRerender(key, ()=>{ item.kind = 'reel'; }));
-    carruselBtn.addEventListener('click', ()=> mutateAndRerender(key, ()=>{ item.kind = 'carrusel'; }));
-    kindToggle.appendChild(reelBtn); kindToggle.appendChild(carruselBtn);
+    // Las tres opciones juntas: elegir "Story" lo saca del feed y lo manda a la otra lista.
+    const kindToggle = buildSelectorTipo(key, item, false);
 
     // Al cambiar la hora el posteo se reordena dentro del día, así que se lo sigue: sin
     // esto la tarjeta saltaba a otro lugar de la lista y la vista se quedaba mirando la que
@@ -5932,8 +5995,9 @@
 
     const head = document.createElement('div');
     head.className = 'item-card-head';
-    const label = document.createElement('div');
-    label.className = 'item-kind-label'; label.textContent = '📱 Story';
+    // El mismo selector que en el feed, con Story marcado: elegir Reel o Carrusel la manda
+    // al feed con todo lo que tenga escrito.
+    const kindToggle = buildSelectorTipo(key, item, true);
 
     const timeInput = buildSelectorHorario(item, ()=>{
       mutateAndRerender(key, ()=>{ monthData[key].stories.sort(compareByTime); });
@@ -5942,7 +6006,7 @@
 
     const leftGroup = document.createElement('div');
     leftGroup.className = 'item-head-left';
-    leftGroup.appendChild(label); leftGroup.appendChild(timeInput);
+    leftGroup.appendChild(kindToggle); leftGroup.appendChild(timeInput);
 
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button'; removeBtn.className = 'item-remove'; removeBtn.title = 'Eliminar'; removeBtn.textContent = '🗑';
