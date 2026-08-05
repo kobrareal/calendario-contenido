@@ -1152,6 +1152,46 @@
     padding-left:3px;
   }
 
+  /* Productos: cada uno en dos renglones —nombre con su estado arriba, descripción abajo—
+     y una barra de color a la izquierda con el estado. En una lista larga, el color dice de
+     un vistazo qué se puede ofrecer sin tener que leer cada desplegable. */
+  .kit-productos{display:flex; flex-direction:column; gap:var(--s-2);}
+  .kit-producto{
+    background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-2);
+    border-left:3px solid var(--muted-2);
+    padding:var(--s-2); display:flex; flex-direction:column; gap:3px;
+  }
+  .kit-producto.estado-disponible{border-left-color:#3fd399;}
+  .kit-producto.estado-sin-stock{border-left-color:#e0574f;}
+  .kit-producto.estado-proximamente{border-left-color:#d9a441;}
+  /* Sin stock atenuado: sigue estando y se puede editar, pero no compite visualmente con
+     lo que sí se puede ofrecer. */
+  .kit-producto.estado-sin-stock{opacity:.72;}
+  .kit-producto-arriba{display:flex; align-items:center; gap:var(--s-1);}
+  .kit-producto-nombre{
+    flex:1; min-width:0; background:none; border:none; color:var(--text);
+    font-family:'Inter',sans-serif; font-size:12.5px; font-weight:var(--w-semibold);
+    padding:2px 4px; border-radius:var(--r-1);
+  }
+  .kit-producto-nombre:hover{background:var(--surface-3);}
+  .kit-producto-nombre:focus{outline:none; background:var(--surface-3); box-shadow:0 0 0 1px var(--accent);}
+  .kit-producto-estado{
+    flex:none; appearance:none; -webkit-appearance:none;
+    background:var(--surface-3); border:1px solid transparent; border-radius:var(--r-1);
+    color:var(--muted); font-family:'IBM Plex Mono',monospace; font-size:9.5px;
+    text-transform:uppercase; letter-spacing:.03em; padding:3px 6px; cursor:pointer;
+  }
+  .kit-producto-estado:hover{border-color:var(--border);}
+  .kit-producto-estado:focus{outline:none; border-color:var(--accent);}
+  .kit-producto-desc{
+    width:100%; background:none; border:none; color:var(--muted);
+    font-family:'Inter',sans-serif; font-size:11.5px; line-height:1.45;
+    padding:2px 4px; border-radius:var(--r-1);
+  }
+  .kit-producto-desc::placeholder{color:var(--muted-2);}
+  .kit-producto-desc:hover{background:var(--surface-3);}
+  .kit-producto-desc:focus{outline:none; background:var(--surface-3); color:var(--text); box-shadow:0 0 0 1px var(--accent);}
+
   .kit-input, .kit-textarea{
     width:100%; background:var(--surface-2); border:1px solid var(--border);
     border-radius:8px; color:var(--text); padding:9px 11px;
@@ -2156,6 +2196,15 @@
           </div>
 
           <div class="kit-seccion">
+            <div class="kit-seccion-head">
+              <h3>Productos</h3>
+              <button class="btn small btn-nueva-idea" id="kitAgregarProducto"><i class="fa-solid fa-plus"></i>Agregar</button>
+            </div>
+            <p class="hint kit-nota">Lo que la marca vende. La IA los usa para escribir sobre productos reales en vez de inventarlos.</p>
+            <div class="kit-productos" id="kitProductos"></div>
+          </div>
+
+          <div class="kit-seccion">
             <div class="kit-seccion-head"><h3>Cómo se usa la marca</h3></div>
             <textarea id="kitNotas" class="kit-textarea"
               placeholder="Ej: el logo siempre sobre fondo claro, nunca deformarlo…"></textarea>
@@ -3083,7 +3132,10 @@
         body: JSON.stringify({
           context: context||'', kind: kind||'', angle: angle||'',
           maxLen: maxLen || undefined,
-          formato: formato || 'copy'
+          formato: formato || 'copy',
+          // Los productos de la marca: sin esto, la IA inventa nombres y características
+          // cuando el contexto menciona "el producto nuevo".
+          productos: productosParaIA() || undefined
         }),
         cache: 'no-store'
       });
@@ -4771,18 +4823,28 @@
   const KIT_LADO_MAX = 900;      // suficiente para una pieza; un logo no se usa más grande
   const KIT_PRESUPUESTO = 260000; // caracteres por archivo (unos 190 KB reales)
 
-  let brandKit = { archivos: [], colores: [], tipografias: '', notas: '' };
+  // Estados de un producto. "Sin stock" no significa "no hablar de esto": significa que la
+  // IA no lo proponga para vender. Avisar que se agotó o que vuelve sigue siendo contenido
+  // válido, y bloquearlo del todo sacaría esa posibilidad.
+  const ESTADOS_PRODUCTO = {
+    disponible:   { label:'Disponible',   color:'#3fd399' },
+    'sin-stock':  { label:'Sin stock',    color:'#e0574f' },
+    proximamente: { label:'Próximamente', color:'#d9a441' }
+  };
+
+  let brandKit = { archivos: [], colores: [], tipografias: '', notas: '', productos: [] };
   const kitCache = {}; // id -> dataUrl, para no volver a pedir lo ya cargado
 
   async function loadKit(){
     try{
       const val = await storageGet('brandkit');
       const k = val ? JSON.parse(val) : null;
-      brandKit = Object.assign({ archivos: [], colores: [], tipografias: '', notas: '' }, k || {});
+      brandKit = Object.assign({ archivos: [], colores: [], tipografias: '', notas: '', productos: [] }, k || {});
       if(!Array.isArray(brandKit.archivos)) brandKit.archivos = [];
       if(!Array.isArray(brandKit.colores)) brandKit.colores = [];
+      if(!Array.isArray(brandKit.productos)) brandKit.productos = [];
     }catch(e){
-      brandKit = { archivos: [], colores: [], tipografias: '', notas: '' };
+      brandKit = { archivos: [], colores: [], tipografias: '', notas: '', productos: [] };
     }
   }
   async function saveKit(){
@@ -4990,6 +5052,7 @@
     renderKitArchivos('grafico', $('kitGraficos'), 'Todavía no subiste elementos gráficos.');
     renderKitColores();
     renderKitFuentes();
+    renderKitProductos();
     $('kitTipografias').value = brandKit.tipografias || '';
     $('kitNotas').value = brandKit.notas || '';
     const editable = !IS_READONLY;
@@ -5164,6 +5227,96 @@
       caja.appendChild(datos);
       cont.appendChild(caja);
     });
+  }
+
+  function renderKitProductos(){
+    const cont = $('kitProductos');
+    cont.innerHTML = '';
+    if(!brandKit.productos.length){
+      cont.innerHTML = '<div class="kit-vacio">Todavía no cargaste productos.</div>';
+      return;
+    }
+    brandKit.productos.forEach(p=>{
+      const fila = document.createElement('div');
+      fila.className = 'kit-producto estado-' + (p.estado || 'disponible');
+
+      const arriba = document.createElement('div');
+      arriba.className = 'kit-producto-arriba';
+
+      const nombre = document.createElement('input');
+      nombre.className = 'kit-producto-nombre';
+      nombre.value = p.nombre || '';
+      nombre.placeholder = 'Nombre del producto';
+      nombre.disabled = IS_READONLY;
+      nombre.addEventListener('change', async ()=>{ p.nombre = nombre.value.trim(); await saveKit(); });
+      arriba.appendChild(nombre);
+
+      const estado = document.createElement('select');
+      estado.className = 'kit-producto-estado';
+      estado.innerHTML = Object.keys(ESTADOS_PRODUCTO)
+        .map(k=>`<option value="${k}">${ESTADOS_PRODUCTO[k].label}</option>`).join('');
+      estado.value = ESTADOS_PRODUCTO[p.estado] ? p.estado : 'disponible';
+      estado.disabled = IS_READONLY;
+      estado.addEventListener('change', async ()=>{
+        p.estado = estado.value;
+        await saveKit();
+        // Repinta para que el color del borde acompañe al estado nuevo.
+        renderKitProductos();
+      });
+      arriba.appendChild(estado);
+
+      if(!IS_READONLY){
+        const borrar = document.createElement('button');
+        borrar.className = 'kit-accion borrar';
+        borrar.innerHTML = '<i class="fa-solid fa-trash"></i>';
+        borrar.title = 'Eliminar producto';
+        borrar.addEventListener('click', async ()=>{
+          brandKit.productos = brandKit.productos.filter(x => x.id !== p.id);
+          await saveKit();
+          renderKitProductos();
+        });
+        arriba.appendChild(borrar);
+      }
+      fila.appendChild(arriba);
+
+      const desc = document.createElement('input');
+      desc.className = 'kit-producto-desc';
+      desc.value = p.desc || '';
+      desc.placeholder = 'En una línea: qué es y qué lo hace distinto';
+      desc.title = 'Con esto la IA escribe sobre el producto real en vez de inventarle características';
+      desc.disabled = IS_READONLY;
+      desc.addEventListener('change', async ()=>{ p.desc = desc.value.trim(); await saveKit(); });
+      fila.appendChild(desc);
+
+      cont.appendChild(fila);
+    });
+  }
+
+  $('kitAgregarProducto').addEventListener('click', async ()=>{
+    brandKit.productos.push({ id: genId(), nombre:'', desc:'', estado:'disponible' });
+    await saveKit();
+    renderKitProductos();
+    const campos = $('kitProductos').querySelectorAll('.kit-producto-nombre');
+    if(campos.length) campos[campos.length - 1].focus();
+  });
+
+  // Lo que se le manda a la IA. Se recortan los "sin stock" y se acota la cantidad: con
+  // ochenta productos, mandarlos todos en cada pedido gasta el presupuesto del modelo sin
+  // aportar. Los sin stock quedan afuera del listado principal y se nombran aparte, para
+  // que sepa cuáles no ofrecer sin gastar una línea entera describiendo cada uno.
+  const MAX_PRODUCTOS_IA = 40;
+  function productosParaIA(){
+    const activos = (brandKit.productos || []).filter(p => (p.nombre || '').trim());
+    if(!activos.length) return null;
+    const linea = (p)=> '- ' + p.nombre + (p.desc ? ': ' + p.desc : '');
+    const disponibles = activos.filter(p => (p.estado || 'disponible') === 'disponible').slice(0, MAX_PRODUCTOS_IA);
+    const proximos = activos.filter(p => p.estado === 'proximamente').slice(0, 10);
+    const agotados = activos.filter(p => p.estado === 'sin-stock').slice(0, 15);
+    const partes = [];
+    if(disponibles.length) partes.push('Productos disponibles:\n' + disponibles.map(linea).join('\n'));
+    if(proximos.length) partes.push('Por lanzarse (solo para contenido de expectativa, todavía no se pueden comprar):\n' + proximos.map(linea).join('\n'));
+    if(agotados.length) partes.push('Sin stock (no los ofrezcas para vender; sí se puede avisar que se agotaron o que vuelven): ' + agotados.map(p=>p.nombre).join(', '));
+    return partes.join('\n\n');
   }
 
   // Subida de archivos. El botón guarda en qué sección cae, porque el input de archivos es
@@ -7265,7 +7418,12 @@
     try{
       const res = await fetch('/api/agente', {
         method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ token: TOKEN, pedido, anio: viewYear, mes: viewMonth, cliente: CLIENT_ID })
+        body: JSON.stringify({
+          token: TOKEN, pedido, anio: viewYear, mes: viewMonth, cliente: CLIENT_ID,
+          // Con los productos a la vista, "armame el mes" propone contenido sobre lo que la
+          // marca vende de verdad en lugar de ideas genéricas.
+          productos: productosParaIA() || undefined
+        })
       });
       const json = await res.json().catch(()=>null);
       if(!res.ok) throw new Error((json && json.error) || ('http ' + res.status));

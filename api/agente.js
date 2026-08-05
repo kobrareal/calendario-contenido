@@ -55,6 +55,10 @@ Reglas para los cambios:
   frase por la mitad para entrar en el largo.
 - La marca habla siempre en plural, como equipo: "diseñamos", "preparamos", "te mostramos".
   Nunca en primera persona del singular. Se escribe "Diseñamos este buzo", no "Diseñé este buzo".
+- Si te pasan un catálogo, el contenido de producto tiene que ser sobre esos productos y con
+  las características que dice ahí: no inventes productos ni les agregues cosas que no figuran.
+  Los que están sin stock no se ofrecen para vender (sí se puede avisar que se agotaron o que
+  vuelven), y los "por lanzarse" solo sirven para contenido de expectativa.
 - Usá solo días del mes que te pasaron.
 - En "angulo" usá el nombre EXACTO de uno de los ángulos disponibles, o dejalo vacío si ninguno encaja.
 - En "modificar" y "eliminar", el itemId tiene que ser uno de los que figuran en el calendario.
@@ -123,17 +127,22 @@ module.exports = async (req, res) => {
     stories.forEach(it => resumen.push(linea(it, 'story')));
   }
 
+  // Catálogo de la marca. Es lo que separa "proponé contenido de producto" de "proponé
+  // contenido sobre el Buzo Alaska, que es de frisa peinada y está disponible".
+  const catalogo = String((req.body || {}).productos || '').trim().slice(0, 4000);
+
   const contexto = [
     `Mes del calendario: ${m + 1}/${a} (${diasDelMes} días).`,
     `Hoy es ${new Date().toISOString().slice(0, 10)}.`,
     `Ángulos disponibles: ${angulos.length ? angulos.map(x => x.name).join(' | ') : '(la marca no definió ninguno)'}`,
     '',
+    catalogo ? 'Catálogo de la marca:\n' + catalogo + '\n' : '',
     'Contenido cargado:',
     resumen.length ? resumen.join('\n') : '  (el mes está completamente vacío)',
     '',
     'Pedido de la persona:',
     texto
-  ].join('\n');
+  ].filter(l => l !== '').join('\n');
 
   try {
     const respuesta = await fetch(

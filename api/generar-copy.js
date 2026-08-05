@@ -86,11 +86,21 @@ module.exports = async (req, res) => {
     'mostramos". NUNCA en primera persona del singular: nada de "diseñé", "preparé" o ' +
     '"les muestro". Ejemplo: se escribe "Diseñamos este buzo", no "Diseñé este buzo". ';
 
+  // Catálogo de la marca, si lo cargó. Va con la instrucción de no inventar: sin eso, el
+  // modelo toma la lista como sugerencia y igual se saca productos de la manga cuando el
+  // contexto es vago.
+  const catalogo = String(cuerpo.productos || '').trim().slice(0, 3000);
+  const bloqueProductos = catalogo
+    ? 'Estos son los productos reales de la marca. Si el copy habla de un producto, tiene ' +
+      'que ser uno de esta lista, con las características que dice acá. No inventes productos ' +
+      'ni les agregues características que no figuren.\n' + catalogo + '\n\n'
+    : '';
+
   const base =
     'Sos un/a community manager escribiendo el copy para un ' + etiqueta + ' de Instagram' +
     (angulo ? (' con ángulo de contenido "' + angulo + '"') : '') + '. ' +
     'Escribí en español, con tono cercano y natural (podés usar "vos"), listo para publicar. ' +
-    voz +
+    voz + bloqueProductos +
     'IMPORTANTE: el copy no puede superar los ' + largoMax + ' caracteres contando espacios. ' +
     'Apuntá a ' + frases + '. Es preferible quedarse corto que pasarse. ' +
     'Tiene que terminar de forma completa: nunca cortes una idea por la mitad. ' +
