@@ -1022,6 +1022,15 @@
   }
   /* Destello al llegar desde el botón del encabezado, igual que el panel de ideas. */
   .kit-dashboard.flash{animation:ideasFlash 1.2s var(--ease-out);}
+  /* Cuerpo con scroll propio: el kit entero mide casi mil píxeles y estiraba el dashboard
+     de más. Con un tope, ocupa lo mismo que el panel de ideas de al lado y se recorre por
+     dentro. El scroll va acá y no en el panel para que el título quede fijo arriba. */
+  .kit-cuerpo{
+    max-height:420px; overflow-y:auto;
+    /* Aire a la derecha para que la barra de scroll no se monte sobre los botones de
+       cada sección. */
+    padding-right:var(--s-2); margin-right:calc(var(--s-2) * -1);
+  }
   /* En media columna las cajas de archivo entran más chicas: con el ancho del modal
      quedaban tres por fila y acá entrarían una y media, que deja un hueco raro. */
   .kit-dashboard .kit-grilla{grid-template-columns:repeat(auto-fill, minmax(96px, 1fr));}
@@ -2079,6 +2088,9 @@
             <span class="hint" id="kitEstado" style="margin:0;"></span>
           </div>
 
+          <!-- El scroll va en este cuerpo y no en el panel entero, para que el título quede
+               fijo arriba y se sepa qué se está mirando al recorrerlo. -->
+          <div class="kit-cuerpo">
           <div class="kit-seccion">
             <div class="kit-seccion-head">
               <h3>Logos</h3>
@@ -2118,9 +2130,11 @@
             <textarea id="kitNotas" class="kit-textarea"
               placeholder="Ej: el logo siempre sobre fondo claro, nunca deformarlo…"></textarea>
           </div>
+          </div><!-- /.kit-cuerpo -->
 
           <!-- Un input por tipo de archivo: mezclar imágenes y fuentes en el mismo "accept"
-               haría que el explorador ofrezca fuentes al buscar un logo y viceversa. -->
+               haría que el explorador ofrezca fuentes al buscar un logo y viceversa.
+               Van fuera del cuerpo scrolleable: son invisibles y no ocupan lugar. -->
           <input type="file" id="kitArchivoInput" multiple accept="image/png,image/svg+xml,image/jpeg,image/webp" style="display:none;" />
           <input type="file" id="kitFuenteInput" multiple accept=".ttf,.otf,.woff,.woff2,.zip,font/*" style="display:none;" />
         </div>
