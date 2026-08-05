@@ -1568,9 +1568,34 @@
   .cambio-row{
     display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;
     background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 11px;
+    /* El editor se despliega como una tercera fila debajo del renglón, así que la fila
+       envuelve en vez de mantener todo en una línea. */
+    flex-wrap:wrap;
   }
   .cambio-row input[type=checkbox]{margin-top:3px;flex:none;}
   .cambio-info{flex:1;min-width:0;}
+  .cambio-editar{
+    flex:none;background:none;border:1px solid var(--border);border-radius:6px;
+    color:var(--muted);cursor:pointer;padding:4px 7px;font-size:10.5px;
+    transition:color .15s var(--ease-out), border-color .15s var(--ease-out), background .15s var(--ease-out);
+  }
+  .cambio-editar:hover{color:var(--text);border-color:var(--muted-2);}
+  .cambio-editar.abierto{color:var(--accent);border-color:var(--accent);background:rgba(79,142,247,.12);}
+  /* Ocupa el ancho entero de la fila: los campos en media columna, al lado del resumen,
+     quedaban demasiado angostos para escribir un copy. */
+  .cambio-editor{
+    flex:1 0 100%;margin-top:9px;padding-top:9px;
+    border-top:1px dashed var(--border);
+  }
+  .cambio-editor .field-label{margin-bottom:3px;}
+  .cambio-editor .field-label:not(:first-child){margin-top:7px;}
+  .cambio-input{
+    width:100%;background:var(--card-bg-2);border:1px solid var(--border);border-radius:7px;
+    color:var(--text);padding:6px 9px;
+    font-family:'Inter',sans-serif;font-size:12px;line-height:1.45;
+  }
+  .cambio-input:focus{outline:none;border-color:var(--accent);}
+  .cambio-texto{min-height:64px;resize:vertical;}
   .cambio-titulo{font-size:12.5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
   .cambio-accion{
     font-family:'IBM Plex Mono',monospace;font-size:9.5px;text-transform:uppercase;
@@ -7029,20 +7054,125 @@
     cont.innerHTML = '';
     cambiosPropuestos.forEach((c, i)=>{
       const { titulo, detalle } = describirCambio(c);
-      const fila = document.createElement('label');
+      const fila = document.createElement('div');
       fila.className = 'cambio-row';
+
+      // El "incluido" se guarda en el propio cambio y no solo en el checkbox: editar una
+      // propuesta repinta la lista entera, y si el estado viviera únicamente en el DOM se
+      // volverían a marcar los que se habían descartado.
+      if(c.incluir === undefined) c.incluir = true;
       const chk = document.createElement('input');
-      chk.type='checkbox'; chk.checked = true; chk.dataset.idx = i;
+      chk.type='checkbox'; chk.checked = c.incluir; chk.dataset.idx = i;
       chk.title = 'Incluir este cambio al aplicar';
+      chk.addEventListener('change', ()=>{ c.incluir = chk.checked; });
+
       const info = document.createElement('div');
       info.className='cambio-info';
       info.innerHTML = '<div class="cambio-titulo"><span class="cambio-accion ' + c.accion + '">' +
         c.accion + '</span>' + escapeHtml(titulo) + '</div>' +
         (detalle ? '<div class="cambio-detalle">' + escapeHtml(detalle) + '</div>' : '');
-      fila.appendChild(chk); fila.appendChild(info);
+
+      fila.appendChild(chk);
+      fila.appendChild(info);
+
+      // Los cambios que traen contenido se pueden corregir antes de aplicar. Lo que propone
+      // el asistente casi siempre necesita un retoque —una fecha, una palabra— y sin esto
+      // había que aplicarlo primero y editarlo después, posteo por posteo. Eliminar no
+      // tiene nada que editar, así que no lleva el botón.
+      if(c.accion !== 'eliminar'){
+        const editar = document.createElement('button');
+        editar.type = 'button'; editar.className = 'cambio-editar';
+        editar.innerHTML = '<i class="fa-solid fa-pen"></i>';
+        editar.title = 'Editar antes de aplicar';
+        let editor = null;
+        editar.addEventListener('click', ()=>{
+          if(editor){ editor.remove(); editor = null; editar.classList.remove('abierto'); return; }
+          editor = buildEditorCambio(c, i);
+          fila.appendChild(editor);
+          editar.classList.add('abierto');
+        });
+        fila.appendChild(editar);
+      }
       cont.appendChild(fila);
     });
     $('agenteCambios').style.display = cambiosPropuestos.length ? 'block' : 'none';
+  }
+
+  // Formulario para corregir una propuesta. Escribe directo sobre el objeto del cambio, que
+  // es el mismo que después lee aplicarCambio: no hay copia intermedia que sincronizar.
+  function buildEditorCambio(c, indice){
+    const caja = document.createElement('div');
+    caja.className = 'cambio-editor';
+
+    const campo = (etiqueta, control)=>{
+      const l = document.createElement('label');
+      l.className = 'field-label';
+      l.textContent = etiqueta;
+      caja.appendChild(l);
+      caja.appendChild(control);
+      return control;
+    };
+
+    // Al repintar la lista se recalculan los textos de resumen de todas las filas, así que
+    // el renglón de arriba refleja lo editado apenas se sale del campo.
+    const refrescar = ()=>{
+      const abierto = indice;
+      renderCambiosAgente();
+      // Se vuelve a abrir el editor de esta misma fila para no perder el hilo de lo que se
+      // estaba corrigiendo.
+      const fila = $('agenteListaCambios').children[abierto];
+      if(fila){
+        const btn = fila.querySelector('.cambio-editar');
+        if(btn) btn.click();
+      }
+    };
+
+    const fecha = document.createElement('input');
+    fecha.type = 'date'; fecha.className = 'cambio-input'; fecha.value = c.dia || '';
+    fecha.addEventListener('change', ()=>{ if(fecha.value){ c.dia = fecha.value; refrescar(); } });
+    campo('Fecha', fecha);
+
+    if(c.accion === 'agregar'){
+      const tipo = document.createElement('select');
+      tipo.className = 'cambio-input';
+      tipo.innerHTML = '<option value="reel">Reel</option><option value="carrusel">Carrusel</option><option value="story">Story</option>';
+      tipo.value = c.lista === 'stories' ? 'story' : (c.kind === 'carrusel' ? 'carrusel' : 'reel');
+      tipo.addEventListener('change', ()=>{
+        // La lista y el kind son dos campos que tienen que moverse juntos: una story no
+        // lleva kind, y un posteo de feed no puede quedar en la lista de stories.
+        if(tipo.value === 'story'){ c.lista = 'stories'; delete c.kind; }
+        else { c.lista = 'feed'; c.kind = tipo.value; }
+        refrescar();
+      });
+      campo('Tipo', tipo);
+    }
+
+    const titulo = document.createElement('input');
+    titulo.type = 'text'; titulo.className = 'cambio-input';
+    titulo.value = c.titulo || '';
+    titulo.placeholder = 'Título del posteo';
+    titulo.addEventListener('input', ()=>{ c.titulo = titulo.value; });
+    titulo.addEventListener('change', refrescar);
+    campo('Título', titulo);
+
+    const texto = document.createElement('textarea');
+    texto.className = 'cambio-input cambio-texto';
+    texto.value = c.texto || '';
+    texto.placeholder = 'Copy o idea del posteo';
+    texto.addEventListener('input', ()=>{ c.texto = texto.value; });
+    campo('Copy', texto);
+
+    const angulo = document.createElement('select');
+    angulo.className = 'cambio-input';
+    angulo.innerHTML = '<option value="">Sin ángulo</option>' +
+      angles.map(a=>`<option value="${escapeHtml(a.name)}">${escapeHtml((a.emoji ? a.emoji + ' ' : '') + a.name)}</option>`).join('');
+    // El agente devuelve el ángulo por nombre; si propuso uno que no existe queda en vacío
+    // y se elige a mano, que es mejor que aplicar un ángulo inventado.
+    angulo.value = angles.some(a => a.name === c.angulo) ? c.angulo : '';
+    angulo.addEventListener('change', ()=>{ c.angulo = angulo.value; refrescar(); });
+    campo('Ángulo', angulo);
+
+    return caja;
   }
 
   // Traduce el nombre de ángulo que devolvió el agente al id que usa el calendario.
@@ -7116,12 +7246,14 @@
   });
   $('closeAgenteModal').addEventListener('click', ()=>{ $('agenteModal').classList.remove('open'); });
   $('agenteDescartar').addEventListener('click', ()=>{ limpiarAgente(); showToast('Propuesta descartada'); });
-  $('agenteTodos').addEventListener('click', ()=>{
-    $('agenteListaCambios').querySelectorAll('input[type=checkbox]').forEach(c=> c.checked = true);
-  });
-  $('agenteNinguno').addEventListener('click', ()=>{
-    $('agenteListaCambios').querySelectorAll('input[type=checkbox]').forEach(c=> c.checked = false);
-  });
+  // Se marca en los dos lados —el checkbox y el cambio— para que la elección sobreviva a
+  // un repintado por editar una propuesta.
+  const marcarTodos = (valor)=>{
+    cambiosPropuestos.forEach(c => { c.incluir = valor; });
+    $('agenteListaCambios').querySelectorAll('input[type=checkbox]').forEach(c=> c.checked = valor);
+  };
+  $('agenteTodos').addEventListener('click', ()=> marcarTodos(true));
+  $('agenteNinguno').addEventListener('click', ()=> marcarTodos(false));
 
   $('runAgenteBtn').addEventListener('click', async ()=>{
     const pedido = $('agentePedido').value.trim();
