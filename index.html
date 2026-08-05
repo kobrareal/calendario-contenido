@@ -1035,6 +1035,11 @@
      quedaban tres por fila y acá entrarían una y media, que deja un hueco raro. */
   .kit-dashboard .kit-grilla{grid-template-columns:repeat(auto-fill, minmax(96px, 1fr));}
   .kit-dashboard .kit-vista{height:74px;}
+  /* En la columna del dashboard no entran el nombre y las tres acciones en un renglón: el
+     nombre pasa arriba y los botones quedan debajo, centrados. Apretados en una línea, el
+     nombre se reducía a dos letras y los botones quedaban imposibles de acertar. */
+  .kit-dashboard .kit-pie{flex-wrap:wrap; justify-content:center; gap:0;}
+  .kit-dashboard .kit-nombre{flex:1 0 100%; text-align:center; margin-bottom:2px;}
   .kit-dashboard .kit-color{width:96px;}
   .kit-dashboard .kit-muestra{height:46px;}
   .kit-dashboard .kit-textarea{min-height:56px;}
@@ -4748,6 +4753,43 @@
 
   const claveArchivoKit = (id) => 'brandkit-file:' + id;
 
+  // Copia una imagen al portapapeles para pegarla directo en Canva, Photoshop o donde sea.
+  //
+  // El portapapeles del navegador solo acepta PNG como imagen: un JPG o un SVG se rechazan
+  // aunque sean imágenes válidas. Por eso todo se pasa por un canvas y sale como PNG. Con
+  // el SVG hay que fijarle un tamaño antes de dibujarlo: sin ancho y alto declarados, el
+  // canvas lo rasteriza a cero y se copiaría una imagen vacía.
+  async function copiarImagenKit(dataUrl, mime){
+    if(!navigator.clipboard || !window.ClipboardItem){
+      throw new Error('Tu navegador no permite copiar imágenes. Usá el botón de descargar.');
+    }
+    const blob = await (async ()=>{
+      const original = await (await fetch(dataUrl)).blob();
+      if(mime === 'image/png') return original;
+
+      const bitmap = await createImageBitmap(original).catch(()=> null);
+      let w, h, fuente = bitmap;
+      if(bitmap){
+        w = bitmap.width; h = bitmap.height;
+      }else{
+        // createImageBitmap no siempre traga un SVG; se cae a <img>, que sí lo dibuja.
+        fuente = await new Promise((ok, mal)=>{
+          const im = new Image();
+          im.onload = ()=> ok(im);
+          im.onerror = ()=> mal(new Error('No se pudo leer la imagen'));
+          im.src = dataUrl;
+        });
+        w = fuente.naturalWidth || 512;
+        h = fuente.naturalHeight || 512;
+      }
+      const lienzo = document.createElement('canvas');
+      lienzo.width = w; lienzo.height = h;
+      lienzo.getContext('2d').drawImage(fuente, 0, 0, w, h);
+      return await new Promise(ok => lienzo.toBlob(ok, 'image/png'));
+    })();
+    await navigator.clipboard.write([ new ClipboardItem({ 'image/png': blob }) ]);
+  }
+
   // Peso máximo de un archivo de fuente. Una fuente de texto anda entre 30 y 200 KB, y en
   // base64 crece un tercio; con este techo entran las normales y se frena una familia
   // entera empaquetada, que no tiene sentido guardar dentro de una fila de la base.
@@ -4890,6 +4932,29 @@
       nombre.disabled = IS_READONLY;
       nombre.addEventListener('change', async ()=>{ a.nombre = nombre.value.trim(); await saveKit(); });
       pie.appendChild(nombre);
+
+      // Copiar: para pegarlo directo en Canva o Photoshop sin pasar por Descargas y tener
+      // que ir a buscar el archivo. Va primero porque es el camino más corto de los dos.
+      const copiar = document.createElement('button');
+      copiar.className = 'kit-accion';
+      copiar.title = 'Copiar la imagen para pegarla en otro lado';
+      copiar.innerHTML = '<i class="fa-regular fa-copy"></i>';
+      copiar.addEventListener('click', async ()=>{
+        const dato = kitCache[a.id];
+        if(!dato){ showToast('La imagen todavía se está cargando'); return; }
+        const antes = copiar.innerHTML;
+        copiar.innerHTML = '<i class="fa-solid fa-spinner"></i>';
+        try{
+          await copiarImagenKit(dato, a.mime);
+          copiar.innerHTML = '<i class="fa-solid fa-check"></i>';
+          showToast('Imagen copiada — pegala con Ctrl+V');
+          setTimeout(()=>{ copiar.innerHTML = antes; }, 1400);
+        }catch(e){
+          copiar.innerHTML = antes;
+          showToast(e.message || 'No se pudo copiar la imagen');
+        }
+      });
+      pie.appendChild(copiar);
 
       // Descargar: el kit sirve justamente para llevarse el archivo a la pieza que se
       // está armando, así que el enlace guarda con el nombre puesto acá.
