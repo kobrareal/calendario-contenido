@@ -1006,6 +1006,29 @@
   .fila-preview-estado .estado-row{margin:0;}
 
   /* ---------- kit de marca ---------- */
+  /* Panel fijo del dashboard, en la columna de las notas. Mismo envoltorio que los otros
+     dos para que la fila se lea pareja. */
+  .kit-dashboard{
+    margin-top:var(--s-4); padding:var(--s-4);
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--r-3);
+    backdrop-filter:var(--glass-blur-sm); -webkit-backdrop-filter:var(--glass-blur-sm);
+  }
+  .kit-dashboard-head{
+    display:flex; align-items:center; justify-content:space-between; gap:var(--s-3);
+    margin-bottom:var(--s-4);
+  }
+  .kit-dashboard-head h3{
+    margin:0; font-size:var(--t-md); font-weight:var(--w-semibold); letter-spacing:-0.01em;
+  }
+  /* Destello al llegar desde el botón del encabezado, igual que el panel de ideas. */
+  .kit-dashboard.flash{animation:ideasFlash 1.2s var(--ease-out);}
+  /* En media columna las cajas de archivo entran más chicas: con el ancho del modal
+     quedaban tres por fila y acá entrarían una y media, que deja un hueco raro. */
+  .kit-dashboard .kit-grilla{grid-template-columns:repeat(auto-fill, minmax(96px, 1fr));}
+  .kit-dashboard .kit-vista{height:74px;}
+  .kit-dashboard .kit-color{width:96px;}
+  .kit-dashboard .kit-muestra{height:46px;}
+  .kit-dashboard .kit-textarea{min-height:56px;}
   .kit-seccion{
     margin-bottom:var(--s-5); padding-bottom:var(--s-4);
     border-bottom:1px solid var(--border);
@@ -1343,7 +1366,21 @@
        muchas ideas. */
     align-items:start;
   }
-  @media(max-width:900px){ .dashboard-panels{grid-template-columns:1fr;} }
+  /* Colocación explícita: por orden natural el kit habría caído a la derecha y las ideas
+     abajo. Notas y kit comparten la columna izquierda, uno debajo del otro, y las ideas
+     ocupan la derecha entera — es la lista más larga de las tres, así que aprovecha el alto
+     de las otras dos en vez de dejar un hueco al lado. */
+  .dashboard-panels > .notas-mes-box{grid-column:1; grid-row:1;}
+  .dashboard-panels > .kit-dashboard{grid-column:1; grid-row:2;}
+  .dashboard-panels > .ideas-dashboard{grid-column:2; grid-row:1 / span 2;}
+
+  @media(max-width:900px){
+    .dashboard-panels{grid-template-columns:1fr;}
+    /* Apilados: se sueltan las posiciones fijas o el kit y las ideas se superpondrían. */
+    .dashboard-panels > .notas-mes-box,
+    .dashboard-panels > .kit-dashboard,
+    .dashboard-panels > .ideas-dashboard{grid-column:auto; grid-row:auto;}
+  }
 
   .ideas-dashboard{
     padding:var(--s-4);
@@ -2032,6 +2069,62 @@
             placeholder="Ej: mes de aniversario, priorizar contenido de comunidad. Falta confirmar la fecha del sorteo…"></textarea>
         </div>
 
+        <!-- Kit de marca, fijo debajo de las notas. Se consulta mientras se arma una pieza,
+             así que abrirlo y cerrarlo por cada color que se copia no tenía sentido. Los
+             archivos se cargan después de pintar el calendario, no en el arranque: un logo
+             en buena calidad pesa cientos de veces más que el resto de los datos juntos. -->
+        <div class="kit-dashboard" id="kitDashboard">
+          <div class="kit-dashboard-head">
+            <h3 id="kitTitulo">🎨 Kit de marca</h3>
+            <span class="hint" id="kitEstado" style="margin:0;"></span>
+          </div>
+
+          <div class="kit-seccion">
+            <div class="kit-seccion-head">
+              <h3>Logos</h3>
+              <button class="btn small btn-nueva-idea" data-subir="logo"><i class="fa-solid fa-upload"></i>Subir</button>
+            </div>
+            <div class="kit-grilla" id="kitLogos"></div>
+          </div>
+
+          <div class="kit-seccion">
+            <div class="kit-seccion-head">
+              <h3>Colores</h3>
+              <button class="btn small btn-nueva-idea" id="kitAgregarColor"><i class="fa-solid fa-plus"></i>Agregar</button>
+            </div>
+            <div class="kit-colores" id="kitColores"></div>
+          </div>
+
+          <div class="kit-seccion">
+            <div class="kit-seccion-head">
+              <h3>Elementos gráficos</h3>
+              <button class="btn small btn-nueva-idea" data-subir="grafico"><i class="fa-solid fa-upload"></i>Subir</button>
+            </div>
+            <div class="kit-grilla" id="kitGraficos"></div>
+          </div>
+
+          <div class="kit-seccion">
+            <div class="kit-seccion-head">
+              <h3>Tipografías</h3>
+              <button class="btn small btn-nueva-idea" data-subir="fuente"><i class="fa-solid fa-upload"></i>Subir</button>
+            </div>
+            <div class="kit-fuentes" id="kitFuentes"></div>
+            <input type="text" id="kitTipografias" class="kit-input" style="margin-top:8px;"
+              placeholder="Ej: Títulos en Poppins SemiBold · Textos en Inter Regular" />
+          </div>
+
+          <div class="kit-seccion">
+            <div class="kit-seccion-head"><h3>Cómo se usa la marca</h3></div>
+            <textarea id="kitNotas" class="kit-textarea"
+              placeholder="Ej: el logo siempre sobre fondo claro, nunca deformarlo…"></textarea>
+          </div>
+
+          <!-- Un input por tipo de archivo: mezclar imágenes y fuentes en el mismo "accept"
+               haría que el explorador ofrezca fuentes al buscar un logo y viceversa. -->
+          <input type="file" id="kitArchivoInput" multiple accept="image/png,image/svg+xml,image/jpeg,image/webp" style="display:none;" />
+          <input type="file" id="kitFuenteInput" multiple accept=".ttf,.otf,.woff,.woff2,.zip,font/*" style="display:none;" />
+        </div>
+
         <!-- Ideas guardadas: editor completo, siempre visible. Antes vivía en un modal
              separado y en el dashboard solo se veía un mini-listado; ahora el widget es
              el editor entero — agregar, editar, clasificar, borrar y pegar miniatura se
@@ -2357,72 +2450,9 @@
      miniatura). El botón del header sigue funcionando pero ahora hace scroll hasta el
      widget en vez de abrir una ventana aparte. -->
 
-<!-- KIT DE MARCA -->
-<div class="modal-back" id="kitModal">
-  <div class="modal" style="width:680px;">
-    <h2 id="kitTitulo">🎨 Kit de marca</h2>
-    <p class="hint">Los logos, colores y elementos gráficos de esta marca, a mano cuando armás una pieza. Cada archivo se puede descargar con un click y cada color se copia al portapapeles.</p>
-
-    <!-- LOGOS -->
-    <div class="kit-seccion">
-      <div class="kit-seccion-head">
-        <h3>Logos</h3>
-        <button class="btn small btn-nueva-idea" data-subir="logo"><i class="fa-solid fa-upload"></i>Subir logo</button>
-      </div>
-      <p class="hint kit-nota">PNG con fondo transparente o SVG. Se conserva la transparencia.</p>
-      <div class="kit-grilla" id="kitLogos"></div>
-    </div>
-
-    <!-- COLORES -->
-    <div class="kit-seccion">
-      <div class="kit-seccion-head">
-        <h3>Colores</h3>
-        <button class="btn small btn-nueva-idea" id="kitAgregarColor"><i class="fa-solid fa-plus"></i>Agregar color</button>
-      </div>
-      <div class="kit-colores" id="kitColores"></div>
-    </div>
-
-    <!-- ELEMENTOS GRÁFICOS -->
-    <div class="kit-seccion">
-      <div class="kit-seccion-head">
-        <h3>Elementos gráficos</h3>
-        <button class="btn small btn-nueva-idea" data-subir="grafico"><i class="fa-solid fa-upload"></i>Subir elemento</button>
-      </div>
-      <p class="hint kit-nota">Texturas, íconos, marcos, sellos: lo que se repite en las piezas.</p>
-      <div class="kit-grilla" id="kitGraficos"></div>
-    </div>
-
-    <!-- TIPOGRAFÍAS -->
-    <div class="kit-seccion">
-      <div class="kit-seccion-head">
-        <h3>Tipografías</h3>
-        <button class="btn small btn-nueva-idea" data-subir="fuente"><i class="fa-solid fa-upload"></i>Subir fuente</button>
-      </div>
-      <p class="hint kit-nota">Los archivos de fuente (.ttf, .otf, .woff, .woff2) quedan guardados acá para poder instalarlos en cualquier computadora.</p>
-      <div class="kit-fuentes" id="kitFuentes"></div>
-      <label class="field-label" for="kitTipografias" style="margin-top:12px;">Cómo se usan</label>
-      <input type="text" id="kitTipografias" class="kit-input"
-        placeholder="Ej: Títulos en Poppins SemiBold · Textos en Inter Regular" />
-    </div>
-
-    <!-- NOTAS -->
-    <div class="kit-seccion">
-      <div class="kit-seccion-head"><h3>Cómo se usa la marca</h3></div>
-      <textarea id="kitNotas" class="kit-textarea"
-        placeholder="Ej: el logo siempre sobre fondo claro, nunca deformarlo. Dejar aire alrededor…"></textarea>
-    </div>
-
-    <!-- Un input por tipo de archivo: mezclar imágenes y fuentes en el mismo "accept" haría
-         que el explorador ofrezca fuentes al buscar un logo y viceversa. -->
-    <input type="file" id="kitArchivoInput" multiple accept="image/png,image/svg+xml,image/jpeg,image/webp" style="display:none;" />
-    <input type="file" id="kitFuenteInput" multiple accept=".ttf,.otf,.woff,.woff2,.zip,font/*" style="display:none;" />
-
-    <div class="modal-close-row" style="margin-top:16px;">
-      <span class="hint" id="kitEstado" style="margin:0;margin-right:auto;"></span>
-      <button class="btn primary" id="kitCerrar">Cerrar</button>
-    </div>
-  </div>
-</div>
+<!-- El kit de marca dejó de ser un modal: vive fijo en el dashboard, debajo de las notas
+     del mes. Se consulta mientras se arma una pieza, así que tenerlo que abrir y cerrar
+     por cada color que se copia no tenía sentido. -->
 
 <!-- CLICKUP -->
 <div class="modal-back" id="clickupModal">
@@ -4814,7 +4844,7 @@
     const editable = !IS_READONLY;
     $('kitTipografias').disabled = !editable;
     $('kitNotas').disabled = !editable;
-    document.querySelectorAll('#kitModal [data-subir], #kitAgregarColor').forEach(b => b.style.display = editable ? '' : 'none');
+    document.querySelectorAll('#kitDashboard [data-subir], #kitAgregarColor').forEach(b => b.style.display = editable ? '' : 'none');
   }
 
   function renderKitArchivos(seccion, cont, vacio){
@@ -4965,7 +4995,7 @@
   // Subida de archivos. El botón guarda en qué sección cae, porque el input de archivos es
   // uno solo para las dos.
   let kitSeccionDestino = 'logo';
-  document.querySelectorAll('#kitModal [data-subir]').forEach(btn=>{
+  document.querySelectorAll('#kitDashboard [data-subir]').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       kitSeccionDestino = btn.dataset.subir;
       // Las fuentes tienen su propio selector de archivos, con su lista de extensiones.
@@ -5078,15 +5108,15 @@
     });
   });
 
-  $('kitBtn').addEventListener('click', async ()=>{
-    $('kitModal').classList.add('open');
-    $('kitEstado').textContent = 'Cargando…';
-    renderKit();               // se pinta lo que ya se sabe, para no mostrar el panel vacío
-    await cargarArchivosKit(); // y las imágenes llegan enseguida
-    $('kitEstado').textContent = '';
-    renderKit();
+  // El botón del header ya no abre nada: el kit vive en el dashboard, así que lleva hasta
+  // él y lo marca, igual que el de ideas.
+  $('kitBtn').addEventListener('click', ()=>{
+    const panel = $('kitDashboard');
+    if(!panel) return;
+    panel.scrollIntoView({ behavior:'smooth', block:'start' });
+    panel.classList.add('flash');
+    setTimeout(()=> panel.classList.remove('flash'), 1200);
   });
-  $('kitCerrar').addEventListener('click', ()=> $('kitModal').classList.remove('open'));
 
   // ---------- ClickUp ----------
   // Cada posteo puede mandarse como tarea. No se manda solo al crearlo: un calendario se
@@ -9179,6 +9209,11 @@
     // terminan. Si algo falla, el calendario ya está usable igual.
     loadNotificaciones().then(actualizarCampanita).catch(()=>{});
     loadPapelera().catch(()=>{});
+    // El kit se pinta con lo que ya vino en el arranque —nombres y colores— y las imágenes
+    // llegan después. Un logo en buena calidad pesa cientos de veces más que el resto de los
+    // datos juntos, y esperarlas para mostrar el calendario sería pagar ese peso siempre.
+    renderKit();
+    cargarArchivosKit().then(renderKit).catch(()=>{});
 
     // ?dia=YYYY-MM-DD abre ese día directamente. Lo usan las notificaciones cuando la
     // novedad es de otra marca: no alcanza con cambiar de ?cliente=, hay que recargar, y
