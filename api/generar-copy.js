@@ -78,10 +78,19 @@ module.exports = async (req, res) => {
       'encuentre quien le interesa. Los 4 hashtags cuentan dentro del límite de caracteres, ' +
       'así que dejales lugar al escribir el texto. ';
 
+  // La voz es la de la marca, no la de una persona. Va con ejemplo porque la instrucción
+  // sola se cumple a medias: el modelo arranca en plural y a la tercera frase se le escapa
+  // un "les muestro". Con un caso concreto delante eso deja de pasar.
+  const voz =
+    'La marca habla siempre en plural, como equipo: "diseñamos", "preparamos", "te ' +
+    'mostramos". NUNCA en primera persona del singular: nada de "diseñé", "preparé" o ' +
+    '"les muestro". Ejemplo: se escribe "Diseñamos este buzo", no "Diseñé este buzo". ';
+
   const base =
     'Sos un/a community manager escribiendo el copy para un ' + etiqueta + ' de Instagram' +
     (angulo ? (' con ángulo de contenido "' + angulo + '"') : '') + '. ' +
     'Escribí en español, con tono cercano y natural (podés usar "vos"), listo para publicar. ' +
+    voz +
     'IMPORTANTE: el copy no puede superar los ' + largoMax + ' caracteres contando espacios. ' +
     'Apuntá a ' + frases + '. Es preferible quedarse corto que pasarse. ' +
     'Tiene que terminar de forma completa: nunca cortes una idea por la mitad. ' +
@@ -132,6 +141,9 @@ module.exports = async (req, res) => {
       const condensado = await llamar(
         'Acortá este copy de Instagram a menos de ' + largoMax + ' caracteres contando espacios, ' +
         'sin perder la idea principal ni el tono. Tiene que terminar de forma completa. ' +
+        // Al reescribir para acortar es donde más se cuela el singular, porque el modelo
+        // rearma las frases desde cero en vez de recortar las que ya estaban.
+        voz +
         // Se repite el formato: al pedir solo "acortalo", el modelo devuelve un párrafo
         // corrido y se pierden los renglones y los emojis que se acababan de pedir.
         'Mantené el formato: cada frase en un renglón aparte' +
