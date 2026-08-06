@@ -635,8 +635,17 @@
     opacity:.95;text-transform:uppercase;flex:none;
   }
   /* El recorte va acá y no en el .tag: en un contenedor flex el ellipsis del padre no se
-     aplica a los hijos, así que el título se cortaba de golpe y sin puntos suspensivos. */
-  .tag .tag-txt{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+     aplica a los hijos, así que el título se cortaba de golpe y sin puntos suspensivos.
+     flex:1 para que el título se quede con todo el espacio que sobra: es lo que uno viene
+     a leer, y tanto el tipo como la hora ocupan un ancho fijo y chico. */
+  .tag .tag-txt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  /* La hora cierra el chip y tampoco se encoge. Va más tenue que el título porque es un
+     dato de apoyo —los posteos ya vienen ordenados por horario— y compitiendo en peso
+     visual le robaría atención a lo que identifica al posteo. */
+  .tag .tag-hora{
+    font-family:'IBM Plex Mono',monospace;font-size:9.5px;
+    opacity:.7;flex:none;margin-left:auto;padding-left:3px;
+  }
   /* Dos cosas parecidas que NO son lo mismo:
      - .tag.sin-contenido es el marcador R/S de un día al que todavía no se le cargó nada.
        Va sin fondo y con borde punteado, justamente para que se lea como un hueco.
@@ -4049,22 +4058,26 @@
       const detalleAprob = (it.approval && it.approval !== 'sin-revisar')
         ? `\nCliente: ${APROBACIONES[it.approval].label}` : '';
 
-      // La letra del tipo (R/C/S) va SIEMPRE primera y en su propio span, con o sin ángulo.
-      // Antes, cuando el posteo no tenía ángulo, iba al final del mismo texto que el título:
-      // con un título medianamente largo el recorte se la comía y quedaba un chip sin decir
-      // de qué tipo era. Es el dato que menos ocupa y el que más rápido se lee, así que va
-      // adelante y no se encoge nunca.
-      const marca = `<span class="k">${timePrefix}${kindLabel}</span>`;
+      // Orden del chip: tipo · título · hora. La letra del tipo va primera porque es lo que
+      // menos ocupa y más rápido se lee; el título se lleva todo el espacio sobrante, que es
+      // lo que uno viene a reconocer; y la hora cierra.
+      //
+      // La hora al final y no al principio: adelante empujaba el título cinco caracteres a
+      // la derecha en todos los chips, y en una celda angosta eso es media palabra menos.
+      // Igual no se recorta —los posteos ya vienen ordenados por horario, así que el dato
+      // sirve para confirmar, no para ordenar con el ojo.
+      const marca = `<span class="k">${kindLabel}</span>`;
+      const hora = it.time ? `<span class="tag-hora">${escapeHtml(it.time)}</span>` : '';
       if(a){
         tag.className = 'tag tag-truncated';
         tag.style.background = a.color;
         tag.title = tooltipText + detalleEstado + detalleAprob;
         const emoji = a.emoji ? `${a.emoji} ` : '';
-        tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText)}${emoji}${escapeHtml(a.name)}${hiddenMark}${marcaAprob}</span>`;
+        tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText)}${emoji}${escapeHtml(a.name)}${hiddenMark}${marcaAprob}</span>${hora}`;
       }else{
         tag.className = 'tag tag-empty tag-truncated';
         tag.title = tooltipText + detalleEstado + detalleAprob;
-        tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText + hiddenMark + marcaAprob)}</span>`;
+        tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText + hiddenMark + marcaAprob)}</span>${hora}`;
       }
       // Click en el chip: abre ese posteo, no solo el día. Se detiene la propagación porque
       // la celda tiene su propio click que abre el día con todo plegado, y sin esto el
