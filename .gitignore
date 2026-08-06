@@ -25,3 +25,6 @@ LINKS-PRIVADOS.txt
 .agents/
 .claude/skills/
 skills-lock.json
+
+# Skills de Claude: herramientas del entorno, no del proyecto.
+*.skill
