@@ -5320,7 +5320,10 @@
   // ochenta productos, mandarlos todos en cada pedido gasta el presupuesto del modelo sin
   // aportar. Los sin stock quedan afuera del listado principal y se nombran aparte, para
   // que sepa cuáles no ofrecer sin gastar una línea entera describiendo cada uno.
-  const MAX_PRODUCTOS_IA = 40;
+  // Un catálogo real de indumentaria pasa fácil los 70 modelos. Con las descripciones de
+  // una línea, 80 entradas son unos 5000 caracteres: entra de sobra en el pedido y evita
+  // que la IA proponga contenido sobre "los productos" ignorando media tienda.
+  const MAX_PRODUCTOS_IA = 80;
   function productosParaIA(){
     const activos = (brandKit.productos || []).filter(p => (p.nombre || '').trim());
     if(!activos.length) return null;

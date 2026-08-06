@@ -89,7 +89,9 @@ module.exports = async (req, res) => {
   // Catálogo de la marca, si lo cargó. Va con la instrucción de no inventar: sin eso, el
   // modelo toma la lista como sugerencia y igual se saca productos de la manga cuando el
   // contexto es vago.
-  const catalogo = String(cuerpo.productos || '').trim().slice(0, 3000);
+  // 8000 y no menos: un catálogo de indumentaria con ~80 modelos y su descripción ronda
+  // los 7000 caracteres, y cortarlo dejaba media tienda afuera sin que nada lo avisara.
+  const catalogo = String(cuerpo.productos || '').trim().slice(0, 8000);
   const bloqueProductos = catalogo
     ? 'Estos son los productos reales de la marca. Si el copy habla de un producto, tiene ' +
       'que ser uno de esta lista, con las características que dice acá. No inventes productos ' +

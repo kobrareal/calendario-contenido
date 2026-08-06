@@ -129,7 +129,7 @@ module.exports = async (req, res) => {
 
   // Catálogo de la marca. Es lo que separa "proponé contenido de producto" de "proponé
   // contenido sobre el Buzo Alaska, que es de frisa peinada y está disponible".
-  const catalogo = String((req.body || {}).productos || '').trim().slice(0, 4000);
+  const catalogo = String((req.body || {}).productos || '').trim().slice(0, 8000);
 
   const contexto = [
     `Mes del calendario: ${m + 1}/${a} (${diasDelMes} días).`,
