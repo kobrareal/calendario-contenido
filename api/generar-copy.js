@@ -92,10 +92,22 @@ module.exports = async (req, res) => {
   // 8000 y no menos: un catálogo de indumentaria con ~80 modelos y su descripción ronda
   // los 7000 caracteres, y cortarlo dejaba media tienda afuera sin que nada lo avisara.
   const catalogo = String(cuerpo.productos || '').trim().slice(0, 8000);
+
+  // El catálogo es material de consulta, no un temario. Sin esta aclaración el modelo lo lee
+  // como "hablá de esto" y mete un producto donde no venía a cuento: se pide un guión sobre
+  // el detrás de escena y vuelve vendiendo un buzo. En el guión molesta más que en el copy,
+  // porque el guión es lo que se dice frente a cámara.
+  const soloSiCorresponde = esGuion
+    ? 'No fuerces la mención de ningún producto: el catálogo está para consultarlo, no para ' +
+      'meterlo sí o sí. Si la idea del guión no habla de un producto puntual, no lo nombres. ' +
+      'Solo mencionás un producto si la idea lo pide de forma explícita. '
+    : '';
+
   const bloqueProductos = catalogo
     ? 'Estos son los productos reales de la marca. Si el copy habla de un producto, tiene ' +
       'que ser uno de esta lista, con las características que dice acá. No inventes productos ' +
-      'ni les agregues características que no figuren.\n' + catalogo + '\n\n'
+      'ni les agregues características que no figuren. ' + soloSiCorresponde +
+      '\n' + catalogo + '\n\n'
     : '';
 
   const base =
