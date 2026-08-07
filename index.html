@@ -639,13 +639,6 @@
      flex:1 para que el título se quede con todo el espacio que sobra: es lo que uno viene
      a leer, y tanto el tipo como la hora ocupan un ancho fijo y chico. */
   .tag .tag-txt{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  /* La hora cierra el chip y tampoco se encoge. Va más tenue que el título porque es un
-     dato de apoyo —los posteos ya vienen ordenados por horario— y compitiendo en peso
-     visual le robaría atención a lo que identifica al posteo. */
-  .tag .tag-hora{
-    font-family:'IBM Plex Mono',monospace;font-size:9.5px;
-    opacity:.7;flex:none;margin-left:auto;padding-left:3px;
-  }
   /* Dos cosas parecidas que NO son lo mismo:
      - .tag.sin-contenido es el marcador R/S de un día al que todavía no se le cargó nada.
        Va sin fondo y con borde punteado, justamente para que se lea como un hueco.
@@ -4041,12 +4034,10 @@
     items.forEach(it=>{
       const tag = document.createElement('div');
       const kindLabel = it.kind ? (it.kind==='carrusel' ? 'C' : 'R') : 'S';
-      const timePrefix = it.time ? `${it.time} · ` : '';
       const hiddenMark = it.hideFromPreview ? ' 🚫' : '';
       const a = angleById(it.angle);
       // Separador " · " y no " - " para unificar con el resto de la app.
       const titleText = it.title ? `${it.title} · ` : '';
-      const tooltipText = `${titleText.replace(/ · $/, '')}${it.title && a ? ' · ' : ''}${a ? a.name : 'Sin ángulo'}${it.text ? '\n\n' + it.text : ''}`;
 
       // Puntito de estado y marca de aprobación: solo aparecen cuando hay algo que decir,
       // así un mes recién armado no se llena de adornos grises.
@@ -4054,30 +4045,36 @@
       const puntoEstado = (est && it.status !== 'pendiente')
         ? `<span class="estado-dot" style="background:${est.color}"></span>` : '';
       const marcaAprob = it.approval === 'aprobado' ? ' ✅' : (it.approval === 'cambios' ? ' ✏️' : '');
-      const detalleEstado = (est && it.status !== 'pendiente') ? `\n\nEstado: ${est.label}` : '';
-      const detalleAprob = (it.approval && it.approval !== 'sin-revisar')
-        ? `\nCliente: ${APROBACIONES[it.approval].label}` : '';
 
-      // Orden del chip: tipo · título · hora. La letra del tipo va primera porque es lo que
-      // menos ocupa y más rápido se lee; el título se lleva todo el espacio sobrante, que es
-      // lo que uno viene a reconocer; y la hora cierra.
-      //
-      // La hora al final y no al principio: adelante empujaba el título cinco caracteres a
-      // la derecha en todos los chips, y en una celda angosta eso es media palabra menos.
-      // Igual no se recorta —los posteos ya vienen ordenados por horario, así que el dato
-      // sirve para confirmar, no para ordenar con el ojo.
+      // El detalle completo vive en el tooltip, no en el chip. En una celda de calendario
+      // el ancho es de unos cien píxeles: todo lo que se mete ahí le saca lugar al título,
+      // que es lo único que permite reconocer el posteo de un vistazo. La hora, el estado y
+      // la revisión del cliente se leen al pasar el mouse, y el resto al abrirlo.
+      const NOMBRE_TIPO = { R:'Reel', C:'Carrusel', S:'Story' };
+      const tooltip = [
+        (it.time ? it.time + ' · ' : '') + NOMBRE_TIPO[kindLabel],
+        it.title || '',
+        a ? (a.emoji ? a.emoji + ' ' : '') + a.name : 'Sin ángulo',
+        est && it.status !== 'pendiente' ? 'Estado: ' + est.label : '',
+        it.approval && it.approval !== 'sin-revisar' ? 'Cliente: ' + APROBACIONES[it.approval].label : '',
+        it.hideFromPreview ? 'No se muestra en la vista previa del feed' : '',
+        it.text ? '\n' + it.text : ''
+      ].filter(Boolean).join('\n');
+
+      // En el chip queda solo la letra del tipo y el título. El horario ya no se dibuja:
+      // los posteos vienen ordenados cronológicamente, así que la secuencia se ve sola, y
+      // ese ancho pasa al título.
       const marca = `<span class="k">${kindLabel}</span>`;
-      const hora = it.time ? `<span class="tag-hora">${escapeHtml(it.time)}</span>` : '';
       if(a){
         tag.className = 'tag tag-truncated';
         tag.style.background = a.color;
-        tag.title = tooltipText + detalleEstado + detalleAprob;
+        tag.title = tooltip;
         const emoji = a.emoji ? `${a.emoji} ` : '';
-        tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText)}${emoji}${escapeHtml(a.name)}${hiddenMark}${marcaAprob}</span>${hora}`;
+        tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText)}${emoji}${escapeHtml(a.name)}${hiddenMark}${marcaAprob}</span>`;
       }else{
         tag.className = 'tag tag-empty tag-truncated';
-        tag.title = tooltipText + detalleEstado + detalleAprob;
-        tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText + hiddenMark + marcaAprob)}</span>${hora}`;
+        tag.title = tooltip;
+        tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText + hiddenMark + marcaAprob)}</span>`;
       }
       // Click en el chip: abre ese posteo, no solo el día. Se detiene la propagación porque
       // la celda tiene su propio click que abre el día con todo plegado, y sin esto el
