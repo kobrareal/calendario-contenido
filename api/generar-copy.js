@@ -94,17 +94,17 @@ module.exports = async (req, res) => {
   const catalogo = String(cuerpo.productos || '').trim().slice(0, 8000);
 
   // El catálogo es material de consulta, no un temario. Sin esta aclaración el modelo lo lee
-  // como "hablá de esto" y mete un producto donde no venía a cuento: se pide un guión sobre
-  // el detrás de escena y vuelve vendiendo un buzo. En el guión molesta más que en el copy,
-  // porque el guión es lo que se dice frente a cámara.
-  const soloSiCorresponde = esGuion
-    ? 'No fuerces la mención de ningún producto: el catálogo está para consultarlo, no para ' +
-      'meterlo sí o sí. Si la idea del guión no habla de un producto puntual, no lo nombres. ' +
-      'Solo mencionás un producto si la idea lo pide de forma explícita. '
-    : '';
+  // como "hablá de esto" y mete un producto donde no venía a cuento: se pide algo sobre el
+  // detrás de escena y vuelve vendiendo un buzo. Vale igual para copys y para guiones: la
+  // marca decide de qué habla cada posteo en la idea, no la lista de productos.
+  const pieza = esGuion ? 'del guión' : 'del copy';
+  const soloSiCorresponde =
+    'No fuerces la mención de ningún producto: el catálogo está para consultarlo, no para ' +
+    'meterlo sí o sí. Si la idea ' + pieza + ' no habla de un producto puntual, no lo nombres ' +
+    'ni lo describas. Solo mencionás un producto cuando la idea lo pide de forma explícita. ';
 
   const bloqueProductos = catalogo
-    ? 'Estos son los productos reales de la marca. Si el copy habla de un producto, tiene ' +
+    ? 'Estos son los productos reales de la marca. Si el texto habla de un producto, tiene ' +
       'que ser uno de esta lista, con las características que dice acá. No inventes productos ' +
       'ni les agregues características que no figuren. ' + soloSiCorresponde +
       '\n' + catalogo + '\n\n'
