@@ -3523,28 +3523,27 @@
   // Para la IA y ClickUp: nombres pelados, sin emojis de por medio.
   function nombresAngulos(item){ return angulosDe(item).map(a => a.name).join(' + '); }
 
-  // El mismo color con otra opacidad. Se arma un rgba() en vez de pegarle dos dígitos al
-  // hex porque un color guardado como "#fff" no acepta el alfa al final.
-  function conAlfa(color, alfa){
+  // El mismo color, más oscuro. Se multiplican los tres canales en vez de bajarle la
+  // opacidad: bajando el alfa se transparenta y aparece el fondo de la celda, que es lo que
+  // dejaba el final del título ilegible.
+  function oscurecer(color, factor){
     const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(color || '').trim());
     if(!m) return color;
     let h = m[1];
     if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
     const n = parseInt(h, 16);
-    return `rgba(${(n>>16)&255}, ${(n>>8)&255}, ${n&255}, ${alfa})`;
+    const baja = (v)=> Math.max(0, Math.min(255, Math.round(v * factor)));
+    return `rgb(${baja((n>>16)&255)}, ${baja((n>>8)&255)}, ${baja(n&255)})`;
   }
 
-  // Fondo del chip del calendario. Con un ángulo va de su color a transparente; con varios,
-  // del color de uno al del siguiente. El degradado es el que dice cuántos ángulos hay, así
-  // que no hace falta gastar ancho del título en un "+2".
+  // Fondo del chip del calendario. Con un ángulo va de su color al mismo color más oscuro;
+  // con varios, del color de uno al del siguiente. El degradado es el que dice cuántos
+  // ángulos hay, así que no hace falta gastar ancho del título en un "+2".
   function degradadoAngulos(lista){
     if(!lista.length) return '';
     if(lista.length === 1){
-      // El color se sostiene hasta la mitad y recién ahí se apaga. Desvaneciéndolo desde el
-      // borde izquierdo, el final del título quedaba en texto oscuro sobre el fondo oscuro
-      // de la celda y no se leía.
       const c = lista[0].color;
-      return `linear-gradient(90deg, ${c} 0%, ${c} 45%, ${conAlfa(c, 0)} 100%)`;
+      return `linear-gradient(90deg, ${c} 0%, ${oscurecer(c, 0.72)} 100%)`;
     }
     const paso = 100 / (lista.length - 1);
     return 'linear-gradient(90deg, ' +
