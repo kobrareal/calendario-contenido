@@ -650,14 +650,6 @@
   .tag.tag-empty, .tag.empty{
     background:#4a4757;border:1px solid rgba(255,255,255,.14);color:#dedbe8;font-weight:500;
   }
-  /* Marca de "este posteo tiene más ángulos que el que se ve". En una celda de calendario no
-     entran dos nombres, así que se muestra el primero y el resto se cuenta acá; los nombres
-     completos están en el tooltip y en el detalle. */
-  .tag .tag-mas{
-    font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;flex:none;
-    background:rgba(0,0,0,.22);border-radius:4px;padding:1px 3px;
-  }
-  .tag.tag-empty .tag-mas{background:rgba(255,255,255,.16);}
   .tag-truncated{max-width:140px;}
   .tag-truncated span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
@@ -3531,6 +3523,34 @@
   // Para la IA y ClickUp: nombres pelados, sin emojis de por medio.
   function nombresAngulos(item){ return angulosDe(item).map(a => a.name).join(' + '); }
 
+  // El mismo color con otra opacidad. Se arma un rgba() en vez de pegarle dos dígitos al
+  // hex porque un color guardado como "#fff" no acepta el alfa al final.
+  function conAlfa(color, alfa){
+    const m = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.exec(String(color || '').trim());
+    if(!m) return color;
+    let h = m[1];
+    if(h.length === 3) h = h[0]+h[0]+h[1]+h[1]+h[2]+h[2];
+    const n = parseInt(h, 16);
+    return `rgba(${(n>>16)&255}, ${(n>>8)&255}, ${n&255}, ${alfa})`;
+  }
+
+  // Fondo del chip del calendario. Con un ángulo va de su color a transparente; con varios,
+  // del color de uno al del siguiente. El degradado es el que dice cuántos ángulos hay, así
+  // que no hace falta gastar ancho del título en un "+2".
+  function degradadoAngulos(lista){
+    if(!lista.length) return '';
+    if(lista.length === 1){
+      // El color se sostiene hasta la mitad y recién ahí se apaga. Desvaneciéndolo desde el
+      // borde izquierdo, el final del título quedaba en texto oscuro sobre el fondo oscuro
+      // de la celda y no se leía.
+      const c = lista[0].color;
+      return `linear-gradient(90deg, ${c} 0%, ${c} 45%, ${conAlfa(c, 0)} 100%)`;
+    }
+    const paso = 100 / (lista.length - 1);
+    return 'linear-gradient(90deg, ' +
+      lista.map((a, i) => `${a.color} ${Math.round(i * paso)}%`).join(', ') + ')';
+  }
+
   function setAngulos(item, ids){
     const limpios = (ids || []).filter((id, i) => id && ids.indexOf(id) === i);
     item.angles = limpios;
@@ -4125,12 +4145,11 @@
       const tag = document.createElement('div');
       const kindLabel = it.kind ? (it.kind==='carrusel' ? 'C' : 'R') : 'S';
       const hiddenMark = it.hideFromPreview ? ' 🚫' : '';
-      // En la celda del mes entra un solo nombre. Se muestra el primer ángulo y los demás se
-      // cuentan en un "+N"; los nombres completos están en el tooltip y al abrir el posteo.
+      // En la celda del mes entra un solo nombre, así que se escribe el del primer ángulo y
+      // los demás los cuenta el degradado del fondo. Los nombres completos están en el
+      // tooltip y al abrir el posteo.
       const listaAngulos = angulosDe(it);
       const a = listaAngulos[0] || null;
-      const masAngulos = listaAngulos.length > 1
-        ? `<span class="tag-mas">+${listaAngulos.length - 1}</span>` : '';
       // Separador " · " y no " - " para unificar con el resto de la app.
       const titleText = it.title ? `${it.title} · ` : '';
 
@@ -4162,10 +4181,10 @@
       const marca = `<span class="k">${kindLabel}</span>`;
       if(a){
         tag.className = 'tag tag-truncated';
-        tag.style.background = a.color;
+        tag.style.background = degradadoAngulos(listaAngulos);
         tag.title = tooltip;
         const emoji = a.emoji ? `${escapeHtml(a.emoji)} ` : '';
-        tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText)}${emoji}${escapeHtml(a.name)}${hiddenMark}${marcaAprob}</span>${masAngulos}`;
+        tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText)}${emoji}${escapeHtml(a.name)}${hiddenMark}${marcaAprob}</span>`;
       }else{
         tag.className = 'tag tag-empty tag-truncated';
         tag.title = tooltip;
