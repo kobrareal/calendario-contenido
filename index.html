@@ -143,15 +143,24 @@
   select option{background:var(--card-bg,#1a1a22);color:var(--text);}
   body{
     margin:0;
-    /* Fondo más contenido: los tres degradados grandes del original tenían un aire
-       "web de startup" con nubes de color por todos lados. Se reemplazan por dos
-       degradados más chicos y con menos saturación, que sostienen la sensación de
-       profundidad sin competir con el contenido. Menos ruido, más foco. */
+    /* Dos luces desde las esquinas de arriba —turquesa a la izquierda, violeta a la
+       derecha— sobre negro. Nacen fuera de la pantalla (at -5% -20%) para que se vea el
+       borde de la luz y no el centro del círculo, que es lo que las haría leer como dos
+       manchas pegadas en el fondo en vez de como iluminación.
+       El tercer degradado es el que apaga: sin él las dos luces se cruzan en el medio y
+       el encabezado queda sobre un fondo lavado donde el texto pierde contraste. */
     background:
-      radial-gradient(700px 520px at 8% -10%, rgba(79,142,247,.12) 0%, transparent 60%),
-      radial-gradient(900px 700px at 100% 100%, rgba(139,92,246,.10) 0%, transparent 65%),
+      radial-gradient(1100px 620px at -60px -140px, rgba(13,180,175,.52) 0%, rgba(13,180,175,0) 62%),
+      radial-gradient(1100px 620px at calc(100% + 60px) -140px, rgba(124,58,237,.54) 0%, rgba(124,58,237,0) 62%),
+      radial-gradient(900px 500px at 50% -60px, rgba(10,10,13,.85) 0%, rgba(10,10,13,0) 70%),
       var(--bg-a);
-    background-attachment:fixed;
+    /* Anclada a la página y no a la pantalla (que era como estaba). Con la luz fija a la
+       pantalla, cada celda del calendario se teñía al pasar por el borde de arriba mientras
+       se scrollea: el mismo día cambiaba de color según dónde estuviera parado. La luz
+       pertenece al encabezado, así que se queda ahí y el resto del mes va sobre negro.
+       Las posiciones van en píxeles y no en porcentaje porque el porcentaje se mide contra
+       el alto total de la página: en un mes largo, empujaba las dos luces fuera de la vista. */
+    background-repeat:no-repeat;
     color:var(--text);
     font-family:'Inter',sans-serif;
     font-size:var(--t-sm);
@@ -563,27 +572,52 @@
     .grid.semana .cell{min-height:0;}
   }
   .cell{
-    /* radius:22px de las celdas se leía "glass card app de startup". 10px las hace ver
-       como parte de una grilla: profesional en vez de decorativo. */
-    background:var(--surface);border:1px solid var(--border);border-radius:var(--r-2);
+    /* La celda no es un recuadro gris plano: es un panel de vidrio. Tres cosas la hacen
+       leer así, y las tres son sutiles a propósito —multiplicadas por 35 celdas, cualquier
+       exceso se vuelve ruido—:
+         1. un degradado de arriba a abajo, porque una superficie real no recibe la misma
+            luz en el borde de arriba que en el de abajo;
+         2. una línea clara de un píxel en el borde superior (el inset de arriba), que es
+            el reflejo del canto y lo que le da grosor;
+         3. una sombra corta abajo, para que apoye sobre el fondo en vez de estar pintada
+            encima. */
+    background:linear-gradient(180deg, rgba(255,255,255,.085) 0%, rgba(255,255,255,.028) 100%);
+    border:1px solid rgba(255,255,255,.11);
+    border-radius:14px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 1px 2px rgba(0,0,0,.22);
     backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);
     min-height:74px;padding:var(--s-2);cursor:pointer;position:relative;
     display:flex;flex-direction:column;gap:var(--s-1);
     transition:border-color .15s var(--ease-out), background .15s var(--ease-out),
                opacity .15s var(--ease-out), box-shadow .15s var(--ease-out),
-               transform 100ms var(--ease-out);
+               transform 140ms var(--ease-out);
   }
-  /* Hover más sobrio: sin box-shadow con glow violeta, solo un cambio de borde y fondo.
-     El glow por celda multiplicado por 30 celdas del mes se leía como "ruido". */
-  .cell:hover{border-color:var(--muted-2);background:var(--surface-2);}
+  /* Sábado y domingo, apenas más apagados. No es decoración: sin nada que los separe, el
+     mes se lee como 35 casilleros iguales y hay que contar para ubicar el fin de semana. */
+  .cell.finde{background:linear-gradient(180deg, rgba(255,255,255,.045) 0%, rgba(255,255,255,.015) 100%);}
+  /* Al pasar el mouse la celda se levanta un píxel y la sombra crece. Es el mismo gesto de
+     levantar una ficha de la mesa: dice "esto se puede tocar" sin cambiar de color. */
+  .cell:hover{
+    border-color:rgba(255,255,255,.22);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 8px 20px rgba(0,0,0,.35);
+    transform:translateY(-1px);
+  }
   /* Escala apenas perceptible: el día se toca decenas de veces por sesión, así que la
      respuesta tiene que ser discreta — confirmar el toque sin llamar la atención. */
-  .cell:active{transform:scale(.98);}
+  .cell:active{transform:scale(.985);}
   .cell:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
-  .cell.empty{background:transparent;border:1px dashed transparent;cursor:default;}
-  .cell.today{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent), 0 0 22px var(--glow);}
+  /* Los huecos antes del día 1 no son celdas, son aire. Va sin backdrop-filter: el filtro
+     satura lo que tiene detrás, y sobre la luz de las esquinas los huecos se dibujaban
+     como bloques de color más vivos que el propio fondo. */
+  .cell.empty{
+    background:none;border:1px dashed transparent;box-shadow:none;cursor:default;
+    backdrop-filter:none;-webkit-backdrop-filter:none;
+  }
+  .cell.empty:hover{transform:none;box-shadow:none;border-color:transparent;}
+  .cell.today{border-color:rgba(79,142,247,.55);box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 0 0 1px rgba(79,142,247,.35), 0 6px 24px rgba(79,142,247,.16);}
   .cell.dimmed{opacity:.25;}
   .cell .daynum{font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--muted);}
+  .cell.finde .daynum{color:var(--muted-2);}
   /* Anotación del día (feriado, lanzamiento, lo que sea): se distingue del contenido
      con el color ámbar, para que no se confunda con una etiqueta de posteo. */
   .daynum-row{display:flex;align-items:center;gap:5px;min-width:0;}
@@ -599,7 +633,15 @@
     border-radius:5px;padding:1px 4px;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
-  .cell.today .daynum{color:var(--accent);font-weight:600;}
+  /* El día de hoy: el número va adentro de una pastilla con el degradado de la marca. El
+     borde azulado de la celda solo se nota comparando con las de al lado; la pastilla se
+     encuentra sola, sin recorrer el mes. */
+  .cell.today .daynum{
+    color:#fff;font-weight:600;
+    background:linear-gradient(135deg, var(--accent), var(--accent-2));
+    border-radius:var(--r-pill);padding:1px 8px;
+    box-shadow:0 2px 8px rgba(79,142,247,.35);
+  }
   .week-dup-btn{
     position:absolute;top:6px;right:6px;width:18px;height:18px;border-radius:5px;
     background:var(--surface-3);border:1px solid var(--border);color:var(--muted);
@@ -3843,7 +3885,8 @@
       const entry = monthData[key];
       const cell = document.createElement('div');
       cell.className = 'cell' + (key === hoyKey ? ' today' : '') +
-        (fecha.getMonth() !== viewMonth ? ' otro-mes' : '');
+        (fecha.getMonth() !== viewMonth ? ' otro-mes' : '') +
+        (idx >= 5 ? ' finde' : '');
 
       if(!anguloCoincide(entry)) cell.classList.add('dimmed');
       const visibles = itemsVisibles(entry);
@@ -4040,7 +4083,10 @@
       const isToday = (viewYear===today.getFullYear() && viewMonth===today.getMonth() && d===today.getDate());
       const weekday = ((new Date(viewYear, viewMonth, d)).getDay() + 6) % 7; // Mon=0
       const isWeekStart = weekday === 0;
-      cell.className = 'cell' + (isToday ? ' today':'') + (isWeekStart ? ' week-start':'');
+      // finde: sábado y domingo se pintan un punto más apagados, para que el mes se lea
+      // por semanas y no como 35 casilleros iguales.
+      cell.className = 'cell' + (isToday ? ' today':'') + (isWeekStart ? ' week-start':'') +
+        (weekday >= 5 ? ' finde' : '');
 
       if(!anguloCoincide(entry)) cell.classList.add('dimmed');
       const visibles = itemsVisibles(entry);
