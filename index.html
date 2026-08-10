@@ -650,6 +650,14 @@
   .tag.tag-empty, .tag.empty{
     background:#4a4757;border:1px solid rgba(255,255,255,.14);color:#dedbe8;font-weight:500;
   }
+  /* Marca de "este posteo tiene más ángulos que el que se ve". En una celda de calendario no
+     entran dos nombres, así que se muestra el primero y el resto se cuenta acá; los nombres
+     completos están en el tooltip y en el detalle. */
+  .tag .tag-mas{
+    font-family:'IBM Plex Mono',monospace;font-size:9px;font-weight:700;flex:none;
+    background:rgba(0,0,0,.22);border-radius:4px;padding:1px 3px;
+  }
+  .tag.tag-empty .tag-mas{background:rgba(255,255,255,.16);}
   .tag-truncated{max-width:140px;}
   .tag-truncated span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 
@@ -974,6 +982,21 @@
   .angle-option.resaltada{background:var(--surface-3);box-shadow:inset 0 0 0 1px var(--accent);}
   .angle-option:hover{background:var(--surface-2);}
   .angle-option.none{color:var(--muted-2);font-style:italic;}
+  /* Ángulo ya elegido, en el selector múltiple. El tilde va al final del renglón para que se
+     lea la columna de marcados de un vistazo, sin tener que leer nombre por nombre. */
+  .angle-option.elegida{background:var(--surface-2);}
+  .angle-option .tilde{margin-left:auto;font-weight:700;color:var(--accent);flex:none;}
+  /* Disparador del selector múltiple: un chip por ángulo elegido. Se envuelven en varios
+     renglones en vez de recortarse, porque saber cuántos ángulos tiene el posteo es el
+     motivo por el que existe este campo. */
+  .angle-trigger-chips{display:flex;flex-wrap:wrap;gap:4px;min-width:0;}
+  .angulo-chip{
+    display:inline-flex;align-items:center;border-radius:999px;padding:2px 8px;
+    font-size:11.5px;font-weight:600;color:#0c0812;line-height:1.35;
+  }
+  .angulo-chip.sin{background:#4a4757;color:#dedbe8;font-weight:500;}
+  /* Tira de chips de solo lectura (tarjeta del cliente, vista semanal, ideas). */
+  .angulos-tira{display:flex;flex-wrap:wrap;gap:4px;}
 
   textarea{
     width:100%;background:var(--card-bg-2);border:1px solid var(--border);border-radius:8px;
@@ -2863,8 +2886,8 @@
   function anguloCoincide(entry){
     if(!angleFilter) return true;
     if(!entry) return false;
-    return (entry.feed || []).some(it=>it.angle===angleFilter) ||
-           (entry.stories || []).some(it=>it.angle===angleFilter);
+    return (entry.feed || []).some(it=>tieneAngulo(it, angleFilter)) ||
+           (entry.stories || []).some(it=>tieneAngulo(it, angleFilter));
   }
   function itemsVisibles(entry){
     const feed = (entry && entry.feed) || [];
@@ -2928,10 +2951,15 @@
     if(!entry) return {feed:[], stories:[]};
     let feed = entry.feed, stories = entry.stories;
     if(Array.isArray(feed)){
-      feed = feed.map(it=>({
+      feed = feed.map(it=>{
+      const angs = idsAngulos(it);
+      return {
         id: it.id || genId(),
         kind: it.kind==='carrusel' ? 'carrusel' : 'reel',
-        angle: it.angle || null,
+        // `angle` es el espejo del primero de `angles`, para lo que todavía lee el campo
+        // viejo (links de solo lectura ya entregados, extensión, asistente). Ver idsAngulos().
+        angle: angs[0] || null,
+        angles: angs,
         text: it.text || '',
         thumb: it.thumb || '',
         hideFromPreview: !!it.hideFromPreview,
@@ -2950,16 +2978,20 @@
         status: ESTADOS[it.status] ? it.status : 'pendiente',
         approval: APROBACIONES[it.approval] ? it.approval : 'sin-revisar',
         approvalAt: it.approvalAt || ''
-      }));
+      };
+      });
     }else if(feed && (feed.angle || feed.text || feed.thumb)){
-      feed = [{ id: genId(), kind:'reel', angle: feed.angle||null, text: feed.text||'', thumb: feed.thumb||'', hideFromPreview:false, context:'', clientNote:'', time:'', title:'', script:'', status:'pendiente', approval:'sin-revisar', approvalAt:'' }];
+      feed = [{ id: genId(), kind:'reel', angle: feed.angle||null, angles: feed.angle?[feed.angle]:[], text: feed.text||'', thumb: feed.thumb||'', hideFromPreview:false, context:'', clientNote:'', time:'', title:'', script:'', status:'pendiente', approval:'sin-revisar', approvalAt:'' }];
     }else{
       feed = [];
     }
     if(Array.isArray(stories)){
-      stories = stories.map(it=>({
+      stories = stories.map(it=>{
+      const angs = idsAngulos(it);
+      return {
         id: it.id || genId(),
-        angle: it.angle || null,
+        angle: angs[0] || null,
+        angles: angs,
         text: it.text || '',
         context: it.context || '',
         clientNote: it.clientNote || '',
@@ -2974,9 +3006,10 @@
         status: ESTADOS[it.status] ? it.status : 'pendiente',
         approval: APROBACIONES[it.approval] ? it.approval : 'sin-revisar',
         approvalAt: it.approvalAt || ''
-      }));
+      };
+      });
     }else if(stories && (stories.angle || stories.text)){
-      stories = [{ id: genId(), angle: stories.angle||null, text: stories.text||'', context:'', clientNote:'', time:'', title:'', script:'', status:'pendiente', approval:'sin-revisar', approvalAt:'' }];
+      stories = [{ id: genId(), angle: stories.angle||null, angles: stories.angle?[stories.angle]:[], text: stories.text||'', context:'', clientNote:'', time:'', title:'', script:'', status:'pendiente', approval:'sin-revisar', approvalAt:'' }];
     }else{
       stories = [];
     }
@@ -3469,6 +3502,64 @@
   // ---------- angle helpers ----------
   function angleById(id){ return angles.find(a=>a.id===id); }
 
+  // Un posteo o una idea puede llevar varios ángulos: el mismo reel puede ser "producto" y
+  // "detrás de escena" a la vez, y obligar a elegir uno solo obligaba a mentir en las
+  // estadísticas del mes.
+  //
+  // La lista vive en `angles` y el campo viejo `angle` se conserva como espejo del primero.
+  // Esa duplicación es a propósito y no un descuido: los links de solo lectura que ya están
+  // en manos de un cliente, la extensión de Chrome y el asistente siguen leyendo `angle`, y
+  // así un posteo guardado con varios no se ve "sin ángulo" en ninguno de esos lados.
+  function idsAngulos(item){
+    if(!item) return [];
+    const lista = Array.isArray(item.angles) ? item.angles : [];
+    const crudos = lista.length ? lista : (item.angle ? [item.angle] : []);
+    return crudos.filter((id, i) => id && crudos.indexOf(id) === i);
+  }
+
+  // Los ángulos que todavía existen. Filtrar acá hace que borrar un ángulo desde el panel de
+  // "Ángulos" lo saque solo de todos los posteos, sin recorrer el calendario para limpiarlos.
+  function angulosDe(item){ return idsAngulos(item).map(angleById).filter(Boolean); }
+  function anguloPrincipal(item){ return angulosDe(item)[0] || null; }
+
+  // Sin id devuelve true: los filtros lo usan como "todos los ángulos".
+  function tieneAngulo(item, id){ return !id || idsAngulos(item).includes(id); }
+
+  function etiquetaAngulos(item, sep){
+    return angulosDe(item).map(a => (a.emoji ? a.emoji + ' ' : '') + a.name).join(sep || ' · ');
+  }
+  // Para la IA y ClickUp: nombres pelados, sin emojis de por medio.
+  function nombresAngulos(item){ return angulosDe(item).map(a => a.name).join(' + '); }
+
+  function setAngulos(item, ids){
+    const limpios = (ids || []).filter((id, i) => id && ids.indexOf(id) === i);
+    item.angles = limpios;
+    item.angle = limpios[0] || null;
+  }
+
+  // Tira de chips de solo lectura. La usan la tarjeta del cliente, la vista semanal, las
+  // ideas, la papelera y los resultados de la búsqueda: todos muestran lo mismo.
+  function tiraDeAngulos(item, {vacio} = {}){
+    const cont = document.createElement('div');
+    cont.className = 'angulos-tira';
+    const lista = angulosDe(item);
+    if(!lista.length){
+      const chip = document.createElement('span');
+      chip.className = 'angulo-chip sin';
+      chip.textContent = vacio || 'Sin ángulo';
+      cont.appendChild(chip);
+      return cont;
+    }
+    lista.forEach(a=>{
+      const chip = document.createElement('span');
+      chip.className = 'angulo-chip';
+      chip.style.background = a.color;
+      chip.textContent = (a.emoji ? a.emoji + ' ' : '') + a.name;
+      cont.appendChild(chip);
+    });
+    return cont;
+  }
+
   // ---------- undo / redo (angle picks, thumbnails, clear/copy/paste/duplicate/move day actions) ----------
   function pushUndo(key){
     const prev = monthData[key] ? JSON.parse(JSON.stringify(monthData[key])) : null;
@@ -3528,7 +3619,9 @@
       const items = (entry && entry[section]) || [];
       if(items.length > 0) assignedDays++;
       items.forEach(it=>{
-        if(it.angle){ counts[it.angle] = (counts[it.angle]||0) + 1; totalItems++; }
+        // Un posteo con dos ángulos suma en los dos, y el total cuenta las dos veces: así
+        // los porcentajes siguen sumando 100% y cada barra dice qué parte del mes le tocó.
+        idsAngulos(it).forEach(id=>{ counts[id] = (counts[id]||0) + 1; totalItems++; });
       });
     }
     return {daysInMonth, counts, assigned: assignedDays, totalItems};
@@ -3548,7 +3641,7 @@
   // cierra el desplegable si estaba abierto y tira trabajo de más en cada repintado.
   let firmaFiltroAngulos = null;
   function populateAngleFilterOptions(){
-    const firma = angles.map(a=> a.id + ' ' + a.name).join('');
+    const firma = angles.map(a=> a.id + '\u0000' + a.name).join('');
     if(firma === firmaFiltroAngulos) return;
     firmaFiltroAngulos = firma;
     const sel = $('angleFilterSelect');
@@ -3800,7 +3893,6 @@
     cont.appendChild(rot);
 
     items.forEach(it=>{
-      const a = angleById(it.angle);
       const fila = document.createElement('div');
       fila.className = 'sem-item';
 
@@ -3836,11 +3928,9 @@
       }
       fila.appendChild(arriba);
 
-      const chip = document.createElement('div');
-      chip.className = 'sem-angulo' + (a ? '' : ' sin');
-      if(a){ chip.style.background = a.color; chip.textContent = (a.emoji ? a.emoji + ' ' : '') + a.name; }
-      else { chip.textContent = 'Sin ángulo'; }
-      fila.appendChild(chip);
+      // Un chip por ángulo: en la vista semanal cada posteo ocupa varios renglones, así que
+      // hay lugar para mostrarlos todos sin abreviar.
+      fila.appendChild(tiraDeAngulos(it));
 
       const resumen = (it.title || it.text || it.context || '').trim();
       if(resumen){
@@ -4035,7 +4125,12 @@
       const tag = document.createElement('div');
       const kindLabel = it.kind ? (it.kind==='carrusel' ? 'C' : 'R') : 'S';
       const hiddenMark = it.hideFromPreview ? ' 🚫' : '';
-      const a = angleById(it.angle);
+      // En la celda del mes entra un solo nombre. Se muestra el primer ángulo y los demás se
+      // cuentan en un "+N"; los nombres completos están en el tooltip y al abrir el posteo.
+      const listaAngulos = angulosDe(it);
+      const a = listaAngulos[0] || null;
+      const masAngulos = listaAngulos.length > 1
+        ? `<span class="tag-mas">+${listaAngulos.length - 1}</span>` : '';
       // Separador " · " y no " - " para unificar con el resto de la app.
       const titleText = it.title ? `${it.title} · ` : '';
 
@@ -4054,7 +4149,7 @@
       const tooltip = [
         (it.time ? it.time + ' · ' : '') + NOMBRE_TIPO[kindLabel],
         it.title || '',
-        a ? (a.emoji ? a.emoji + ' ' : '') + a.name : 'Sin ángulo',
+        etiquetaAngulos(it) || 'Sin ángulo',
         est && it.status !== 'pendiente' ? 'Estado: ' + est.label : '',
         it.approval && it.approval !== 'sin-revisar' ? 'Cliente: ' + APROBACIONES[it.approval].label : '',
         it.hideFromPreview ? 'No se muestra en la vista previa del feed' : '',
@@ -4069,8 +4164,8 @@
         tag.className = 'tag tag-truncated';
         tag.style.background = a.color;
         tag.title = tooltip;
-        const emoji = a.emoji ? `${a.emoji} ` : '';
-        tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText)}${emoji}${escapeHtml(a.name)}${hiddenMark}${marcaAprob}</span>`;
+        const emoji = a.emoji ? `${escapeHtml(a.emoji)} ` : '';
+        tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText)}${emoji}${escapeHtml(a.name)}${hiddenMark}${marcaAprob}</span>${masAngulos}`;
       }else{
         tag.className = 'tag tag-empty tag-truncated';
         tag.title = tooltip;
@@ -4169,10 +4264,12 @@
           // "solo stories" (y esto es feed) o "solo reels/carruseles" y este ítem es otro,
           // no entra en la vista previa.
           if(it.hideFromPreview) return;
-          if(angleFilter && it.angle !== angleFilter) return;
+          if(!tieneAngulo(it, angleFilter)) return;
           if(kindFilter === 'story') return;
           if(kindFilter && (it.kind || 'reel') !== kindFilter) return;
-          posts.push({d, id: it.id, angle: angleById(it.angle), thumb: it.thumb || '', kind: it.kind, ts: itemTimestamp(it)});
+          // La miniatura se pinta con el primer ángulo, pero la etiqueta nombra a todos.
+          posts.push({d, id: it.id, angle: anguloPrincipal(it), etiqueta: etiquetaAngulos(it),
+                      thumb: it.thumb || '', kind: it.kind, ts: itemTimestamp(it)});
         });
       }
     }
@@ -4197,8 +4294,8 @@
           f.style.backgroundPosition = 'center';
           f.classList.add('has-thumb');
         }
-        f.innerHTML = `<span class="fnum">${String(idx+1).padStart(2,'0')}</span><span class="fdate">${p.d}</span><span class="fover" style="background:${p.angle ? p.angle.color : '#4a4757'}"></span><span class="flabel">${escapeHtml(p.angle ? p.angle.name : '')}</span>`;
-        f.title = `${p.d} de ${MESES[viewMonth]} — ${p.angle ? p.angle.name : ''}`;
+        f.innerHTML = `<span class="fnum">${String(idx+1).padStart(2,'0')}</span><span class="fdate">${p.d}</span><span class="fover" style="background:${p.angle ? p.angle.color : '#4a4757'}"></span><span class="flabel">${escapeHtml(p.etiqueta || '')}</span>`;
+        f.title = `${p.d} de ${MESES[viewMonth]} — ${p.etiqueta || 'Sin ángulo'}`;
         f.addEventListener('click', ()=> abrirPosteo(dateKey(viewYear, viewMonth, p.d), p.id));
         frames.appendChild(f);
       });
@@ -4539,7 +4636,9 @@
       if(!base){ showToast('Contá primero de qué habla el video'); ctx.focus(); return; }
       gen.disabled = true; gen.textContent = 'Generando…';
       try{
-        const angleName = item.angle ? ((angleById(item.angle)||{}).name || '') : '';
+        // Con varios ángulos se le mandan todos ("Producto + Detrás de escena"): el pedido es
+        // un texto que cumpla con los dos, no con el que quedó primero en la lista.
+        const angleName = nombresAngulos(item);
         const rawText = await AI.generateCopy({
           context: base, kind: kindPrompt, angle: angleName, formato: 'guion'
         });
@@ -4770,7 +4869,9 @@
       genBtn.disabled = true;
       genBtn.textContent = 'Generando…';
       try{
-        const angleName = item.angle ? ((angleById(item.angle)||{}).name || '') : '';
+        // Con varios ángulos se le mandan todos ("Producto + Detrás de escena"): el pedido es
+        // un texto que cumpla con los dos, no con el que quedó primero en la lista.
+        const angleName = nombresAngulos(item);
         const rawText = await AI.generateCopy({
           context: item.context, kind: kindForPrompt, angle: angleName, maxLen: COPY_MAX_LEN
         });
@@ -5511,7 +5612,7 @@
   function tareaDesde(key, item, esStory){
     const [anio, mes, dia] = key.split('-').map(Number);
     const tipo = esStory ? 'Story' : (item.kind === 'carrusel' ? 'Carrusel' : 'Reel');
-    const angulo = item.angle ? ((angleById(item.angle) || {}).name || '') : '';
+    const angulo = nombresAngulos(item);
     const titulo = (item.title || '').trim();
 
     const partes = [];
@@ -5686,7 +5787,9 @@
   // Pinta la barra lateral de una tarjeta con el color de su ángulo. Sin ángulo asignado se
   // quita la variable y el CSS cae al gris apagado, que ya dice "todavía sin definir".
   function pintarColorAngulo(card, item){
-    const a = item.angle ? angleById(item.angle) : null;
+    // Con varios ángulos manda el primero: la barra es de 3 píxeles y partirla en franjas no
+    // se leería como "tiene dos ángulos" sino como un glitch.
+    const a = anguloPrincipal(item);
     if(a && a.color) card.style.setProperty('--color-angulo', a.color);
     else card.style.removeProperty('--color-angulo');
   }
@@ -5695,10 +5798,10 @@
   // en el día, el título es lo que uno reconoce, y el ángulo cierra como etiqueta. Si no hay
   // título cae en el copy o el contexto, para no dejar un renglón mudo.
   function textoResumen(item){
-    const a = item.angle ? angleById(item.angle) : null;
+    const etiqueta = etiquetaAngulos(item);
     const titulo = (item.title || item.text || item.context || '').trim();
-    const angulo = a
-      ? ((a.emoji ? a.emoji + ' ' : '') + a.name)
+    const angulo = etiqueta
+      ? etiqueta
       : (titulo ? null : 'Sin ángulo'); // "Sin ángulo" solo si no hay nada más que decir
     return [item.time || null, titulo || null, angulo].filter(Boolean).join(' · ');
   }
@@ -5844,15 +5947,9 @@
     head.appendChild(label);
     card.appendChild(head);
 
-    const a = item.angle ? angleById(item.angle) : null;
-    const chip = document.createElement('div');
-    chip.className = 'tag';
-    chip.style.cssText = a
-      ? `background:${a.color};display:inline-flex;margin-bottom:10px;font-size:12px;padding:5px 10px;`
-      : 'display:inline-flex;margin-bottom:10px;font-size:12px;padding:5px 10px;';
-    if(!a) chip.classList.add('empty');
-    chip.textContent = a ? a.name : 'Sin ángulo asignado';
-    card.appendChild(chip);
+    const tira = tiraDeAngulos(item, {vacio:'Sin ángulo asignado'});
+    tira.style.marginBottom = '10px';
+    card.appendChild(tira);
 
     if(item.text){
       const p = document.createElement('div');
@@ -5985,8 +6082,18 @@
 
     const pickerContainer = document.createElement('div');
     pickerContainer.className = 'angle-picker';
-    cuerpo.appendChild(filaCampo('Ángulo', pickerContainer));
-    buildPickerEl(pickerContainer, item.angle, (id)=> mutateAndRerender(key, ()=>{ item.angle = id; }));
+    cuerpo.appendChild(filaCampo('Ángulos', pickerContainer));
+    // Se actualiza a mano lo que depende del ángulo en vez de rearmar la tarjeta entera
+    // (mutateAndRerender): rearmarla cerraría el menú, y elegir un segundo ángulo obligaría
+    // a abrirlo de nuevo en cada click.
+    buildPickerMultiEl(pickerContainer, idsAngulos(item), (ids)=>{
+      pushUndo(key);
+      setAngulos(item, ids);
+      pintarColorAngulo(card, item);
+      llenarResumen(resumen, textoResumen(item));
+      scheduleSaveDay(key);
+      renderCalendarPronto();
+    });
 
     const textLabel = document.createElement('div');
     textLabel.className = 'copy-label-row';
@@ -6272,8 +6379,18 @@
 
     const pickerContainer = document.createElement('div');
     pickerContainer.className = 'angle-picker';
-    cuerpo.appendChild(filaCampo('Ángulo', pickerContainer));
-    buildPickerEl(pickerContainer, item.angle, (id)=> mutateAndRerender(key, ()=>{ item.angle = id; }));
+    cuerpo.appendChild(filaCampo('Ángulos', pickerContainer));
+    // Se actualiza a mano lo que depende del ángulo en vez de rearmar la tarjeta entera
+    // (mutateAndRerender): rearmarla cerraría el menú, y elegir un segundo ángulo obligaría
+    // a abrirlo de nuevo en cada click.
+    buildPickerMultiEl(pickerContainer, idsAngulos(item), (ids)=>{
+      pushUndo(key);
+      setAngulos(item, ids);
+      pintarColorAngulo(card, item);
+      llenarResumen(resumen, textoResumen(item));
+      scheduleSaveDay(key);
+      renderCalendarPronto();
+    });
 
     const textLabel = document.createElement('div');
     textLabel.className = 'copy-label-row';
@@ -6437,17 +6554,17 @@
     });
   }
 
-  function buildPickerEl(container, currentAngleId, onSelect){
-    const current = angleById(currentAngleId);
-    const currentEmoji = current && current.emoji ? `${current.emoji} ` : '';
-    container.innerHTML = `
-      <button type="button" class="angle-trigger">
-        ${current ? `<span class="swatch" style="background:${current.color}"></span>${currentEmoji}${escapeHtml(current.name)}` : `<span class="swatch" style="background:transparent;border:1px dashed var(--muted-2)"></span><span style="color:var(--muted-2)">Elegir ángulo…</span>`}
-      </button>
-    `;
-    const trigger = container.querySelector('.angle-trigger');
-    trigger.addEventListener('click', (e)=>{
-      e.stopPropagation();
+  // El menú es el mismo para los dos selectores —el de un ángulo y el de varios—: buscador
+  // arriba y lista abajo. Lo único que cambia es qué hace un click en una opción y si el
+  // menú se cierra después, y las dos cosas llegan por parámetro.
+  //
+  //   seleccionados: función que devuelve los ids marcados en este momento (se pregunta en
+  //                  cada repintado, porque en el selector múltiple cambian con el menú abierto)
+  //   alElegir:      recibe el id clickeado
+  //   alVaciar:      click en "Sin ángulo asignado"
+  //   cerrarAlElegir: true en el selector simple; false en el múltiple, donde casi siempre
+  //                  que se abre es para tocar más de uno
+  function abrirMenuAngulos(container, { seleccionados, alElegir, alVaciar, cerrarAlElegir }){
       closeAllMenus();
       const menu = document.createElement('div');
       menu.className = 'angle-menu';
@@ -6479,7 +6596,11 @@
           const nada = document.createElement('div');
           nada.className = 'angle-option none';
           nada.textContent = 'Sin ángulo asignado';
-          nada.addEventListener('click', ()=> onSelect(null));
+          nada.addEventListener('click', (ev)=>{
+            ev.stopPropagation();
+            alVaciar();
+            if(cerrarAlElegir) closeAllMenus(); else pintar(buscador.value);
+          });
           lista.appendChild(nada);
         }
 
@@ -6491,12 +6612,21 @@
           return;
         }
 
+        const marcados = seleccionados() || [];
         coinciden.forEach((a, i)=>{
-          const emoji = a.emoji ? `${a.emoji} ` : '';
+          const emoji = a.emoji ? `${escapeHtml(a.emoji)} ` : '';
+          const elegida = marcados.includes(a.id);
           const opt = document.createElement('div');
-          opt.className = 'angle-option' + (buscado && i === 0 ? ' resaltada' : '');
-          opt.innerHTML = `<span class="swatch" style="background:${a.color}"></span>${emoji}${escapeHtml(a.name)}`;
-          opt.addEventListener('click', ()=> onSelect(a.id));
+          opt.className = 'angle-option' + (elegida ? ' elegida' : '') + (buscado && i === 0 ? ' resaltada' : '');
+          opt.innerHTML = `<span class="swatch" style="background:${a.color}"></span>${emoji}${escapeHtml(a.name)}` +
+            (elegida ? '<span class="tilde">✓</span>' : '');
+          opt.addEventListener('click', (ev)=>{
+            ev.stopPropagation();
+            alElegir(a.id);
+            // Repintar deja la lista con el tilde actualizado sin cerrar el menú, que es lo
+            // que permite marcar tres ángulos seguidos sin volver a abrirlo cada vez.
+            if(cerrarAlElegir) closeAllMenus(); else pintar(buscador.value);
+          });
           lista.appendChild(opt);
         });
       };
@@ -6516,10 +6646,72 @@
         }
       });
 
+      // Un click en el menú (su borde, el espacio entre opciones) no tiene que cerrarlo: lo
+      // cierra el listener de document, que es el que atiende los clicks de afuera.
+      menu.addEventListener('click', ev => ev.stopPropagation());
+
       container.appendChild(menu);
       // El foco va al buscador, así se puede escribir apenas se abre. En pantalla táctil no,
       // porque levantaría el teclado del teléfono encima de la lista que se quiere ver.
       if(!window.matchMedia('(pointer: coarse)').matches) buscador.focus();
+  }
+
+  // Selector de un solo ángulo. Sigue existiendo para las reglas del generador automático,
+  // donde cada regla asigna un ángulo y elegir varios no querría decir nada.
+  function buildPickerEl(container, currentAngleId, onSelect){
+    const current = angleById(currentAngleId);
+    const currentEmoji = current && current.emoji ? `${escapeHtml(current.emoji)} ` : '';
+    container.innerHTML = `
+      <button type="button" class="angle-trigger">
+        ${current ? `<span class="swatch" style="background:${current.color}"></span>${currentEmoji}${escapeHtml(current.name)}` : `<span class="swatch" style="background:transparent;border:1px dashed var(--muted-2)"></span><span style="color:var(--muted-2)">Elegir ángulo…</span>`}
+      </button>
+    `;
+    container.querySelector('.angle-trigger').addEventListener('click', (e)=>{
+      e.stopPropagation();
+      abrirMenuAngulos(container, {
+        seleccionados: ()=> currentAngleId ? [currentAngleId] : [],
+        alElegir: (id)=> onSelect(id),
+        alVaciar: ()=> onSelect(null),
+        cerrarAlElegir: true
+      });
+    });
+  }
+
+  // Selector de varios ángulos. Cada click agrega o saca uno, y `onChange` recibe la lista
+  // completa: quien llama no tiene que llevar la cuenta de qué se tocó.
+  //
+  // El disparador se repinta solo, sin rearmar la tarjeta entera, justamente para que el
+  // menú siga abierto mientras se eligen varios.
+  function buildPickerMultiEl(container, idsIniciales, onChange){
+    let ids = (idsIniciales || []).filter(Boolean).slice();
+    container.innerHTML = '<button type="button" class="angle-trigger"></button>';
+    const trigger = container.querySelector('.angle-trigger');
+
+    const pintarDisparador = ()=>{
+      const elegidos = ids.map(angleById).filter(Boolean);
+      if(!elegidos.length){
+        trigger.innerHTML = '<span class="swatch" style="background:transparent;border:1px dashed var(--muted-2)"></span>' +
+          '<span style="color:var(--muted-2)">Elegir ángulo…</span>';
+        return;
+      }
+      trigger.innerHTML = '<span class="angle-trigger-chips">' + elegidos.map(a=>
+        `<span class="angulo-chip" style="background:${a.color}">${a.emoji ? escapeHtml(a.emoji) + ' ' : ''}${escapeHtml(a.name)}</span>`
+      ).join('') + '</span>';
+    };
+    pintarDisparador();
+
+    trigger.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      abrirMenuAngulos(container, {
+        seleccionados: ()=> ids,
+        alElegir: (id)=>{
+          ids = ids.includes(id) ? ids.filter(x => x !== id) : ids.concat(id);
+          pintarDisparador();
+          onChange(ids.slice());
+        },
+        alVaciar: ()=>{ ids = []; pintarDisparador(); onChange([]); },
+        cerrarAlElegir: false
+      });
     });
   }
 
@@ -7059,7 +7251,7 @@
 
   // Manda uno o varios items a la papelera. Devuelve cuántos entraron.
   async function mandarAPapelera(dia, lista, items){
-    const utiles = (items || []).filter(it => it && (it.text || it.context || it.angle || it.thumb || it.title || it.script));
+    const utiles = (items || []).filter(it => it && (it.text || it.context || idsAngulos(it).length || it.thumb || it.title || it.script));
     if(utiles.length === 0) return 0; // un posteo vacío no vale la pena guardarlo
     utiles.forEach(it=>{
       papelera.unshift({
@@ -7122,7 +7314,6 @@
     }
     papelera.forEach(entrada=>{
       const it = entrada.item || {};
-      const a = it.angle ? angleById(it.angle) : null;
       const fila = document.createElement('div');
       fila.className = 'idea-row';
 
@@ -7135,12 +7326,7 @@
 
       const meta = document.createElement('div');
       meta.className = 'meta';
-      const chip = document.createElement('span');
-      chip.className = 'tag';
-      chip.style.cssText = a ? `background:${a.color};display:inline-flex;` : 'display:inline-flex;';
-      if(!a) chip.classList.add('empty');
-      chip.textContent = a ? a.name : 'Sin ángulo';
-      meta.appendChild(chip);
+      meta.appendChild(tiraDeAngulos(it));
       const tipo = entrada.lista === 'stories' ? 'Story' : (it.kind === 'carrusel' ? 'Carrusel' : 'Reel');
       const detalle = document.createElement('span');
       const restan = diasRestantes(entrada);
@@ -7382,7 +7568,10 @@
       const nuevo = {
         id: genId(),
         kind: lista === 'feed' ? (c.kind === 'carrusel' ? 'carrusel' : 'reel') : undefined,
+        // El asistente propone un ángulo por posteo. Se guardan los dos campos para que el
+        // posteo nazca con la misma forma que los que se cargan a mano.
         angle: anguloPorNombre(c.angulo),
+        angles: anguloPorNombre(c.angulo) ? [anguloPorNombre(c.angulo)] : [],
         // Sin recortar: el largo se le pide al asistente en su propio encargo. Cortar acá
         // dejaría la última frase por la mitad, y el texto habría que rehacerlo igual.
         text: String(c.texto || ''),
@@ -7400,7 +7589,7 @@
       if(!it) return false; // el posteo ya no existe: se saltea sin romper el resto
       if(c.titulo) it.title = String(c.titulo).slice(0, 120);
       if(c.texto)  it.text  = String(c.texto);
-      if(c.angulo) it.angle = anguloPorNombre(c.angulo);
+      if(c.angulo) setAngulos(it, [anguloPorNombre(c.angulo)]);
     }
 
     if(c.accion === 'eliminar'){
@@ -8004,7 +8193,7 @@
 
   // ---------- ideas panel (content ideas for later, independent of any month) ----------
   let ideas = [];
-  let newIdeaAngleId = null;
+  let newIdeaAngleIds = []; // ángulos elegidos en el formulario de alta
   let ideaFilterAngle = '';
   let ideaFilterKind = ''; // '' = todos | 'reel' | 'carrusel' | 'story'
 
@@ -8046,7 +8235,7 @@
   }
 
   function renderNewIdeaPicker(){
-    buildPickerEl($('newIdeaAnglePicker'), newIdeaAngleId, (id)=>{ newIdeaAngleId = id; renderNewIdeaPicker(); });
+    buildPickerMultiEl($('newIdeaAnglePicker'), newIdeaAngleIds, (ids)=>{ newIdeaAngleIds = ids; });
   }
 
   // Los controles de imagen del formulario de alta se vuelven a armar cada vez, para que
@@ -8059,7 +8248,7 @@
   }
 
   let editingIdeaId = null;
-  let editingIdeaAngle = null;
+  let editingIdeaAngles = []; // los ángulos de la idea que se está editando, hasta confirmar
   let nuevaIdeaThumb = ''; // miniatura de la idea que se está por crear
 
   // Controles de imagen para una idea: subir, pegar o quitar. Reutiliza compressImageFile,
@@ -8138,7 +8327,7 @@
 
   function ideasFiltradas(){
     return ideas.filter(i=>{
-      if(ideaFilterAngle && i.angle !== ideaFilterAngle) return false;
+      if(!tieneAngulo(i, ideaFilterAngle)) return false;
       if(ideaFilterKind && (i.kind || '') !== ideaFilterKind) return false;
       return true;
     });
@@ -8165,7 +8354,6 @@
   function buildIdeaViewRow(idea){
     const row = document.createElement('div');
     row.className = 'idea-row';
-    const a = idea.angle ? angleById(idea.angle) : null;
     const info = document.createElement('div');
     info.className = 'info';
 
@@ -8229,12 +8417,7 @@
       renderIdeasList();
     });
     meta.appendChild(kindSel);
-    const chip = document.createElement('span');
-    chip.className = 'tag';
-    chip.style.cssText = a ? `background:${a.color};display:inline-flex;` : 'display:inline-flex;';
-    if(!a) chip.classList.add('empty');
-    chip.textContent = a ? a.name : 'Sin ángulo';
-    meta.appendChild(chip);
+    meta.appendChild(tiraDeAngulos(idea));
     const dateSpan = document.createElement('span');
     dateSpan.textContent = idea.createdAt ? new Date(idea.createdAt).toLocaleDateString('es-AR') : '';
     meta.appendChild(dateSpan);
@@ -8272,7 +8455,7 @@
     editBtn.title = 'Editar';
     editBtn.addEventListener('click', ()=>{
       editingIdeaId = idea.id;
-      editingIdeaAngle = idea.angle || null;
+      editingIdeaAngles = idsAngulos(idea);
       renderIdeasList();
     });
     const delBtn = document.createElement('button');
@@ -8328,7 +8511,9 @@
     const pickerContainer = document.createElement('div');
     pickerContainer.className = 'angle-picker';
     pickerContainer.style.flex = '1';
-    buildPickerEl(pickerContainer, editingIdeaAngle, (id)=>{ editingIdeaAngle = id; renderIdeasList(); });
+    // No se repinta la lista en cada click: eso cerraría el menú y obligaría a reabrirlo para
+    // marcar el segundo ángulo. El disparador ya se actualiza solo.
+    buildPickerMultiEl(pickerContainer, editingIdeaAngles, (ids)=>{ editingIdeaAngles = ids; });
     const cancelBtn = document.createElement('button');
     cancelBtn.type = 'button'; cancelBtn.className = 'btn ghost small'; cancelBtn.textContent = 'Cancelar';
     cancelBtn.addEventListener('click', ()=>{ editingIdeaId = null; renderIdeasList(); });
@@ -8342,7 +8527,7 @@
       // Se recalcula al editar, por si el link pasó de una nota a un reel. Se respeta lo
       // que marcó la extensión, que capturó el fotograma y sabe mejor que esta heurística.
       idea.esVideo = pareceVideo(idea.link) || (idea.origen === 'extension' && !!idea.esVideo);
-      idea.angle = editingIdeaAngle;
+      setAngulos(idea, editingIdeaAngles);
       idea.kind = kindSelect.value; // '' = cualquier tipo
       editingIdeaId = null;
       await saveIdeas();
@@ -8362,7 +8547,7 @@
     $('newIdeaKind').value = '';
     nuevaIdeaThumb = '';
     renderNuevaIdeaImagen();
-    newIdeaAngleId = null;
+    newIdeaAngleIds = [];
     renderNewIdeaPicker();
   }
 
@@ -8380,15 +8565,16 @@
     const text = $('newIdeaText').value.trim();
     if(!text){ showToast('Escribí una idea primero'); return; }
     const link = normalizarUrl($('newIdeaLink').value);
-    ideas.push({
+    const nueva = {
       id: genId(), text,
       link,
       thumb: nuevaIdeaThumb,
       esVideo: pareceVideo(link),
-      angle: newIdeaAngleId,
       kind: $('newIdeaKind').value || '', // '' = sin tipo asignado
       createdAt: new Date().toISOString()
-    });
+    };
+    setAngulos(nueva, newIdeaAngleIds);
+    ideas.push(nueva);
     await saveIdeas();
     // Se cierra al guardar: la idea ya está en la lista, que es adonde mira el ojo.
     mostrarFormularioIdea(false);
@@ -8478,7 +8664,9 @@
       }
       const nuevo = {
         id: genId(),
-        angle: idea.angle || null,
+        // La idea puede traer varios ángulos; el posteo nace con los mismos.
+        angle: idsAngulos(idea)[0] || null,
+        angles: idsAngulos(idea),
         text: idea.text || '',
         thumb: idea.thumb || '',
         hideFromPreview: false,
@@ -8574,7 +8762,7 @@
   $('closeSearchModal').addEventListener('click', ()=>{ $('searchModal').classList.remove('open'); });
 
   function matchesSearch(item, keyword, angleFilterVal){
-    if(angleFilterVal && item.angle !== angleFilterVal) return false;
+    if(!tieneAngulo(item, angleFilterVal)) return false;
     if(!keyword) return true;
     const haystack = `${item.text||''} ${item.context||''}`.toLowerCase();
     return haystack.includes(keyword);
@@ -8607,12 +8795,12 @@
           const d = Number(dayKeyStr.split('-')[2]);
           (entry.feed||[]).forEach(it=>{
             if(matchesSearch(it, keyword, angleFilterVal)){
-              results.push({key: dayKeyStr, year, month, d, kind: it.kind==='carrusel'?'🖼 Carrusel':'🎬 Reel', angle: it.angle, text: it.text||it.context||''});
+              results.push({key: dayKeyStr, year, month, d, kind: it.kind==='carrusel'?'🖼 Carrusel':'🎬 Reel', angles: idsAngulos(it), text: it.text||it.context||''});
             }
           });
           (entry.stories||[]).forEach(it=>{
             if(matchesSearch(it, keyword, angleFilterVal)){
-              results.push({key: dayKeyStr, year, month, d, kind: '📱 Story', angle: it.angle, text: it.text||it.context||''});
+              results.push({key: dayKeyStr, year, month, d, kind: '📱 Story', angles: idsAngulos(it), text: it.text||it.context||''});
             }
           });
         });
@@ -8636,19 +8824,16 @@
     results.forEach(r=>{
       const row = document.createElement('div');
       row.className = 'search-result-row';
-      const a = r.angle ? angleById(r.angle) : null;
       const info = document.createElement('div');
       info.className = 'info';
       const hd = document.createElement('div');
       hd.className = 'hd';
       hd.textContent = `${r.d} de ${MESES[r.month]} ${r.year} · ${r.kind}`;
       info.appendChild(hd);
-      if(a){
-        const chip = document.createElement('span');
-        chip.className = 'tag';
-        chip.style.cssText = `background:${a.color};display:inline-flex;margin-bottom:6px;`;
-        chip.textContent = a.name;
-        info.appendChild(chip);
+      if((r.angles || []).length){
+        const tira = tiraDeAngulos({angles: r.angles});
+        tira.style.marginBottom = '6px';
+        info.appendChild(tira);
       }
       const snippet = document.createElement('div');
       snippet.className = 'snippet';
@@ -8879,10 +9064,12 @@
   }
 
   function firstAngleOf(items){
-    return (items && items.length > 0) ? (items[0].angle || null) : null;
+    return (items && items.length > 0) ? (idsAngulos(items[0])[0] || null) : null;
   }
+  // Todos los ángulos usados en esos posteos. Con posteos de varios ángulos devuelve todos:
+  // el generador los usa para no repetir, y repetir uno de los dos ya es repetir.
   function allAnglesOf(items){
-    return (items || []).map(it=>it.angle).filter(Boolean);
+    return (items || []).flatMap(it => idsAngulos(it));
   }
 
   // Splits the days of the current month into Monday–Sunday calendar weeks (first/last
@@ -9024,9 +9211,9 @@
         const angleId = rule.angleId || pickAngleForSlot(entry, prevKey, nextKey, section);
         if(!angleId) continue;
         if(section === 'feed'){
-          entry.feed.push({ id: genId(), kind: rule.kind, angle: angleId, text: rule.text||'', thumb:'' });
+          entry.feed.push({ id: genId(), kind: rule.kind, angle: angleId, angles:[angleId], text: rule.text||'', thumb:'' });
         }else{
-          entry.stories.push({ id: genId(), angle: angleId, text: rule.text||'' });
+          entry.stories.push({ id: genId(), angle: angleId, angles:[angleId], text: rule.text||'' });
         }
         changed.add(key);
       }
@@ -9067,15 +9254,15 @@
 
       if(reelDays.has(d)){
         const angleId = pickAngleForSlot(entry, prevKey, nextKey, 'feed');
-        if(angleId){ entry.feed.push({ id: genId(), kind:'reel', angle: angleId, text:'', thumb:'' }); changed.add(key); }
+        if(angleId){ entry.feed.push({ id: genId(), kind:'reel', angle: angleId, angles:[angleId], text:'', thumb:'' }); changed.add(key); }
       }
       if(carruselDays.has(d)){
         const angleId = pickAngleForSlot(entry, prevKey, nextKey, 'feed');
-        if(angleId){ entry.feed.push({ id: genId(), kind:'carrusel', angle: angleId, text:'', thumb:'' }); changed.add(key); }
+        if(angleId){ entry.feed.push({ id: genId(), kind:'carrusel', angle: angleId, angles:[angleId], text:'', thumb:'' }); changed.add(key); }
       }
       if(storyDays.has(d)){
         const angleId = pickAngleForSlot(entry, prevKey, nextKey, 'stories');
-        if(angleId){ entry.stories.push({ id: genId(), angle: angleId, text:'' }); changed.add(key); }
+        if(angleId){ entry.stories.push({ id: genId(), angle: angleId, angles:[angleId], text:'' }); changed.add(key); }
       }
     });
 
