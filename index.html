@@ -494,6 +494,15 @@
     font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--muted-2);
     text-align:center;font-family:'IBM Plex Mono',monospace;
   }
+  /* Al 65% y no al 100%: el encabezado tiene que insinuar el color de la columna, no
+     competir con el contenido de los días. */
+  .weekdays div.dia-0{color:rgba(20,184,166,.65);}
+  .weekdays div.dia-1{color:rgba(34,166,201,.65);}
+  .weekdays div.dia-2{color:rgba(59,130,246,.65);}
+  .weekdays div.dia-3{color:rgba(99,102,241,.7);}
+  .weekdays div.dia-4{color:rgba(139,92,246,.7);}
+  .weekdays div.dia-5{color:rgba(168,85,247,.7);}
+  .weekdays div.dia-6{color:rgba(192,66,181,.7);}
   /* minmax(0,1fr) y no 1fr: con 1fr una columna se ensancha si su contenido es largo (un
      ángulo con nombre largo, una anotación), las siete quedan de distinto ancho y los
      nombres de los días —que sí eran parejos— dejaban de caer sobre su columna. */
@@ -581,7 +590,16 @@
             el reflejo del canto y lo que le da grosor;
          3. una sombra corta abajo, para que apoye sobre el fondo en vez de estar pintada
             encima. */
-    background:linear-gradient(180deg, rgba(255,255,255,.085) 0%, rgba(255,255,255,.028) 100%);
+    /* El color del día de la semana y la intensidad del vidrio salen de variables para que
+       las dos capas convivan: si el fin de semana volviera a declarar "background" entero,
+       le borraría el color de su columna. */
+    --dia-rgb:255,255,255;   /* sin columna propia; nunca se ve, los huecos van sin fondo */
+    --vidrio-a:rgba(255,255,255,.085);
+    --vidrio-b:rgba(255,255,255,.028);
+    background:
+      radial-gradient(84px 84px at 0% 0%, rgba(var(--dia-rgb),.34) 0%, rgba(var(--dia-rgb),0) 70%),
+      radial-gradient(104px 104px at 100% 100%, rgba(var(--dia-rgb),.20) 0%, rgba(var(--dia-rgb),0) 70%),
+      linear-gradient(180deg, var(--vidrio-a) 0%, var(--vidrio-b) 100%);
     border:1px solid rgba(255,255,255,.11);
     border-radius:14px;
     box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 1px 2px rgba(0,0,0,.22);
@@ -592,9 +610,21 @@
                opacity .15s var(--ease-out), box-shadow .15s var(--ease-out),
                transform 140ms var(--ease-out);
   }
+  /* Un color por día de la semana, del turquesa al magenta, siguiendo el mismo recorrido
+     que la luz del fondo: turquesa a la izquierda, violeta a la derecha. Se apoya en dos
+     manchas en las esquinas opuestas —fuerte arriba a la izquierda, apenas insinuada abajo
+     a la derecha— en vez de teñir la celda entera: así el lunes se distingue del martes de
+     un vistazo, pero la grilla sigue leyéndose como una sola pieza y no como un arcoíris. */
+  .cell.dia-0{--dia-rgb:20,184,166;}    /* lunes     — turquesa */
+  .cell.dia-1{--dia-rgb:34,166,201;}    /* martes    — cian */
+  .cell.dia-2{--dia-rgb:59,130,246;}    /* miércoles — azul */
+  .cell.dia-3{--dia-rgb:99,102,241;}    /* jueves    — índigo */
+  .cell.dia-4{--dia-rgb:139,92,246;}    /* viernes   — violeta */
+  .cell.dia-5{--dia-rgb:168,85,247;}    /* sábado    — púrpura */
+  .cell.dia-6{--dia-rgb:192,66,181;}    /* domingo   — magenta */
   /* Sábado y domingo, apenas más apagados. No es decoración: sin nada que los separe, el
      mes se lee como 35 casilleros iguales y hay que contar para ubicar el fin de semana. */
-  .cell.finde{background:linear-gradient(180deg, rgba(255,255,255,.045) 0%, rgba(255,255,255,.015) 100%);}
+  .cell.finde{--vidrio-a:rgba(255,255,255,.045); --vidrio-b:rgba(255,255,255,.015);}
   /* Al pasar el mouse la celda se levanta un píxel y la sombra crece. Es el mismo gesto de
      levantar una ficha de la mesa: dice "esto se puede tocar" sin cambiar de color. */
   .cell:hover{
@@ -2203,8 +2233,11 @@
       </div>
       <div class="swipe-hint">← deslizá para ver todo el mes →</div>
       <div class="calendar-scroll">
+        <!-- Las mismas clases dia-N que las celdas: el encabezado toma un poco del color de
+             su columna, que es lo que hace entender de un vistazo que el color no es adorno
+             sino el día de la semana. -->
         <div class="weekdays" id="weekdaysHead">
-          <div>Lun</div><div>Mar</div><div>Mié</div><div>Jue</div><div>Vie</div><div>Sáb</div><div>Dom</div>
+          <div class="dia-0">Lun</div><div class="dia-1">Mar</div><div class="dia-2">Mié</div><div class="dia-3">Jue</div><div class="dia-4">Vie</div><div class="dia-5">Sáb</div><div class="dia-6">Dom</div>
         </div>
         <div class="grid" id="calendarGrid"></div>
       </div>
@@ -3915,7 +3948,7 @@
       const key = dateKey(fecha.getFullYear(), fecha.getMonth(), fecha.getDate());
       const entry = monthData[key];
       const cell = document.createElement('div');
-      cell.className = 'cell' + (key === hoyKey ? ' today' : '') +
+      cell.className = 'cell dia-' + idx + (key === hoyKey ? ' today' : '') +
         (fecha.getMonth() !== viewMonth ? ' otro-mes' : '') +
         (idx >= 5 ? ' finde' : '');
 
@@ -4108,10 +4141,11 @@
       const isToday = (viewYear===today.getFullYear() && viewMonth===today.getMonth() && d===today.getDate());
       const weekday = ((new Date(viewYear, viewMonth, d)).getDay() + 6) % 7; // Mon=0
       const isWeekStart = weekday === 0;
-      // finde: sábado y domingo se pintan un punto más apagados, para que el mes se lea
-      // por semanas y no como 35 casilleros iguales.
-      cell.className = 'cell' + (isToday ? ' today':'') + (isWeekStart ? ' week-start':'') +
-        (weekday >= 5 ? ' finde' : '');
+      // dia-N pinta la columna con su color (lunes turquesa … domingo magenta) y finde deja
+      // sábado y domingo un punto más apagados, para que el mes se lea por semanas y no
+      // como 35 casilleros iguales.
+      cell.className = 'cell dia-' + weekday + (isToday ? ' today':'') +
+        (isWeekStart ? ' week-start':'') + (weekday >= 5 ? ' finde' : '');
 
       if(!anguloCoincide(entry)) cell.classList.add('dimmed');
       const visibles = itemsVisibles(entry);
