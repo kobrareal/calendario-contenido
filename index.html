@@ -662,6 +662,12 @@
   .tag[draggable="true"]{cursor:grab;}
   .tag[draggable="true"]:active{cursor:grabbing;}
   .tag.dragging{opacity:.35;}
+  /* La ranura donde va a caer lo que se está arrastrando: una línea sobre el borde de
+     arriba o de abajo del posteo de referencia, según de qué lado se suelte. Se dibuja
+     encima y no abriendo un hueco: abrir hueco haría saltar la celda entera con cada
+     movimiento del mouse, y sobre una grilla de 35 días eso se lee como un temblor. */
+  .tag.drop-arriba, .sem-item.drop-arriba{box-shadow:inset 0 2px 0 var(--accent);}
+  .tag.drop-abajo,  .sem-item.drop-abajo{box-shadow:inset 0 -2px 0 var(--accent);}
   /* Un chip abre su propio posteo, así que responde al pasar el mouse. El realce es apenas
      un aclarado: en una celda con varios, algo más fuerte haría parpadear medio calendario
      al recorrerlo con el puntero. En modo lectura no lleva cursor de arrastre pero igual
@@ -2447,6 +2453,9 @@
 
     <div class="panel-footer" style="flex-wrap:wrap;gap:8px;">
       <button class="btn ghost admin-only" id="clearDay" title="Manda todo el contenido de este día a la papelera. Podés restaurarlo durante 7 días."><i class="fa-solid fa-broom"></i>Vaciar día</button>
+      <!-- Solo aparece cuando el día quedó acomodado a mano: es la forma de volver atrás sin
+           tener que arrastrar posteo por posteo. -->
+      <button class="btn ghost admin-only" id="reordenarPorHora" hidden title="Vuelve a ordenar los posteos de este día por horario"><i class="fa-regular fa-clock"></i>Ordenar por horario</button>
       <div style="display:flex;gap:8px;">
         <button class="btn ghost admin-only" id="copyDayBtn" title="Copia el contenido de este día para pegarlo en otro"><i class="fa-regular fa-copy"></i>Copiar</button>
         <button class="btn ghost admin-only" id="pasteDayBtn" title="Reemplaza el contenido de este día por el que copiaste antes" disabled><i class="fa-solid fa-paste"></i>Pegar</button>
@@ -2931,6 +2940,11 @@
     return { feed: feed.filter(it => (it.kind || 'reel') === kindFilter), stories: [] };
   }
   let dayClipboard = null;
+  // Qué se está arrastrando en este momento. Hace falta como variable y no alcanza con el
+  // dataTransfer del evento: durante el "dragover" el navegador no deja leer lo que se
+  // arrastra (solo al soltar), y es justo ahí donde hay que decidir si esto se puede
+  // acomodar dentro del día o no.
+  let arrastreActual = null;
   let undoStack = [];
   let redoStack = [];
 
@@ -2955,6 +2969,17 @@
   // Items with a time sort chronologically first; items without one keep their
   // relative (creation) order at the end, since they have no slot to place them by.
   function compareByTime(a, b){
+    // Orden manual primero. Apenas se arrastra un posteo dentro de su día, ese día guarda
+    // el orden que le diste (un número por posteo) y deja de reacomodarse solo por horario:
+    // si lo acomodaste a mano, es porque el horario no era el criterio que querías.
+    // Un posteo agregado después no tiene número y va al final, listo para arrastrarlo.
+    const ao = Number.isFinite(a.orden) ? a.orden : null;
+    const bo = Number.isFinite(b.orden) ? b.orden : null;
+    if(ao !== null || bo !== null){
+      if(ao === null) return 1;
+      if(bo === null) return -1;
+      if(ao !== bo) return ao - bo;
+    }
     const at = a.time || '', bt = b.time || '';
     if(at && bt) return at < bt ? -1 : (at > bt ? 1 : 0);
     if(at && !bt) return -1;
@@ -3011,7 +3036,10 @@
         // es la decisión del cliente. Mezclarlos haría que aprobar borre en qué etapa estaba.
         status: ESTADOS[it.status] ? it.status : 'pendiente',
         approval: APROBACIONES[it.approval] ? it.approval : 'sin-revisar',
-        approvalAt: it.approvalAt || ''
+        approvalAt: it.approvalAt || '',
+        // Posición dentro del día cuando se acomodó a mano. null = todavía sin acomodar,
+        // y entonces manda el horario. Ver compareByTime().
+        orden: Number.isFinite(it.orden) ? it.orden : null
       };
       });
     }else if(feed && (feed.angle || feed.text || feed.thumb)){
@@ -3039,7 +3067,10 @@
         scriptContext: it.scriptContext || '',
         status: ESTADOS[it.status] ? it.status : 'pendiente',
         approval: APROBACIONES[it.approval] ? it.approval : 'sin-revisar',
-        approvalAt: it.approvalAt || ''
+        approvalAt: it.approvalAt || '',
+        // Posición dentro del día cuando se acomodó a mano. null = todavía sin acomodar,
+        // y entonces manda el horario. Ver compareByTime().
+        orden: Number.isFinite(it.orden) ? it.orden : null
       };
       });
     }else if(stories && (stories.angle || stories.text)){
@@ -4002,18 +4033,12 @@
         fila.appendChild(txt);
       }
 
-      // Mismo protocolo de arrastre que las etiquetas del mes, así se puede mover de un día
-      // a otro también desde acá.
+      // Mismo protocolo de arrastre que las etiquetas del mes: se puede mover de un día a
+      // otro y también acomodar el orden dentro del mismo día.
       if(!IS_READONLY){
-        fila.draggable = true;
         fila.title = '';
-        fila.addEventListener('dragstart', (e)=>{
-          e.stopPropagation();
-          fila.classList.add('dragging');
-          e.dataTransfer.effectAllowed = 'move';
-          e.dataTransfer.setData('text/plain', JSON.stringify({sourceKey: key, itemId: it.id, list: listName}));
-        });
-        fila.addEventListener('dragend', ()=> fila.classList.remove('dragging'));
+        hacerArrastrable(fila, key, listName, it.id);
+        hacerReordenable(fila, key, listName, it.id);
       }
 
       cont.appendChild(fila);
@@ -4155,6 +4180,90 @@
     }
   }
 
+  // ---------- acomodar posteos a mano dentro de un día ----------
+  // Arrastrar un posteo a OTRO día lo mueve de fecha; arrastrarlo sobre otro posteo del
+  // MISMO día lo acomoda arriba o abajo de ese. Las dos cosas comparten el mismo arrastre:
+  // lo que cambia es dónde se suelta.
+  function limpiarMarcasDeOrden(){
+    document.querySelectorAll('.drop-arriba, .drop-abajo')
+      .forEach(el => el.classList.remove('drop-arriba', 'drop-abajo'));
+  }
+
+  // Protocolo común a los chips del mes y a las filas de la vista semanal: los dos arrastran
+  // lo mismo, así que arrancan igual y se limpian igual.
+  function hacerArrastrable(el, key, listName, itemId){
+    el.draggable = true;
+    el.addEventListener('dragstart', (e)=>{
+      e.stopPropagation();
+      el.classList.add('dragging');
+      arrastreActual = { sourceKey: key, itemId, list: listName };
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', JSON.stringify(arrastreActual));
+    });
+    el.addEventListener('dragend', ()=>{
+      el.classList.remove('dragging');
+      arrastreActual = null;
+      limpiarMarcasDeOrden();
+    });
+  }
+
+  // Convierte un posteo en destino para acomodar dentro del día. Solo se activa cuando lo
+  // que viene es del mismo día y de la misma lista: un reel no se acomoda entre las stories,
+  // y algo que viene de otra fecha se maneja como mudanza (lo atiende la celda).
+  function hacerReordenable(el, key, listName, itemId){
+    if(IS_READONLY) return;
+    const aplica = ()=> arrastreActual &&
+      arrastreActual.sourceKey === key &&
+      arrastreActual.list === listName &&
+      arrastreActual.itemId !== itemId;
+
+    el.addEventListener('dragover', (e)=>{
+      if(!aplica()) return;
+      // stopPropagation para que la celda no se marque entera como destino: acá el destino
+      // es la ranura entre dos posteos, no el día.
+      e.preventDefault(); e.stopPropagation();
+      e.dataTransfer.dropEffect = 'move';
+      const r = el.getBoundingClientRect();
+      const antes = (e.clientY - r.top) < r.height / 2;
+      el.classList.toggle('drop-arriba', antes);
+      el.classList.toggle('drop-abajo', !antes);
+    });
+    el.addEventListener('dragleave', ()=> el.classList.remove('drop-arriba', 'drop-abajo'));
+    el.addEventListener('drop', (e)=>{
+      if(!aplica()) return;
+      e.preventDefault(); e.stopPropagation();
+      const antes = el.classList.contains('drop-arriba');
+      const movido = arrastreActual.itemId;
+      limpiarMarcasDeOrden();
+      reordenarEnDia(key, listName, movido, itemId, antes);
+    });
+  }
+
+  // Deja el posteo `itemId` justo antes o después de `refId`, y le fija a todo el día el
+  // orden resultante.
+  function reordenarEnDia(key, listName, itemId, refId, antes){
+    const entrada = monthData[key];
+    const lista = entrada && entrada[listName];
+    if(!Array.isArray(lista)) return;
+    const desde = lista.findIndex(x => x.id === itemId);
+    if(desde < 0) return;
+
+    pushUndo(key);
+    const [item] = lista.splice(desde, 1);
+    let destino = lista.findIndex(x => x.id === refId);
+    if(destino < 0) destino = lista.length;      // la referencia ya no está: va al final
+    else if(!antes) destino++;
+    lista.splice(destino, 0, item);
+    // Se numera el día entero y no solo el que se movió: con números salteados, agregar un
+    // posteo después dejaría el orden a merced de dónde caiga su horario.
+    lista.forEach((x, i)=> { x.orden = i; });
+
+    scheduleSaveDay(key);
+    renderCalendar();
+    if(openDate === key) renderDayPanelItems(key);
+    showToast('Este día conserva el orden que le diste');
+  }
+
   // Convierte una celda en destino de arrastre. Extraído para que las celdas de la vista
   // semanal acepten lo mismo que las del mes, sin repetir el manejo del evento.
   function hacerCeldaSoltable(cell, key){
@@ -4246,14 +4355,10 @@
         });
       }
       if(key && listName && !IS_READONLY){
-        tag.draggable = true;
-        tag.addEventListener('dragstart', (e)=>{
-          e.stopPropagation();
-          tag.classList.add('dragging');
-          e.dataTransfer.effectAllowed = 'move';
-          e.dataTransfer.setData('text/plain', JSON.stringify({sourceKey: key, itemId: it.id, list: listName}));
-        });
-        tag.addEventListener('dragend', ()=> tag.classList.remove('dragging'));
+        // Arrastrarlo a otro día lo muda de fecha; arrastrarlo sobre otro posteo del mismo
+        // día lo acomoda arriba o abajo de ese.
+        hacerArrastrable(tag, key, listName, it.id);
+        hacerReordenable(tag, key, listName, it.id);
       }
       container.appendChild(tag);
     });
@@ -4300,7 +4405,12 @@
     pushUndo(sourceKey);
     pushUndo(targetKey);
     const [item] = sourceList.splice(idx, 1);
+    // El orden manual pertenece al día del que viene. En su nuevo día el posteo entra por
+    // horario —y si el destino está acomodado a mano, entra al final, listo para moverlo—;
+    // sin esto se colaba arriba de todo por conservar un número que no significaba nada ahí.
+    item.orden = null;
     monthData[targetKey][listName].push(item);
+    monthData[targetKey][listName].sort(compareByTime);
     await saveDayNow(sourceKey);
     await saveDayNow(targetKey);
     renderCalendar();
@@ -4468,6 +4578,17 @@
     }else{
       entry.stories.forEach(item => storiesList.appendChild(createStoryItemCard(key, item)));
     }
+
+    // El botón para volver al orden por horario solo tiene sentido si el día está acomodado
+    // a mano; el resto del tiempo sería un botón que no hace nada.
+    $('reordenarPorHora').hidden = !diaAcomodadoAMano(key);
+  }
+
+  function diaAcomodadoAMano(key){
+    const entrada = monthData[key];
+    if(!entrada) return false;
+    return ['feed','stories'].some(lista =>
+      (entrada[lista] || []).some(it => Number.isFinite(it.orden)));
   }
 
   // Generic "change something about this day, then re-save + re-render" helper,
@@ -4858,6 +4979,9 @@
       // debería costar volver a escribirlo todo.
       if(vaAStories) delete movido.kind;
       else movido.kind = nuevo;
+      // El orden manual era el de su lista anterior; en la nueva vuelve a ubicarse por
+      // horario, igual que cuando se lo muda de día.
+      movido.orden = null;
       entrada[destino].push(movido);
       entrada[destino].sort(compareByTime);
     });
@@ -6857,6 +6981,21 @@
     await flushSave();
     renderCalendar();
     $('dayOverlay').classList.remove('open');
+  });
+  // Vuelve a dejar el día a cargo del horario: se borra el orden manual y se reordena.
+  $('reordenarPorHora').addEventListener('click', ()=>{
+    if(!openDate) return;
+    const entrada = monthData[openDate];
+    if(!entrada) return;
+    pushUndo(openDate);
+    ['feed','stories'].forEach(lista=>{
+      (entrada[lista] || []).forEach(it => { it.orden = null; });
+      (entrada[lista] || []).sort(compareByTime);
+    });
+    scheduleSaveDay(openDate);
+    renderCalendar();
+    renderDayPanelItems(openDate);
+    showToast('Ordenado por horario');
   });
   $('closePanel').addEventListener('click', async ()=>{ await flushSave(); $('dayOverlay').classList.remove('open'); renderCalendar(); });
   $('doneBtn').addEventListener('click', async ()=>{ await flushSave(); $('dayOverlay').classList.remove('open'); renderCalendar(); });
