@@ -110,6 +110,10 @@
     font-variant-numeric:tabular-nums;
   }
   *{box-sizing:border-box;}
+  /* El atributo hidden tiene que ganarle al display de las clases. La regla del navegador es
+     display:none, pero cualquier display declarado después —.btn es inline-flex— la pisa, y
+     el elemento "oculto" se sigue viendo. */
+  [hidden]{display:none !important;}
 
   /* ---------- barras de scroll ---------- */
   /* Firefox: solo admite estos dos, así que se le da el color y el ancho fino. */
@@ -3029,9 +3033,13 @@
     'grabado':   { label:'Grabado',     corto:'Grab.',  color:'#4a72a8' },
     'editando':  { label:'Editando',    corto:'Edit.',  color:'#8b5fa3' },
     'listo':     { label:'Listo para publicar', corto:'Listo', color:'#3fd399' },
+    // "Programado" es el posteo que ya está cargado en Instagram con su fecha y hora
+    // puestas. Se convierte solo en "Publicado" cuando ese momento pasa; ver
+    // promoverProgramados().
+    'programado':{ label:'Programado',  corto:'Prog.',  color:'#2fb0c9' },
     'publicado': { label:'Publicado',   corto:'Pub.',   color:'#7c8a4c' }
   };
-  const ORDEN_ESTADOS = ['pendiente','por-grabar','grabado','editando','listo','publicado'];
+  const ORDEN_ESTADOS = ['pendiente','por-grabar','grabado','editando','listo','programado','publicado'];
 
   const APROBACIONES = {
     'sin-revisar':{ label:'Sin revisar',   icono:'○', color:'var(--muted-2)' },
@@ -3518,7 +3526,47 @@
     await loadNotasMes();    // y las notas generales, que se ven debajo del calendario
     if(onProgress) onProgress(0.9);
     await migrateLegacyMonthBlob();
+    await promoverProgramados();
     if(onProgress) onProgress(1);
+  }
+
+  // ---------- "Programado" → "Publicado", solo ----------
+  // Un posteo programado ya está cargado en Instagram con su fecha y hora puestas: cuando
+  // ese momento pasa, salió. Marcarlo a mano uno por uno sería trabajo que la fecha ya sabe
+  // hacer, y encima el mes quedaría diciendo "programado" sobre cosas que hace semanas se
+  // publicaron.
+  function momentoDelPosteo(key, item){
+    const [y, m, d] = key.split('-').map(Number);
+    // Sin horario se toma el final del día: hasta que el día no termina no hay manera de
+    // saber si ya salió, y adelantarlo lo daría por publicado a la mañana.
+    const [hh, mm] = String(item.time || '23:59').split(':').map(Number);
+    return new Date(y, m - 1, d, hh || 0, mm || 0).getTime();
+  }
+
+  // Recorre el mes que está cargado —es el único que está en memoria— y guarda de a un día
+  // entero, no de a un posteo. Devuelve cuántos pasaron.
+  async function promoverProgramados(){
+    const ahora = Date.now();
+    const dias = [];
+    Object.keys(monthData).forEach(key=>{
+      let tocado = false;
+      ['feed','stories'].forEach(lista=>{
+        ((monthData[key] || {})[lista] || []).forEach(it=>{
+          if(it.status !== 'programado') return;
+          if(momentoDelPosteo(key, it) > ahora) return;
+          it.status = 'publicado';
+          tocado = true;
+        });
+      });
+      if(tocado) dias.push(key);
+    });
+    if(!dias.length) return 0;
+    // En el link de solo lectura el cambio se ve pero no se guarda: ese link es para mirar,
+    // y escribir desde ahí sería la única cosa que hace sin que nadie se lo pida.
+    if(!IS_READONLY){
+      for(const key of dias) await saveDayNow(key);
+    }
+    return dias.length;
   }
 
   function isEmptyEntry(entry){
@@ -10114,6 +10162,22 @@
       }
       openDayPanel(diaPedido);
     }
+
+    // Un posteo programado para las 18:00 tiene que verse publicado a las 18:00, sin que
+    // haya que recargar. Se revisa cada minuto —es recorrer un mes en memoria, no cuesta
+    // nada— y solo se repinta si algo cambió de verdad.
+    // También al volver a la pestaña: una computadora dormida no corre temporizadores, y sin
+    // esto el calendario que quedó abierto de ayer seguiría mostrando el mes de ayer.
+    const revisarProgramados = async ()=>{
+      const dias = await promoverProgramados();
+      if(!dias) return;
+      renderCalendar();
+      if(openDate && $('dayOverlay').classList.contains('open')) renderDayPanelItems(openDate);
+    };
+    setInterval(revisarProgramados, 60000);
+    document.addEventListener('visibilitychange', ()=>{
+      if(!document.hidden) revisarProgramados();
+    });
   })();
 })();
 </script>
