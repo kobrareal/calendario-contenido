@@ -335,7 +335,11 @@
      debajo de su contenido, así que sin esto el encabezado entero crecía con el título en
      vez de recortarlo — que es por lo que el texto se salía del casillero. El grupo de la
      derecha no se encoge nunca: son botones de tamaño fijo. */
-  .item-head-left{display:flex;align-items:center;gap:10px;flex:1 1 auto;min-width:0;}
+  /* flex-wrap: el selector de tipo y el horario tienen ancho propio y no se pueden achicar.
+     En un panel angosto la suma no entra, y sin permitir que bajen de renglón el horario
+     terminaba montado sobre los botones de duplicar y eliminar. Bajan ellos, que son del
+     mismo grupo; los botones de la derecha se quedan donde están. */
+  .item-head-left{display:flex;align-items:center;flex-wrap:wrap;gap:6px 10px;flex:1 1 auto;min-width:0;}
   .item-head-right{display:flex;align-items:center;gap:4px;flex:none;}
   /* Destello al llegar desde un chip del calendario: el panel abre con varias tarjetas y
      sin esto hay que buscar con el ojo cuál era la que se pidió. Dura poco y no mueve nada
@@ -450,7 +454,32 @@
     color-scheme:dark;cursor:pointer;
   }
   .time-input:disabled{opacity:.45;cursor:default;}
-  .horario-row{display:flex;align-items:center;gap:3px;}
+  /* Horario que se cambia arrastrando. El cursor de redimensionar horizontal es la única
+     pista visual que hace falta: es el mismo que usa cualquier control de "correr para
+     cambiar", y aparece antes de tocar nada.
+     touch-action:none es lo que hace que en el teléfono el deslizamiento horizontal mueva
+     la hora en vez de scrollear el panel del día. */
+  .time-drag{
+    background:var(--surface);border:1px solid var(--border);color:var(--text);
+    border-radius:8px;padding:5px 7px;font-family:'IBM Plex Mono',monospace;font-size:12px;
+    cursor:ew-resize;user-select:none;-webkit-user-select:none;touch-action:none;
+    line-height:1.2;min-width:30px;text-align:center;flex:none;
+    transition:background .15s var(--ease-out), border-color .15s var(--ease-out);
+  }
+  .time-drag:hover{border-color:var(--muted-2);}
+  .time-drag:focus-visible{outline:2px solid var(--accent);outline-offset:1px;}
+  .time-drag.arrastrando{background:var(--surface-3);border-color:var(--accent);}
+  .time-drag.vacio{color:var(--muted-2);}
+  .time-clear{
+    background:none;border:none;color:var(--muted-2);cursor:pointer;font-size:15px;
+    line-height:1;padding:1px 4px;border-radius:5px;flex:none;
+    transition:color .15s var(--ease-out), background .15s var(--ease-out);
+  }
+  .time-clear:hover{color:var(--danger);background:var(--surface-2);}
+  /* flex:none + min-width:0: el horario tiene ancho propio y no se estira, y el grupo de la
+     izquierda puede achicarse. Sin esto el encabezado crecía más que la tarjeta y el campo
+     de los minutos terminaba encima de los botones de duplicar y eliminar. */
+  .horario-row{display:flex;align-items:center;gap:3px;flex:none;min-width:0;}
   .horario-sep{color:var(--muted-2);font-family:'IBM Plex Mono',monospace;font-size:12px;}
   .item-remove{
     background:none;border:none;color:var(--muted-2);cursor:pointer;font-size:14px;
@@ -4673,52 +4702,131 @@
       (entrada[lista] || []).some(it => Number.isFinite(it.orden)));
   }
 
-  // Generic "change something about this day, then re-save + re-render" helper,
-  // used by every discrete click action (angle pick, kind toggle) inside item cards.
-  // El horario dejó de ser un campo de reloj y pasó a dos desplegables. Los posteos se
-  // agendan "a las 9" o "a las 9 y media", así que tipear la hora dígito por dígito era más
-  // trabajo que elegirla. Se conserva el formato "HH:MM" porque es con el que compareByTime
-  // ordena la lista del día.
+  // Horario del posteo. Se cambia manteniendo apretado y deslizando a los costados: un
+  // desplegable de 24 opciones obliga a abrir, buscar en la lista y elegir, y eso se hace
+  // decenas de veces por mes. Las horas se mueven de a una y los minutos de a 15, que son
+  // los saltos con los que realmente se agenda un posteo.
+  //
+  // Se conserva el formato "HH:MM" porque es con el que compareByTime ordena el día.
+  const PX_POR_PASO = 14;   // cuánto hay que correr para cambiar un valor
+  const MINUTOS_PASO = 15;
+
   function buildSelectorHorario(item, alCambiar){
     const cont = document.createElement('div');
     cont.className = 'horario-row';
 
-    const [horaActual, minActual] = (item.time || '').split(':');
+    const dos = (n)=> String(n).padStart(2, '0');
+    const hayHora = ()=> /^\d{1,2}:\d{2}$/.test(item.time || '');
+    const partes = ()=>{
+      const [h, m] = String(item.time || '').split(':');
+      return { h: Number(h) || 0, m: Number(m) || 0 };
+    };
 
-    const selHora = document.createElement('select');
-    selHora.className = 'time-input'; selHora.title = 'Hora de este posteo';
-    selHora.innerHTML = '<option value="">--</option>' +
-      Array.from({length:24}, (_, h)=>{
-        const v = String(h).padStart(2,'0');
-        return `<option value="${v}"${v===horaActual ? ' selected' : ''}>${v}</option>`;
-      }).join('');
-
+    const campoHora = document.createElement('div');
+    const campoMin = document.createElement('div');
     const sep = document.createElement('span');
     sep.className = 'horario-sep'; sep.textContent = ':';
+    const borrar = document.createElement('button');
+    borrar.type = 'button'; borrar.className = 'time-clear';
+    borrar.innerHTML = '&times;';
+    borrar.title = 'Dejar este posteo sin horario';
 
-    const selMin = document.createElement('select');
-    selMin.className = 'time-input'; selMin.title = 'Minutos';
-    // Cuartos de hora. Un horario ya guardado que no caiga en la grilla —porque venía de
-    // cuando solo había 00 y 30, o de una versión futura con más pasos— se agrega como
-    // opción propia: si no, el desplegable saltaría solo al primer valor y le cambiaría
-    // la hora a un posteo sin que nadie se lo pidiera.
-    const pasos = ['00','15','30','45'];
-    if(minActual && !pasos.includes(minActual)) pasos.push(minActual);
-    pasos.sort();
-    selMin.innerHTML = pasos
-      .map(v=>`<option value="${v}"${v===minActual ? ' selected' : ''}>${v}</option>`).join('');
-
-    const aplicar = ()=>{
-      // Sin hora elegida no hay horario: el campo queda vacío y el posteo va al final del día.
-      item.time = selHora.value ? `${selHora.value}:${selMin.value || '00'}` : '';
-      selMin.disabled = !selHora.value;
-      alCambiar();
+    const pintar = ()=>{
+      const p = partes();
+      campoHora.textContent = hayHora() ? dos(p.h) : '--';
+      campoMin.textContent = hayHora() ? dos(p.m) : '--';
+      campoHora.classList.toggle('vacio', !hayHora());
+      campoMin.classList.toggle('vacio', !hayHora());
+      borrar.hidden = !hayHora();
     };
-    selMin.disabled = !selHora.value;
-    selHora.addEventListener('change', aplicar);
-    selMin.addEventListener('change', aplicar);
 
-    cont.appendChild(selHora); cont.appendChild(sep); cont.appendChild(selMin);
+    // Mueve el horario `pasos` lugares. Sin horario previo arranca en 09:00: hay que partir
+    // de algo, y a esa hora cae la mayoría de los posteos.
+    const mover = (cual, pasos)=>{
+      if(!hayHora()){ item.time = '09:00'; if(!pasos) return; }
+      const p = partes();
+      if(cual === 'hora'){
+        item.time = dos((((p.h + pasos) % 24) + 24) % 24) + ':' + dos(p.m);
+      }else{
+        // Se redondea a la grilla de cuartos antes de moverse: un horario viejo como 09:20
+        // tiene que caer en un cuarto al primer toque, no arrastrar el desfase para siempre.
+        const cuartos = 60 / MINUTOS_PASO;
+        const desde = Math.round(p.m / MINUTOS_PASO);
+        const m = ((((desde + pasos) % cuartos) + cuartos) % cuartos) * MINUTOS_PASO;
+        item.time = dos(p.h) + ':' + dos(m);
+      }
+    };
+
+    const conectar = (el, cual, etiqueta)=>{
+      el.className = 'time-drag';
+      el.tabIndex = 0;
+      el.title = etiqueta + ': mantené apretado y deslizá a los costados (o usá las flechas del teclado)';
+
+      let inicioX = 0, ultimoPaso = 0, arrastrando = false, movio = false;
+
+      el.addEventListener('pointerdown', (e)=>{
+        // El encabezado entero pliega la tarjeta al clickearlo: sin esto, tocar el horario
+        // la cerraría en la cara.
+        e.preventDefault(); e.stopPropagation();
+        // Capturar el puntero es lo que hace que el arrastre siga funcionando cuando el dedo
+        // o el mouse se van del casillero, que es lo normal al correr un valor.
+        try{ el.setPointerCapture(e.pointerId); }catch(err){ /* el navegador no la da: el arrastre igual funciona adentro */ }
+        inicioX = e.clientX; ultimoPaso = 0; arrastrando = true; movio = false;
+        el.classList.add('arrastrando');
+      });
+      el.addEventListener('pointermove', (e)=>{
+        if(!arrastrando) return;
+        const paso = Math.round((e.clientX - inicioX) / PX_POR_PASO);
+        if(paso === ultimoPaso) return;
+        mover(cual, paso - ultimoPaso);
+        ultimoPaso = paso;
+        movio = true;
+        pintar();
+      });
+      const soltar = (e)=>{
+        if(!arrastrando) return;
+        arrastrando = false;
+        el.classList.remove('arrastrando');
+        try{ el.releasePointerCapture(e.pointerId); }catch(err){ /* ya se soltó solo */ }
+        // Un toque sin movimiento sobre un campo vacío le pone el horario por defecto: si no,
+        // tocarlo no haría nada y el campo parecería roto.
+        if(!movio && !hayHora()){ mover(cual, 0); pintar(); movio = true; }
+        // Recién acá se guarda y se reordena el día. Hacerlo en cada píxel rearmaría la
+        // tarjeta debajo del dedo y cortaría el arrastre por la mitad.
+        if(movio) alCambiar();
+      };
+      el.addEventListener('pointerup', soltar);
+      el.addEventListener('pointercancel', soltar);
+      el.addEventListener('click', (e)=> e.stopPropagation());
+
+      // Con el teclado el guardado espera un momento: cada guardado rearma la tarjeta y se
+      // lleva puesto el foco, así que sin la espera no se podrían encadenar dos flechas.
+      let tGuardado = null;
+      el.addEventListener('keydown', (e)=>{
+        const d = (e.key === 'ArrowRight' || e.key === 'ArrowUp') ? 1
+                : (e.key === 'ArrowLeft' || e.key === 'ArrowDown') ? -1 : 0;
+        if(!d) return;
+        e.preventDefault();
+        mover(cual, d);
+        pintar();
+        clearTimeout(tGuardado);
+        tGuardado = setTimeout(alCambiar, 450);
+      });
+    };
+
+    conectar(campoHora, 'hora', 'Hora');
+    conectar(campoMin, 'min', 'Minutos, de a 15');
+
+    borrar.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      item.time = '';
+      pintar();
+      alCambiar();
+    });
+
+    pintar();
+    cont.appendChild(campoHora); cont.appendChild(sep);
+    cont.appendChild(campoMin); cont.appendChild(borrar);
     return cont;
   }
 
