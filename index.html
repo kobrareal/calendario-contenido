@@ -1134,14 +1134,24 @@
   }
   .copy-label-row .copy-contador{margin-top:0; flex:none;}
 
-  /* "No mostrar en el feed" y el estado, arriba de la tarjeta y en la misma línea. Se
-     apilan en pantalla angosta: los dos controles juntos no entran en un teléfono. */
+  /* Horario, "Mostrar en Feed" y estado, arriba de la tarjeta y en la misma línea. Se
+     apilan en pantalla angosta: los tres controles juntos no entran en un teléfono.
+     El estado va empujado a la derecha con margin-left:auto en vez de space-between: con
+     tres elementos, space-between deja al del medio flotando lejos de los otros dos. */
   .fila-preview-estado{
-    display:flex; align-items:center; justify-content:space-between;
-    gap:var(--s-3); flex-wrap:wrap;
+    display:flex; align-items:center;
+    gap:var(--s-2); flex-wrap:wrap;
     margin:0 0 8px;
   }
-  .fila-preview-estado .estado-row{margin:0;}
+  .fila-preview-estado .estado-row{margin:0; margin-left:auto;}
+  .fila-preview-estado .horario-row{margin:0;}
+  /* Los tres controles entran en un renglón por poco, así que acá van más ajustados que en
+     el resto de la app: sin esto el estado se cae a una segunda línea y el renglón único
+     —que es el punto— se pierde. */
+  .fila-preview-estado .time-drag{padding:5px 6px; min-width:28px;}
+  .fila-preview-estado .time-clear{padding:1px 3px; font-size:14px;}
+  .fila-preview-estado .estado-select{padding:6px 7px; font-size:11.5px;}
+  .fila-preview-estado .gen-checkbox-row{font-size:12px; gap:6px;}
 
   /* ---------- kit de marca ---------- */
   /* Panel fijo del dashboard, en la columna de las notas. Mismo envoltorio que los otros
@@ -3061,7 +3071,10 @@
     'por-grabar':{ label:'Por grabar',  corto:'Grabar', color:'#c17a3d' },
     'grabado':   { label:'Grabado',     corto:'Grab.',  color:'#4a72a8' },
     'editando':  { label:'Editando',    corto:'Edit.',  color:'#8b5fa3' },
-    'listo':     { label:'Listo para publicar', corto:'Listo', color:'#3fd399' },
+    // "opcion" es lo que se lee en el desplegable; "label" es el nombre completo, que se
+    // sigue usando en los tooltips. Un <select> mide lo que mide su opción más larga, y
+    // "Listo para publicar" estiraba el control hasta sacar el renglón de una sola línea.
+    'listo':     { label:'Listo para publicar', opcion:'Listo', corto:'Listo', color:'#3fd399' },
     // "Programado" es el posteo que ya está cargado en Instagram con su fecha y hora
     // puestas. Se convierte solo en "Publicado" cuando ese momento pasa; ver
     // promoverProgramados().
@@ -6230,7 +6243,7 @@
     sel.title = 'Estado de producción de este posteo';
     ORDEN_ESTADOS.forEach(clave=>{
       const opt = document.createElement('option');
-      opt.value = clave; opt.textContent = ESTADOS[clave].label;
+      opt.value = clave; opt.textContent = ESTADOS[clave].opcion || ESTADOS[clave].label;
       if(item.status === clave) opt.selected = true;
       sel.appendChild(opt);
     });
@@ -6380,7 +6393,9 @@
 
     const leftGroup = document.createElement('div');
     leftGroup.className = 'item-head-left';
-    leftGroup.appendChild(kindToggle); leftGroup.appendChild(timeInput);
+    // El horario ya no va en el encabezado: comparte renglón con "Mostrar en Feed" y el
+    // estado, abajo. Son tres controles chicos y juntos ocupan una línea en vez de dos.
+    leftGroup.appendChild(kindToggle);
 
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button'; removeBtn.className = 'item-remove'; removeBtn.title = 'Eliminar'; removeBtn.textContent = '🗑';
@@ -6416,11 +6431,12 @@
     card.appendChild(cuerpo);
     hacerPlegable(head, card, toggleBtn, item.id);
 
-    // "No mostrar en el feed" y el estado de producción comparten renglón, arriba de todo:
-    // son las dos decisiones que se toman de un vistazo sobre el posteo entero, y el estado
+    // Horario, "Mostrar en Feed" y estado de producción comparten renglón, arriba de todo:
+    // son las tres decisiones que se toman de un vistazo sobre el posteo entero, y el estado
     // al final obligaba a bajar hasta el fondo de la tarjeta para marcar algo como listo.
     const filaSuperior = document.createElement('div');
     filaSuperior.className = 'fila-preview-estado';
+    filaSuperior.appendChild(timeInput);
 
     // La casilla se lee en positivo —"Mostrar en el feed", tildada por defecto— porque es
     // lo que pasa en el 99% de los casos y una negación obliga a leerla dos veces. El dato
@@ -6439,7 +6455,7 @@
       renderFeedPreview();
     });
     previewRow.appendChild(previewCheck);
-    previewRow.appendChild(document.createTextNode('Mostrar en el feed'));
+    previewRow.appendChild(document.createTextNode('Mostrar en Feed'));
     filaSuperior.appendChild(previewRow);
     filaSuperior.appendChild(buildEstadoRow(key, item));
     cuerpo.appendChild(filaSuperior);
@@ -6698,7 +6714,9 @@
 
     const leftGroup = document.createElement('div');
     leftGroup.className = 'item-head-left';
-    leftGroup.appendChild(kindToggle); leftGroup.appendChild(timeInput);
+    // El horario ya no va en el encabezado: comparte renglón con "Mostrar en Feed" y el
+    // estado, abajo. Son tres controles chicos y juntos ocupan una línea en vez de dos.
+    leftGroup.appendChild(kindToggle);
 
     const removeBtn = document.createElement('button');
     removeBtn.type = 'button'; removeBtn.className = 'item-remove'; removeBtn.title = 'Eliminar'; removeBtn.textContent = '🗑';
@@ -6734,10 +6752,11 @@
     card.appendChild(cuerpo);
     hacerPlegable(head, card, toggleBtn, item.id);
 
-    // Una story no va al feed, así que no tiene la casilla de ocultarla; pero el estado va
-    // igual arriba de todo, en el mismo lugar que en los posteos.
+    // Una story no va al feed, así que no tiene la casilla de ocultarla; el horario y el
+    // estado van igual arriba de todo, en el mismo lugar que en los posteos.
     const filaSuperior = document.createElement('div');
     filaSuperior.className = 'fila-preview-estado';
+    filaSuperior.appendChild(timeInput);
     filaSuperior.appendChild(buildEstadoRow(key, item));
     cuerpo.appendChild(filaSuperior);
 
