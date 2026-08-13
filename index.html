@@ -722,6 +722,10 @@
     color:#0c0812;font-weight:600;line-height:1.2;
     overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
   }
+  /* Un chip es un objeto que se agarra, no un texto que se lee y se copia. Sin esto, apretar
+     justo encima de las letras arranca una selección de texto en vez del arrastre, y el
+     gesto termina contando como click. */
+  .tag, .sem-item{user-select:none;-webkit-user-select:none;}
   .tag[draggable="true"]{cursor:grab;}
   .tag[draggable="true"]:active{cursor:grabbing;}
   .tag.dragging{opacity:.35;}
@@ -4304,6 +4308,39 @@
     }
   }
 
+  // ---------- click contra arrastre ----------
+  // Un chip hace dos cosas con el mismo gesto: clickearlo abre el posteo y arrastrarlo lo
+  // acomoda. Cuando el navegador no llega a arrancar el arrastre —porque el primer
+  // movimiento fue corto, o lento, o porque se apretó justo encima del texto— el gesto
+  // termina contando como click y el posteo se abre en la cara, justo cuando lo que se
+  // quería era moverlo. Dos guardas lo separan:
+  //   1. se mide cuánto se movió el puntero entre apretar y soltar: si se movió, no es click;
+  //   2. se ignora cualquier click que llegue apenas terminado un arrastre, venga de donde venga.
+  const UMBRAL_CLICK = 6;   // píxeles que se toleran para seguir contando como click
+  let finDelArrastre = 0;
+  // Lo marca cada punto que sabe que hubo un arrastre. No alcanza con escuchar "dragend" en
+  // el documento: al soltar, el calendario se repinta y el chip original queda fuera del
+  // documento, así que su dragend ya no llega hasta acá.
+  function marcarFinDeArrastre(){ finDelArrastre = Date.now(); }
+  document.addEventListener('click', (e)=>{
+    if(arrastreActual || Date.now() - finDelArrastre < 300){ e.stopPropagation(); e.preventDefault(); }
+  }, true);
+
+  function clickSinArrastre(el, alClickear){
+    let x0 = 0, y0 = 0, movido = false;
+    el.addEventListener('pointerdown', (e)=>{ x0 = e.clientX; y0 = e.clientY; movido = false; });
+    el.addEventListener('pointermove', (e)=>{
+      if(Math.abs(e.clientX - x0) > UMBRAL_CLICK || Math.abs(e.clientY - y0) > UMBRAL_CLICK) movido = true;
+    });
+    el.addEventListener('click', (e)=>{
+      // La celda tiene su propio click que abre el día entero: se detiene siempre, se abra
+      // el posteo o no, para que un arrastre fallido tampoco termine abriendo el día.
+      e.stopPropagation();
+      if(movido) return;
+      alClickear(e);
+    });
+  }
+
   // ---------- acomodar posteos a mano dentro de un día ----------
   // Arrastrar un posteo a OTRO día lo mueve de fecha; arrastrarlo sobre otro posteo del
   // MISMO día lo acomoda arriba o abajo de ese. Las dos cosas comparten el mismo arrastre:
@@ -4327,6 +4364,7 @@
     el.addEventListener('dragend', ()=>{
       el.classList.remove('dragging');
       arrastreActual = null;
+      marcarFinDeArrastre();
       limpiarMarcasDeOrden();
     });
   }
@@ -4359,6 +4397,9 @@
       const antes = el.classList.contains('drop-arriba');
       const movido = arrastreActual.itemId;
       limpiarMarcasDeOrden();
+      // Antes de repintar: después de esto el chip que se arrastró ya no existe y su dragend
+      // no llega a ningún lado.
+      marcarFinDeArrastre();
       reordenarEnDia(key, listName, movido, itemId, antes);
     });
   }
@@ -4400,6 +4441,7 @@
       let data;
       try{ data = JSON.parse(e.dataTransfer.getData('text/plain')); }catch(err){ return; }
       if(!data || !data.sourceKey || !data.itemId || !data.list) return;
+      marcarFinDeArrastre();
       if(data.sourceKey === key) return; // soltar en el mismo día no hace nada
       moveItemBetweenDays(data.sourceKey, data.itemId, data.list, key);
     });
@@ -4473,10 +4515,7 @@
       // segundo handler pisaría lo que hizo el primero.
       if(key){
         tag.classList.add('tag-clickable');
-        tag.addEventListener('click', (e)=>{
-          e.stopPropagation();
-          abrirPosteo(key, it.id);
-        });
+        clickSinArrastre(tag, ()=> abrirPosteo(key, it.id));
       }
       if(key && listName && !IS_READONLY){
         // Arrastrarlo a otro día lo muda de fecha; arrastrarlo sobre otro posteo del mismo
