@@ -23,6 +23,10 @@ const LARGO_POR_DEFECTO = 499;
 const LARGO_MINIMO = 80;    // por debajo de esto no hay copy que sirva
 const LARGO_TOPE = 2200;    // el máximo que admite un pie de Instagram
 
+// Un guión no tiene el techo del pie de Instagram: no se publica, se lee para filmar. Con el
+// tope del copy —500 caracteres— un carrusel de seis placas no entraba y volvía recortado.
+const LARGO_GUION = 1400;
+
 // Cuántos caracteres de más se toleran antes de pedir que lo acorte. Un 8% sobre 500 son
 // unos 40 caracteres: exigir el número exacto haría reintentar de más y sumar demora, para
 // un límite que igual es una guía y no una regla de la plataforma.
@@ -46,10 +50,12 @@ module.exports = async (req, res) => {
   const etiqueta = ETIQUETAS[cuerpo.kind] || 'posteo';
   const angulo = String(cuerpo.angle || '').trim();
 
+  const esGuion = cuerpo.formato === 'guion';
+
   const pedido = Number(cuerpo.maxLen);
   const largoMax = Number.isFinite(pedido)
     ? Math.min(LARGO_TOPE, Math.max(LARGO_MINIMO, Math.round(pedido)))
-    : LARGO_POR_DEFECTO;
+    : (esGuion ? LARGO_GUION : LARGO_POR_DEFECTO);
 
   if (!contexto) {
     return res.status(400).json({ error: 'Escribí primero el contexto o la idea del copy.' });
@@ -62,12 +68,8 @@ module.exports = async (req, res) => {
                : largoMax <= 700 ? 'tres o cuatro frases cortas'
                : 'un par de párrafos breves';
 
-  // Formato de salida. El mismo endpoint genera copys y guiones, y los emojis por línea
-  // sirven en un pie de Instagram pero desentonan en un guión de rodaje, que se lee para
-  // filmar. La separación por renglones, en cambio, le viene bien a los dos.
-  const esGuion = cuerpo.formato === 'guion';
-  const formato = esGuion
-    ? 'Escribí cada frase en un renglón aparte, separadas por un salto de línea. '
+  // Formato de salida del copy. El guión tiene el suyo, más abajo.
+  const formato = esGuion ? ''
     : 'FORMATO OBLIGATORIO: escribí cada frase en un renglón aparte, separadas por un salto ' +
       'de línea, y que cada frase incluya al menos un emoji que acompañe lo que dice. ' +
       'El emoji tiene que aportar sentido, no ser decoración al azar: si una frase no pide ' +
@@ -110,7 +112,52 @@ module.exports = async (req, res) => {
       '\n' + catalogo + '\n\n'
     : '';
 
-  const base =
+  // Copy y guión son dos encargos distintos y hasta acá compartían uno solo con dos parches:
+  // se pedía "el copy de un reel" y después se le sacaban los emojis y los hashtags. Con eso
+  // el modelo devolvía exactamente lo que se le había pedido —un pie de foto— sin emojis.
+  // Ahora cada formato tiene su propio encargo, y el del guión dice de entrada que lo que se
+  // escribe se DICE o se MUESTRA, no se lee debajo de la publicación.
+  const conAngulo = angulo ? (' El ángulo de contenido es "' + angulo + '".') : '';
+  const cierre =
+    'Idea / contexto: "' + contexto + '". ' +
+    'No repitas el contexto de forma literal.';
+
+  // El carrusel es el caso aparte: nadie lo dice en voz alta, se lee en pantalla. Su guión
+  // es el texto de cada placa, y pedirle "lo que se dice" devolvería un locutor sin video.
+  const esCarrusel = cuerpo.kind === 'carrusel';
+
+  const baseGuion = esCarrusel
+    ? 'Sos guionista de contenido para redes sociales. Escribís el texto que va ESCRITO EN ' +
+      'CADA PLACA de un carrusel de Instagram.' + conAngulo + ' ' +
+      'Esto NO es el pie de la publicación: el pie es otro pedido y no lo tenés que escribir. ' +
+      'Nada de hashtags, nada de emojis, nada de "link en bio". ' +
+      voz + bloqueProductos +
+      'FORMATO: una placa por renglón, empezando cada uno con "PLACA 1:", "PLACA 2:", y así. ' +
+      'Entre 5 y 7 placas. ' +
+      'La placa 1 es la portada y lleva una sola frase, la que tiene que frenar el scroll. ' +
+      'Las del medio desarrollan una idea cada una, en pocas palabras: es texto para leer de ' +
+      'un vistazo en una pantalla de teléfono, no un párrafo. ' +
+      'La última placa pide una acción concreta. ' +
+      'Devolvé SOLO las placas, sin explicaciones, sin comillas, sin encabezados. ' + cierre
+
+    : 'Sos guionista de contenido para redes sociales. Escribís lo que se DICE frente a ' +
+      'cámara en ' + (cuerpo.kind === 'story' ? 'una story' : 'un reel') + ' de Instagram: ' +
+      'el habla, lo que sale por la boca de quien graba.' + conAngulo + ' ' +
+      'Esto NO es el pie de la publicación. Si escribís algo que se leería debajo del video ' +
+      'en vez de decirse en voz alta, está mal. Nada de hashtags, nada de emojis, nada de ' +
+      '"link en bio", y no lo cierres con una frase de pie de foto. ' +
+      voz + bloqueProductos +
+      'ESTRUCTURA: el primer renglón es el gancho, lo que se dice en los primeros 3 segundos, ' +
+      'y tiene que dar una razón para no seguir scrolleando. Después el desarrollo, una idea ' +
+      'por renglón. El último renglón es lo que se le pide a quien mira. ' +
+      'Escribilo como se habla, no como se escribe: frases cortas, que dichas en voz alta ' +
+      'suenen a persona y no a folleto. ' +
+      'Si un plano necesita aclarar qué se ve, va al final del renglón entre paréntesis y en ' +
+      'pocas palabras. ' +
+      'Apuntá a un video de 20 a 40 segundos: entre 60 y 100 palabras dichas. ' +
+      'Devolvé SOLO el guión, sin explicaciones, sin comillas, sin encabezados. ' + cierre;
+
+  const baseCopy =
     'Sos un/a community manager escribiendo el copy para un ' + etiqueta + ' de Instagram' +
     (angulo ? (' con ángulo de contenido "' + angulo + '"') : '') + '. ' +
     'Escribí en español, con tono cercano y natural (podés usar "vos"), listo para publicar. ' +
@@ -119,11 +166,11 @@ module.exports = async (req, res) => {
     'Apuntá a ' + frases + '. Es preferible quedarse corto que pasarse. ' +
     'Tiene que terminar de forma completa: nunca cortes una idea por la mitad. ' +
     formato +
-    // Los guiones son lo único que sigue sin hashtags: son notas para filmar, no un pie.
-    (esGuion ? 'No agregues hashtags. ' : '') +
     'No repitas el contexto de forma literal, escribilo como copy real. ' +
     'Idea / contexto: "' + contexto + '". ' +
     'Devolvé SOLO el texto del copy, sin explicaciones, sin comillas, sin encabezados.';
+
+  const base = esGuion ? baseGuion : baseCopy;
 
   // Deliberadamente NO se limita maxOutputTokens para forzar el largo: eso corta la
   // generación a mitad de palabra, que es justo lo que se quiere evitar. El techo se pide
@@ -163,16 +210,24 @@ module.exports = async (req, res) => {
     // Uno solo y no varios porque cada vuelta suma varios segundos de espera.
     if (texto.length > largoMax * MARGEN) {
       const condensado = await llamar(
-        'Acortá este copy de Instagram a menos de ' + largoMax + ' caracteres contando espacios, ' +
-        'sin perder la idea principal ni el tono. Tiene que terminar de forma completa. ' +
+        (esGuion
+          ? 'Acortá este guión a menos de ' + largoMax + ' caracteres contando espacios, sin ' +
+            'perder el gancho del principio ni el pedido del final. Sigue siendo lo que se ' +
+            (esCarrusel ? 'escribe en cada placa, con el mismo "PLACA N:" adelante. '
+                        : 'dice frente a cámara, no un pie de foto. Una idea por renglón. ')
+          : 'Acortá este copy de Instagram a menos de ' + largoMax + ' caracteres contando ' +
+            'espacios, sin perder la idea principal ni el tono. ' +
+            'Tiene que terminar de forma completa. ') +
         // Al reescribir para acortar es donde más se cuela el singular, porque el modelo
         // rearma las frases desde cero en vez de recortar las que ya estaban.
         voz +
         // Se repite el formato: al pedir solo "acortalo", el modelo devuelve un párrafo
         // corrido y se pierden los renglones y los emojis que se acababan de pedir.
-        'Mantené el formato: cada frase en un renglón aparte' +
-        (esGuion ? '. ' : ', con al menos un emoji, y los 4 hashtags juntos en el último renglón. ') +
-        'Devolvé SOLO el copy acortado, sin explicaciones ni comillas.\n\n' + texto
+        (esGuion
+          ? 'Mantené un renglón por idea. '
+          : 'Mantené el formato: cada frase en un renglón aparte, con al menos un emoji, y ' +
+            'los 4 hashtags juntos en el último renglón. ') +
+        'Devolvé SOLO el texto acortado, sin explicaciones ni comillas.\n\n' + texto
       );
       // El condensado se acepta solo si mejora: a veces vuelve más largo que el original.
       if (condensado && condensado.length < texto.length) texto = condensado;
