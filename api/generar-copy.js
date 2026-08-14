@@ -175,16 +175,58 @@ module.exports = async (req, res) => {
   // Deliberadamente NO se limita maxOutputTokens para forzar el largo: eso corta la
   // generación a mitad de palabra, que es justo lo que se quiere evitar. El techo se pide
   // en el encargo y, si no se cumple, se pide condensar.
-  const llamar = async (prompt) => {
-    const respuesta = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+  //
+  // Cada llamada tiene su propio reloj. Vercel corta la función a los 30 segundos y devuelve
+  // un 504 pelado, sin cuerpo: desde el navegador eso se ve como "error 504" y no dice nada.
+  // Con un tope propio y más corto, cuando Gemini se demora somos nosotros los que cortamos,
+  // y podemos contestar algo que se entienda.
+  const arranque = Date.now();
+  const TOPE_LLAMADA = 20000;   // por llamada
+  const TOPE_TOTAL = 26000;     // el techo de Vercel es 30s: se deja aire para responder
+
+  // Los modelos Flash del 2.5 en adelante "piensan" antes de contestar, y ese razonamiento
+  // previo multiplica la demora. Para un copy de 500 caracteres no aporta nada, así que se
+  // apaga. Como se apunta a un alias ("gemini-flash-latest") y no a una versión fija, la
+  // versión de turno puede no conocer el campo: si Google lo rechaza por nombre, se reintenta
+  // sin él y se recuerda para el resto del pedido.
+  let sinPensar = true;
+
+  const pedirle = async (prompt) => {
+    const reloj = new AbortController();
+    const corte = setTimeout(()=> reloj.abort(), TOPE_LLAMADA);
+    const cuerpoPedido = { contents: [{ parts: [{ text: prompt }] }] };
+    if (sinPensar) cuerpoPedido.generationConfig = { thinkingConfig: { thinkingBudget: 0 } };
+    try{
+      const respuesta = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          body: JSON.stringify(cuerpoPedido),
+          signal: reloj.signal
+        }
+      );
+      return await respuesta.json();
+    }catch(err){
+      if (err && err.name === 'AbortError') {
+        const e = new Error('El generador tardó demasiado. Probá de nuevo en un momento.');
+        e.demoro = true;
+        throw e;
       }
-    );
-    const json = await respuesta.json();
+      throw err;
+    }finally{
+      clearTimeout(corte);
+    }
+  };
+
+  const llamar = async (prompt) => {
+    let json = await pedirle(prompt);
+    // "Unknown name thinkingConfig": esta versión del modelo no lo admite. Se apaga el
+    // apagado y se vuelve a pedir, una sola vez.
+    if (json.error && sinPensar && /thinking/i.test(json.error.message || '')) {
+      sinPensar = false;
+      json = await pedirle(prompt);
+    }
     if (json.error) {
       // El mensaje de Google se pasa tal cual porque suele ser accionable ("cuota agotada",
       // "clave inválida"), pero nunca se devuelve la clave ni el prompt completo.
@@ -208,7 +250,12 @@ module.exports = async (req, res) => {
     // Un solo reintento si se pasó de largo: se le devuelve su propio texto para que lo
     // condense en vez de escribir otro distinto, así no se pierde lo que ya estaba bien.
     // Uno solo y no varios porque cada vuelta suma varios segundos de espera.
-    if (texto.length > largoMax * MARGEN) {
+    //
+    // Y solo si queda tiempo. Un copy unos caracteres más largo es un problema chico; que la
+    // función se pase de los 30 segundos y devuelva un 504 sin texto es perder todo lo que ya
+    // se había generado.
+    const quedaTiempo = (Date.now() - arranque) < (TOPE_TOTAL - TOPE_LLAMADA);
+    if (texto.length > largoMax * MARGEN && quedaTiempo) {
       const condensado = await llamar(
         (esGuion
           ? 'Acortá este guión a menos de ' + largoMax + ' caracteres contando espacios, sin ' +
@@ -237,6 +284,7 @@ module.exports = async (req, res) => {
     // avisar, en vez de recortar por su cuenta.
     return res.status(200).json({ text: texto, maxLen: largoMax });
   } catch (err) {
+    if (err && err.demoro) return res.status(504).json({ error: err.message });
     if (err && err.deGoogle) return res.status(502).json({ error: err.message });
     return res.status(502).json({ error: 'No se pudo contactar a Gemini: ' + err.message });
   }

@@ -3339,6 +3339,9 @@
       let json = null;
       try{ json = await res.json(); }catch(e){ /* respuesta sin JSON: se reporta abajo */ }
       if(json && json.error) throw new Error(json.error);
+      // 504 sin cuerpo: lo corta Vercel a los 30 segundos y no manda nada adentro. Sin este
+      // caso, en pantalla aparecía "error 504", que no le dice nada a nadie.
+      if(res.status === 504) throw new Error('El generador tardó demasiado. Probá de nuevo en un momento.');
       if(!res.ok) throw new Error('El generador respondió con un error (' + res.status + ')');
       if(!json || typeof json.text !== 'string') throw new Error('Respuesta inesperada del generador de copys');
       return json.text;
