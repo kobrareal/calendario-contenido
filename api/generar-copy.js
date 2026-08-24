@@ -8,10 +8,15 @@
 // Para configurar la clave: en Vercel, Settings > Environment Variables > Add New,
 // nombre GEMINI_API_KEY, valor la clave de https://aistudio.google.com/apikey
 
-// Usamos el alias "gemini-flash-latest" en vez de un nombre de modelo fijo: Google lo
-// redirige al modelo Flash vigente, así esto no se rompe cada vez que renombran o
-// discontinúan una versión puntual (ya pasó dos veces con el backend anterior).
-const MODELO = 'gemini-flash-latest';
+// Lista de modelos, en orden de preferencia. Se usan alias ("-latest") y no nombres de
+// versión fijos: Google los redirige al modelo vigente, así esto no se rompe cada vez que
+// renombran o discontinúan una versión puntual (ya pasó dos veces con el backend anterior).
+//
+// Son varios y no uno porque "the model is overloaded" es un error de todos los días: el
+// primero es el de siempre, el segundo es la versión liviana —más rápida y con menos cola,
+// de sobra para un copy de 500 caracteres— y el tercero es una versión estable por si los
+// dos alias fallan a la vez.
+const MODELOS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.0-flash'];
 const LARGO_MAXIMO_CONTEXTO = 4000;
 
 const ETIQUETAS = { reel: 'Reel', carrusel: 'Carrusel', story: 'Story' };
@@ -176,29 +181,28 @@ module.exports = async (req, res) => {
   // generación a mitad de palabra, que es justo lo que se quiere evitar. El techo se pide
   // en el encargo y, si no se cumple, se pide condensar.
   //
-  // Cada llamada tiene su propio reloj. Vercel corta la función a los 30 segundos y devuelve
-  // un 504 pelado, sin cuerpo: desde el navegador eso se ve como "error 504" y no dice nada.
-  // Con un tope propio y más corto, cuando Gemini se demora somos nosotros los que cortamos,
-  // y podemos contestar algo que se entienda.
+  // Cada intento tiene su propio reloj, y si el modelo de turno está saturado se prueba con
+  // el siguiente de la lista. Vercel corta la función a los 30 segundos y devuelve un 504
+  // pelado, sin cuerpo: llegar hasta ahí es perder el pedido entero y encima sin explicación,
+  // así que acá se corta antes y con criterio propio.
   const arranque = Date.now();
-  const TOPE_LLAMADA = 20000;   // por llamada
+  const TOPE_LLAMADA = 11000;   // por intento
   const TOPE_TOTAL = 26000;     // el techo de Vercel es 30s: se deja aire para responder
 
   // Los modelos Flash del 2.5 en adelante "piensan" antes de contestar, y ese razonamiento
   // previo multiplica la demora. Para un copy de 500 caracteres no aporta nada, así que se
-  // apaga. Como se apunta a un alias ("gemini-flash-latest") y no a una versión fija, la
-  // versión de turno puede no conocer el campo: si Google lo rechaza por nombre, se reintenta
-  // sin él y se recuerda para el resto del pedido.
+  // apaga. Como se apunta a un alias y no a una versión fija, la versión de turno puede no
+  // conocer el campo: si Google lo rechaza por nombre, se reintenta sin él y se recuerda.
   let sinPensar = true;
 
-  const pedirle = async (prompt) => {
+  const pedirle = async (modelo, prompt) => {
     const reloj = new AbortController();
     const corte = setTimeout(()=> reloj.abort(), TOPE_LLAMADA);
     const cuerpoPedido = { contents: [{ parts: [{ text: prompt }] }] };
     if (sinPensar) cuerpoPedido.generationConfig = { thinkingConfig: { thinkingBudget: 0 } };
     try{
       const respuesta = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`,
+        `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
@@ -209,7 +213,7 @@ module.exports = async (req, res) => {
       return await respuesta.json();
     }catch(err){
       if (err && err.name === 'AbortError') {
-        const e = new Error('El generador tardó demasiado. Probá de nuevo en un momento.');
+        const e = new Error('El modelo no contestó a tiempo.');
         e.demoro = true;
         throw e;
       }
@@ -219,30 +223,57 @@ module.exports = async (req, res) => {
     }
   };
 
+  // Errores que mejoran probando con otro modelo: saturación, límite por minuto, o un alias
+  // que Google dejó de publicar. Una clave inválida o un pedido rechazado por contenido no
+  // mejoran cambiando de modelo, así que esos cortan de una y se muestran tal cual.
+  const esPasajero = (mensaje, codigo) =>
+    codigo === 429 || codigo === 500 || codigo === 503 || codigo === 404 ||
+    /overload|sobrecarg|unavailable|try again|rate limit|quota|not found|deadline/i.test(mensaje || '');
+
   const llamar = async (prompt) => {
-    let json = await pedirle(prompt);
-    // "Unknown name thinkingConfig": esta versión del modelo no lo admite. Se apaga el
-    // apagado y se vuelve a pedir, una sola vez.
-    if (json.error && sinPensar && /thinking/i.test(json.error.message || '')) {
-      sinPensar = false;
-      json = await pedirle(prompt);
+    let ultimo = null;
+    for (const modelo of MODELOS) {
+      // Sin tiempo para otro intento completo, mejor devolver el error que quedarse colgado
+      // hasta que Vercel corte.
+      if (Date.now() - arranque > TOPE_TOTAL - TOPE_LLAMADA) break;
+      try{
+        let json = await pedirle(modelo, prompt);
+        // "Unknown name thinkingConfig": esta versión no lo admite. Se apaga el apagado y se
+        // vuelve a pedir, una sola vez.
+        if (json.error && sinPensar && /thinking/i.test(json.error.message || '')) {
+          sinPensar = false;
+          json = await pedirle(modelo, prompt);
+        }
+        if (json.error) {
+          const e = new Error(json.error.message || 'Error de la API de Gemini');
+          e.deGoogle = true;
+          e.codigo = json.error.code || 0;
+          throw e;
+        }
+        const texto = json.candidates &&
+                      json.candidates[0] &&
+                      json.candidates[0].content &&
+                      json.candidates[0].content.parts &&
+                      json.candidates[0].content.parts[0] &&
+                      json.candidates[0].content.parts[0].text;
+        if (texto && texto.trim()) return texto.trim();
+        ultimo = new Error('El modelo no devolvió texto.');
+        ultimo.demoro = true;   // vacío sin motivo: se prueba con el siguiente
+      }catch(err){
+        ultimo = err;
+        const conviene = err.demoro || (err.deGoogle && esPasajero(err.message, err.codigo));
+        if (!conviene) throw err;   // este error no lo arregla cambiar de modelo
+      }
     }
-    if (json.error) {
-      // El mensaje de Google se pasa tal cual porque suele ser accionable ("cuota agotada",
-      // "clave inválida"), pero nunca se devuelve la clave ni el prompt completo.
-      const e = new Error(json.error.message || 'Error de la API de Gemini');
-      e.deGoogle = true;
+    // Se agotaron los modelos. El mensaje de Google acá no sirve de nada —"the model is
+    // overloaded" no le dice qué hacer a nadie—, así que se traduce a algo accionable.
+    if (ultimo && (ultimo.demoro || (ultimo.deGoogle && esPasajero(ultimo.message, ultimo.codigo)))) {
+      const e = new Error('Gemini está saturado en este momento. Esperá unos segundos y probá de nuevo.');
+      e.demoro = true;
       throw e;
     }
-    const texto = json.candidates &&
-                  json.candidates[0] &&
-                  json.candidates[0].content &&
-                  json.candidates[0].content.parts &&
-                  json.candidates[0].content.parts[0] &&
-                  json.candidates[0].content.parts[0].text;
-    return texto ? texto.trim() : '';
+    throw ultimo || new Error('No se pudo generar el texto.');
   };
-
   try {
     let texto = await llamar(base);
     if (!texto) return res.status(502).json({ error: 'Gemini no devolvió texto. Probá de nuevo.' });
