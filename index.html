@@ -2822,55 +2822,145 @@
     return cont;
   }
 
-  // Cada emoji va con las palabras por las que uno lo buscaría. Antes la lista eran solo los
-  // dibujos y el buscador comparaba el emoji contra el texto tecleado, así que no encontraba
-  // nunca nada. Las palabras están en español y sin tildes, que es como se escribe al buscar.
-  const EMOJI_GRUPOS = [
-    { palabras:'cara feliz sonrisa alegre risa amor beso enamorado', emojis:['😊','😍','🥰','😘','😂','🤣','😎','🤩','🥳'] },
-    { palabras:'fiesta celebracion festejo cumpleanos regalo sorteo', emojis:['🎉','🎊','🎈','🎁','🥳','🎂','🍰'] },
-    { palabras:'corazon amor cariño romantico', emojis:['❤️','💝','💖','💗','💓','💕','♥️'] },
-    { palabras:'fuego destacado tendencia energia brillo estrella nuevo', emojis:['🔥','⚡','✨','⭐','🌟','💫','💥'] },
-    { palabras:'aplauso pulgar like manos gracias acuerdo apoyo', emojis:['👍','👏','🙌','🤝','💪'] },
-    { palabras:'premio ganador trofeo medalla logro exito calidad', emojis:['🏆','🥇','🥈','🥉','💯'] },
-    { palabras:'crecimiento ventas dinero plata precio negocio grafico subir', emojis:['🚀','📈','💰','🛍️'] },
-    { palabras:'objetivo meta foco anuncio aviso megafono comunicado promocion', emojis:['🎯','📢','📣','📡','🔔'] },
-    { palabras:'mensaje comentario charla opinion idea pensamiento', emojis:['💬','🗨️','💭'] },
-    { palabras:'telefono celular computadora pantalla tecnologia reloj', emojis:['📲','📳','💻','📱','⌚'] },
-    { palabras:'video camara filmar foto reel grabar produccion cine', emojis:['🎬','🎥','📹','📷','📸'] },
-    { palabras:'arte diseño creatividad pintura color', emojis:['🎨','🎭','🎪'] },
-    { palabras:'comida hamburguesa pizza plato almuerzo cena restaurante', emojis:['🍔','🍕','🍜','🍱','🥘','🍲','🌮','🌯','🥙','🍳'] },
-    { palabras:'postre dulce torta galleta cafe bebida jugo', emojis:['🍪','☕','🥤'] },
-    { palabras:'vino brindis alcohol cerveza trago bar champagne', emojis:['🍷','🍾','🥂','🍻','🥃'] },
-    { palabras:'viaje avion auto vehiculo transporte camioneta camion', emojis:['✈️','🚗','🚕','🚙','🚌','🏎️','🛻','🚚','🚛'] },
-    { palabras:'barco mar navegar velero lancha crucero', emojis:['⛵','🚤','🛳️','⛴️','🛥️'] },
-    { palabras:'casa hogar edificio oficina local tienda negocio fabrica', emojis:['🏠','🏡','🏢','🏪','🏬','🏭'] },
-    { palabras:'hotel banco hospital escuela monumento turismo iglesia castillo', emojis:['🏨','🏦','🏥','🏫','🏰','🗼','🗽','💒'] },
-    { palabras:'libro leer estudio educacion curso aprender escuela titulo', emojis:['📚','📖','🎓','🧮'] },
-    { palabras:'escribir nota lapiz lapicera anotar redaccion copy', emojis:['📝','✏️','✒️','🖊️','🖋️'] },
-    { palabras:'marcar pin ubicacion clip regla medir importante', emojis:['📌','📍','📎','🖇️','📐','📏'] },
-    { palabras:'ciencia laboratorio investigacion microscopio telescopio', emojis:['⚗️','🔬','🔭'] },
-    { palabras:'clima sol soleado nube nublado arcoiris verano', emojis:['🌈','☀️','🌤️','⛅','🌥️','☁️'] },
-    { palabras:'lluvia tormenta paraguas mojado agua invierno nieve frio', emojis:['🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','⛄','☔','💧','💦'] },
-    { palabras:'viento aire playa mar ola', emojis:['🌬️','💨','🌊'] },
-    { palabras:'musica cancion audio microfono podcast auriculares instrumento', emojis:['🎤','🎧','🎼','🎹','🎸','🎺','🎷','🥁','🎻'] },
-    { palabras:'juego jugar sorteo azar dado ruleta videojuego bowling', emojis:['🎲','🎳','🎮','🎰','♠️'] },
-    { palabras:'suerte trebol flor flores primavera planta naturaleza verde', emojis:['🍀','🌸','🌺','🌻','🌼','🌷','🌹','🥀','🌱','🌿','☘️'] },
-    { palabras:'arbol bosque palmera cactus campo trigo otoño hoja', emojis:['🌲','🌳','🌴','🌵','🌾','🍁','🍂','🍃'] },
-    { palabras:'deporte futbol pelota partido', emojis:['⚽'] }
+  // Los emojis van agrupados en secciones, como el teclado del teléfono, y cada grupo lleva
+  // las palabras por las que uno lo buscaría. Las palabras están en español y sin tildes, que
+  // es como se escribe al buscar; sin ellas el buscador compararía lo tecleado contra el
+  // dibujo y no encontraría nunca nada.
+  //
+  // Las secciones existen porque la lista pasó de sesenta emojis a varios cientos: sin
+  // divisiones, encontrar uno sin acordarse de cómo se llama es scrollear a ciegas.
+  const EMOJI_SECCIONES = [
+    { id:'caras', titulo:'Caras y gestos', icono:'😀', grupos:[
+      { palabras:'cara feliz sonrisa alegre risa contento gracioso', emojis:['😀','😃','😄','😁','😆','😅','😂','🤣','🙂','🙃','😉','😊','😇'] },
+      { palabras:'amor beso enamorado cariño romantico', emojis:['🥰','😍','🤩','😘','😗','😚','😙','🤗'] },
+      { palabras:'lengua gracioso burla chiste rico plata', emojis:['😋','😛','😜','🤪','😝','🤑'] },
+      { palabras:'pensar duda callado secreto silencio sospecha', emojis:['🤔','🤨','🧐','😐','😑','😶','🙄','😏','😒','🤐','🤫','🤭'] },
+      { palabras:'cansado sueño dormir aburrido suspiro', emojis:['😪','😴','🥱','😵','😵‍💫'] },
+      { palabras:'enfermo mal calor frio mareado explota', emojis:['🤒','🤕','🤢','🤮','🥵','🥶','🤯'] },
+      { palabras:'triste llorar pena angustia decepcion suplica', emojis:['☹️','🙁','😞','😔','😟','😕','😣','😖','😫','😩','🥺','😢','😭'] },
+      { palabras:'enojado bronca furia molesto', emojis:['😤','😠','😡','🤬','👿','😾'] },
+      { palabras:'sorpresa miedo susto verguenza nervios shock', emojis:['😳','😱','😨','😰','😥','😓','😯','😦','😧','😮','😲'] },
+      { palabras:'cool fiesta festejo disfraz nerd vaquero', emojis:['😎','🥳','🤠','🤓'] },
+      { palabras:'mentira incomodo diablo muerte fantasma alien robot payaso caca', emojis:['🤥','😬','😈','💀','☠️','👻','👽','🤖','🎃','💩','🤡'] },
+      { palabras:'gato gatito michi', emojis:['😺','😸','😹','😻','😼','😽','🙀','😿'] }
+    ]},
+
+    { id:'gente', titulo:'Personas y manos', icono:'👋', grupos:[
+      { palabras:'mano saludo hola chau ok perfecto victoria suerte', emojis:['👋','🤚','🖐️','✋','🖖','👌','🤏','✌️','🤞','🤟','🤘','🤙'] },
+      { palabras:'señalar dedo flecha arriba abajo izquierda derecha atencion', emojis:['👈','👉','👆','👇','☝️'] },
+      { palabras:'pulgar like aprobado no gusta puño fuerza golpe', emojis:['👍','👎','✊','👊','🤛','🤜','💪'] },
+      { palabras:'aplauso gracias festejo manos rezar pedir apoyo abrazo acuerdo', emojis:['👏','🙌','👐','🤲','🤝','🙏'] },
+      { palabras:'cuerpo ojo oreja boca cerebro escuchar mirar hablar', emojis:['👀','👁️','👂','👃','👄','👅','🧠','🦷','🦴','🦵','🦶'] },
+      { palabras:'persona bebe nene nena chico chica adulto abuelo abuela', emojis:['👶','🧒','👦','👧','🧑','👨','👩','🧔','👴','👵','🧓'] },
+      { palabras:'gesto no si duda facepalm levantar mano reverencia', emojis:['🙅','🙆','💁','🙋','🤦','🤷','🙇','🙍','🙎'] },
+      { palabras:'trabajo oficio medico profesor cocinero mecanico cientifico programador artista policia', emojis:['🧑‍⚕️','🧑‍🎓','🧑‍🏫','🧑‍⚖️','🧑‍🌾','🧑‍🍳','🧑‍🔧','🧑‍🏭','🧑‍💼','🧑‍🔬','🧑‍💻','🧑‍🎤','🧑‍🎨','🧑‍✈️','🧑‍🚀','🧑‍🚒','👮','🕵️','💂','👷'] },
+      { palabras:'pareja familia amigos embarazada bebe boda novios', emojis:['👫','👬','👭','💑','💏','👪','🤰','🤱','👰','🤵'] },
+      { palabras:'bailar yoga relax meditar dormir baño', emojis:['🕺','💃','👯','🧘','🛀','🛌'] },
+      { palabras:'ropa remera pantalon vestido campera buzo zapatilla zapato cartera mochila', emojis:['👕','👖','🧥','🧣','🧤','🧦','👗','👘','👙','👚','🩱','🩲','🩳','👛','👜','👝','🎒','👞','👟','🥾','👠','👡','👢'] },
+      { palabras:'accesorio gorra sombrero corona anteojos lentes joya anillo maquillaje uñas', emojis:['👑','🎩','🧢','⛑️','👓','🕶️','🥽','💍','💄','💅'] }
+    ]},
+
+    { id:'naturaleza', titulo:'Animales y naturaleza', icono:'🐶', grupos:[
+      { palabras:'mascota perro gato conejo animal tierno', emojis:['🐶','🐱','🐭','🐹','🐰','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🦊','🐔','🐧','🐦','🐤'] },
+      { palabras:'animal campo granja vaca caballo oveja cerdo gallina', emojis:['🐕','🐩','🦮','🐈','🐎','🐄','🐂','🐃','🐖','🐏','🐑','🐐','🦌','🐓','🦃','🐇','🐿️'] },
+      { palabras:'insecto bicho abeja mariposa hormiga araña miel', emojis:['🐝','🐛','🦋','🐌','🐞','🐜','🦗','🕷️','🦂'] },
+      { palabras:'mar pez pescado pulpo camaron delfin ballena tiburon', emojis:['🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🐚'] },
+      { palabras:'salvaje selva safari elefante jirafa mono tigre reptil dinosaurio ave', emojis:['🦄','🐺','🐗','🦓','🦍','🦧','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🦥','🦦','🦨','🦡','🦔','🐊','🐢','🐍','🦎','🦖','🦕','🦅','🦉','🦆','🦢','🦜','🕊️','🦇'] },
+      { palabras:'flor flores primavera ramo rosa girasol planta verde naturaleza', emojis:['💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌱','🌿','☘️','🍀','🌵'] },
+      { palabras:'arbol bosque palmera campo trigo otoño hoja hongo navidad', emojis:['🌲','🌳','🌴','🌾','🍃','🍂','🍁','🍄','🎄'] },
+      { palabras:'sol luna estrella espacio planeta noche dia brillo', emojis:['🌞','☀️','🌝','🌛','🌜','🌚','🌕','🌗','🌑','🌙','⭐','🌟','✨','💫','🪐','🌍','🌎','🌏','☄️'] },
+      { palabras:'clima lluvia tormenta nube nieve frio calor arcoiris paraguas viento agua fuego', emojis:['🌈','🌤️','⛅','🌥️','☁️','🌦️','🌧️','⛈️','🌩️','🌨️','❄️','☃️','⛄','🌬️','💨','🌪️','☔','💧','💦','🌊','🔥','⚡','💥'] }
+    ]},
+
+    { id:'comida', titulo:'Comida y bebida', icono:'🍔', grupos:[
+      { palabras:'fruta manzana banana naranja frutilla uva limon sandia', emojis:['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝'] },
+      { palabras:'verdura vegetal ensalada tomate palta zanahoria brocoli papa cebolla', emojis:['🍅','🍆','🥑','🥦','🥬','🥒','🌶️','🌽','🥕','🧄','🧅','🥔','🍠'] },
+      { palabras:'pan panaderia queso huevo desayuno medialuna tostada', emojis:['🥐','🥯','🍞','🥖','🥨','🧀','🥚','🍳','🧈','🥞','🧇'] },
+      { palabras:'comida almuerzo cena hamburguesa pizza sandwich carne pollo asado', emojis:['🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕','🥪','🥙','🧆','🌮','🌯','🥗','🥘','🥫','🍝','🍜','🍲','🍛'] },
+      { palabras:'japonesa sushi asiatica arroz fideos wok', emojis:['🍣','🍱','🥟','🦪','🍤','🍙','🍚','🍘','🍥','🥠','🍢','🍡'] },
+      { palabras:'postre dulce torta helado chocolate galleta cumpleaños azucar', emojis:['🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯'] },
+      { palabras:'bebida cafe te agua jugo leche gaseosa mate', emojis:['🥛','🍼','☕','🍵','🧃','🥤','🧉','🧊'] },
+      { palabras:'alcohol vino cerveza brindis trago birra champagne', emojis:['🍶','🍺','🍻','🥂','🍷','🥃','🍸','🍹','🍾'] },
+      { palabras:'mesa plato cubierto cocina delivery restaurante sal cuchillo', emojis:['🍽️','🍴','🥄','🥣','🥡','🥢','🧂','🔪'] }
+    ]},
+
+    { id:'actividades', titulo:'Actividades', icono:'⚽', grupos:[
+      { palabras:'deporte futbol basquet tenis pelota partido cancha golf', emojis:['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🏓','🏸','🏒','🏑','🥍','🏏','🥅','⛳','🏹','🎣'] },
+      { palabras:'gimnasio entrenar correr nadar bici pesas yoga escalar surf esqui box', emojis:['🏋️','🤼','🤸','⛹️','🤺','🤾','🏌️','🏇','🧘','🏄','🏊','🤽','🚣','🧗','🚵','🚴','🛹','⛸️','🎿','⛷️','🏂','🪂','🥊','🥋','🎽'] },
+      { palabras:'premio ganador trofeo medalla logro exito primero calidad', emojis:['🏆','🥇','🥈','🥉','🏅','🎖️','🏵️','💯'] },
+      { palabras:'musica cancion audio microfono podcast auriculares instrumento banda radio', emojis:['🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🪕','🎻','🎙️','🎚️','🎛️','📻'] },
+      { palabras:'video camara filmar foto reel grabar produccion cine pelicula pochoclo', emojis:['🎬','🎥','📹','📷','📸','📽️','🎞️','🍿','🎦'] },
+      { palabras:'arte diseño creatividad pintura teatro circo baile cuadro', emojis:['🎨','🎭','🎪','🤹','🩰','🖼️'] },
+      { palabras:'juego jugar sorteo azar dado ruleta videojuego ajedrez cartas', emojis:['🎲','🎳','🎮','🕹️','🎰','🧩','♟️','🃏','🎴','🀄','🎯'] },
+      { palabras:'fiesta celebracion festejo cumpleaños regalo sorteo globos navidad entrada', emojis:['🎉','🎊','🎈','🎁','🎀','🎗️','🧨','🎇','🎆','🧧','🎏','🎐','🎑','🎃','🎫','🎟️'] }
+    ]},
+
+    { id:'viajes', titulo:'Viajes y lugares', icono:'✈️', grupos:[
+      { palabras:'auto vehiculo transporte camioneta camion moto bici taxi ambulancia', emojis:['🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚐','🚚','🚛','🚜','🛴','🚲','🛵','🏍️','🛺','🚨'] },
+      { palabras:'tren subte colectivo estacion viaje', emojis:['🚃','🚋','🚞','🚝','🚄','🚅','🚈','🚂','🚆','🚇','🚊','🚉','🚟','🚠','🚡'] },
+      { palabras:'avion volar vuelo viaje aeropuerto cohete helicoptero', emojis:['✈️','🛫','🛬','🛩️','💺','🚁','🛰️','🚀','🛸'] },
+      { palabras:'barco mar navegar velero lancha crucero remo ancla', emojis:['⛵','🚤','🛥️','🛳️','⛴️','🚢','🛶','⚓'] },
+      { palabras:'casa hogar edificio oficina local tienda negocio fabrica obra hotel banco', emojis:['🏠','🏡','🏘️','🏚️','🏗️','🏭','🏢','🏬','🏣','🏤','🏥','🏦','🏨','🏪','🏫','🏩','🏛️'] },
+      { palabras:'monumento turismo iglesia castillo estadio parque fuente boda', emojis:['💒','⛪','🕌','🕍','🛕','⛩️','🗿','🗽','🗼','🏰','🏯','🏟️','🎡','🎢','🎠','⛲'] },
+      { palabras:'playa mar vacaciones montaña camping desierto isla volcan carpa', emojis:['⛱️','🏖️','🏝️','🏜️','🌋','⛰️','🏔️','🗻','🏕️','⛺'] },
+      { palabras:'ciudad atardecer amanecer noche paisaje puente mapa brujula valija nafta', emojis:['🌁','🌃','🏙️','🌄','🌅','🌆','🌇','🌉','🗺️','🧭','🧳','⛽','🚏','🚧','🚦','🚥'] }
+    ]},
+
+    { id:'objetos', titulo:'Objetos', icono:'💡', grupos:[
+      { palabras:'telefono celular computadora pantalla tecnologia reloj teclado impresora bateria', emojis:['⌚','📱','📲','💻','⌨️','🖥️','🖨️','🖱️','🖲️','💽','💾','💿','📀','📼','📞','☎️','📟','📠','📺','⏰','⏱️','⏲️','🕰️','⌛','⏳','🔋','🔌','📡'] },
+      { palabras:'idea luz lampara foco linterna vela ocurrencia', emojis:['💡','🔦','🕯️','🪔'] },
+      { palabras:'escribir nota lapiz lapicera anotar redaccion copy carpeta agenda libro diario', emojis:['📝','✏️','✒️','🖋️','🖊️','🖌️','🖍️','📔','📕','📖','📗','📘','📙','📚','📓','📒','📃','📜','📄','📰','🗞️','📑','💼','📁','📂','🗂️','📅','📆','🗒️','🗓️','📇'] },
+      { palabras:'marcar pin ubicacion clip regla medir tijera importante etiqueta archivo', emojis:['📌','📍','📎','🖇️','📐','📏','✂️','🔖','🏷️','🗃️','🗄️','🗑️'] },
+      { palabras:'grafico estadistica crecimiento ventas subir bajar datos informe planilla', emojis:['📈','📉','📊','📋','🗳️'] },
+      { palabras:'dinero plata precio pago tarjeta compra factura billete moneda carrito bolsa', emojis:['💰','💴','💵','💶','💷','💸','💳','🧾','🛍️','🛒'] },
+      { palabras:'correo mail carta sobre paquete envio encomienda buzon', emojis:['✉️','📧','📨','📩','📤','📥','📦','📫','📪','📬','📭','📮'] },
+      { palabras:'llave candado seguridad privado cerrado abierto', emojis:['🔒','🔓','🔏','🔐','🔑','🗝️'] },
+      { palabras:'herramienta arreglar taller martillo destornillador tuerca balanza cadena iman', emojis:['🔨','🪓','⛏️','⚒️','🛠️','🔧','🔩','⚙️','🗜️','⚖️','🔗','⛓️','🧰','🧲'] },
+      { palabras:'ciencia laboratorio investigacion microscopio salud remedio inyeccion pastilla', emojis:['⚗️','🧪','🧫','🧬','🔬','🔭','💉','🩸','💊','🩹','🩺'] },
+      { palabras:'limpieza baño ducha jabon escoba higiene puerta silla', emojis:['🚪','🪑','🚽','🚿','🛁','🪒','🧴','🧷','🧹','🧺','🧻','🧼','🧽','🧯'] },
+      { palabras:'buscar lupa encontrar detalle', emojis:['🔍','🔎'] }
+    ]},
+
+    { id:'simbolos', titulo:'Símbolos', icono:'❤️', grupos:[
+      { palabras:'corazon amor cariño romantico rojo', emojis:['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟'] },
+      { palabras:'mensaje comentario charla opinion idea pensamiento globo sueño', emojis:['💬','🗨️','🗯️','💭','💤'] },
+      { palabras:'aviso anuncio megafono comunicado promocion alerta campana', emojis:['📢','📣','🔔','🔕','📯'] },
+      { palabras:'prohibido cuidado peligro atencion alto error advertencia', emojis:['⚠️','🚫','⛔','🛑','❌','⭕','❗','❕','❓','❔','‼️','⁉️','📛','🚸','🔞','☢️','☣️','📵','🚭'] },
+      { palabras:'listo confirmado ok tilde correcto verificado nuevo gratis', emojis:['✅','☑️','✔️','🆗','🆕','🆓','🆙','🔝','🈯'] },
+      { palabras:'flecha direccion volver adelante repetir actualizar reciclar', emojis:['⬆️','↗️','➡️','↘️','⬇️','↙️','⬅️','↖️','↕️','↔️','↩️','↪️','⤴️','⤵️','🔃','🔄','🔙','🔚','🔛','🔜','🔀','🔁','🔂','♻️'] },
+      { palabras:'reproducir play pausa video musica control adelantar', emojis:['▶️','⏩','⏭️','⏯️','◀️','⏪','⏮️','🔼','⏫','🔽','⏬','⏸️','⏹️','⏺️','⏏️'] },
+      { palabras:'volumen sonido audio silencio señal wifi', emojis:['🔈','🔇','🔉','🔊','📶','📳','📴'] },
+      { palabras:'signo mas menos igual porcentaje infinito dolar peso registrado marca', emojis:['➕','➖','➗','✖️','♾️','💲','💱','™️','©️','®️','〰️','➰','➿'] },
+      { palabras:'circulo cuadrado color punto forma figura', emojis:['🔴','🟠','🟡','🟢','🔵','🟣','⚫','⚪','🟤','🟥','🟧','🟨','🟩','🟦','🟪','⬛','⬜','🔺','🔻','🔸','🔹','🔶','🔷','🔳','🔲','▪️','▫️','◾','◽','🔘'] },
+      { palabras:'estrella brillo destacado nuevo tendencia chispa objetivo meta foco', emojis:['✨','🌟','⭐','💫','🔥','💥','⚡','🎯','🔱','⚜️','💠','🌀'] },
+      { palabras:'zodiaco signo horoscopo religion paz simbolo', emojis:['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓','⛎','☮️','✝️','☪️','🕉️','☸️','✡️','🔯','☯️','⚛️'] },
+      { palabras:'accesible baño estacionamiento cajero lugar servicio ascensor', emojis:['♿','🚻','🚹','🚺','🚼','🚾','🅿️','🏧'] },
+      { palabras:'carta poker naipe as pica trebol diamante', emojis:['♠️','♣️','♥️','♦️'] }
+    ]},
+
+    { id:'banderas', titulo:'Banderas', icono:'🏳️', grupos:[
+      { palabras:'bandera meta llegada largada orgullo pirata', emojis:['🏁','🚩','🏳️','🏴','🏳️‍🌈','🏴‍☠️'] },
+      { palabras:'pais bandera argentina brasil uruguay chile latinoamerica mexico', emojis:['🇦🇷','🇧🇷','🇺🇾','🇨🇱','🇵🇾','🇧🇴','🇵🇪','🇨🇴','🇻🇪','🇪🇨','🇲🇽'] },
+      { palabras:'pais bandera españa estados unidos italia francia inglaterra japon mundo', emojis:['🇪🇸','🇺🇸','🇮🇹','🇫🇷','🇩🇪','🇬🇧','🇵🇹','🇯🇵','🇨🇳','🇨🇦','🇦🇺'] }
+    ]}
   ];
 
-  // Lista plana {emoji, palabras} que usa el buscador. Un mismo emoji puede aparecer en dos
-  // grupos (🥳 es fiesta y es cara), así que se juntan las palabras y se muestra una sola vez.
+  // Lista plana {emoji, palabras, seccion} que usa el buscador. Un mismo emoji puede estar en
+  // dos grupos (🔥 es clima y es "destacado"), así que se juntan las palabras de todos y se
+  // muestra una sola vez, en la primera sección donde aparece.
   const EMOJI_PICKER_EMOJIS = (()=>{
     const porEmoji = new Map();
-    EMOJI_GRUPOS.forEach(g=>{
-      g.emojis.forEach(e=>{
-        porEmoji.set(e, (porEmoji.get(e) ? porEmoji.get(e) + ' ' : '') + g.palabras);
+    EMOJI_SECCIONES.forEach(sec=>{
+      sec.grupos.forEach(g=>{
+        g.emojis.forEach(e=>{
+          const previo = porEmoji.get(e);
+          if(previo) previo.palabras += ' ' + g.palabras;
+          else porEmoji.set(e, { emoji:e, palabras:g.palabras, seccion:sec.id });
+        });
       });
     });
-    return [...porEmoji].map(([emoji, palabras]) => ({ emoji, palabras }));
+    return [...porEmoji.values()];
   })();
-
   // Quita tildes para que "corazon" encuentre "corazón" y al revés.
   function sinTildes(s){
     return (s||'').toString().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
@@ -2911,7 +3001,7 @@
     // La clase (no solo el cssText de acá) es lo que le engancha la animación de
     // entrada definida en .emoji-picker-popup más abajo.
     container.className = 'emoji-picker-popup';
-    container.style.cssText = 'position:absolute;top:100%;left:0;background:var(--card-bg);border:1px solid var(--surface-3);border-radius:10px;padding:8px;z-index:200;min-width:280px;max-width:300px;box-shadow:0 16px 40px rgba(0,0,0,.65);';
+    container.style.cssText = 'position:absolute;top:100%;left:0;background:var(--card-bg);border:1px solid var(--surface-3);border-radius:10px;padding:8px;z-index:200;min-width:320px;max-width:340px;box-shadow:0 16px 40px rgba(0,0,0,.65);';
 
     const header = document.createElement('div');
     header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;';
@@ -2926,40 +3016,96 @@
     header.appendChild(searchInput);
     header.appendChild(closeBtn);
 
+    // Barra de secciones, como el teclado del teléfono. Es un atajo, no un filtro: la lista
+    // sigue siendo una sola y tocar un ícono la desplaza hasta ese título. Filtrar por
+    // sección obligaría a acordarse en cuál está cada emoji, que es justo lo que uno no sabe.
+    const barraSecciones = document.createElement('div');
+    barraSecciones.style.cssText = 'display:flex;gap:2px;margin-bottom:6px;border-bottom:1px solid var(--surface-3);padding-bottom:6px;';
+
     const emojiGrid = document.createElement('div');
-    emojiGrid.style.cssText = 'display:grid;grid-template-columns:repeat(7,1fr);gap:4px;max-height:200px;overflow-y:auto;';
+    emojiGrid.style.cssText = 'display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px;max-height:260px;overflow-y:auto;scroll-behavior:smooth;';
+
+    EMOJI_SECCIONES.forEach(sec=>{
+      const tab = document.createElement('button');
+      tab.type = 'button'; tab.textContent = sec.icono; tab.title = sec.titulo;
+      tab.style.cssText = 'flex:1;background:none;border:none;cursor:pointer;font-size:15px;padding:3px 0;border-radius:5px;line-height:1.2;opacity:.75;';
+      tab.addEventListener('mouseenter', ()=>{ tab.style.opacity = '1'; tab.style.background = 'var(--surface-2)'; });
+      tab.addEventListener('mouseleave', ()=>{ tab.style.opacity = '.75'; tab.style.background = 'none'; });
+      tab.addEventListener('click', ()=>{
+        // Buscando no hay títulos a los que saltar, así que primero se limpia la búsqueda.
+        if(searchInput.value){ searchInput.value = ''; renderEmojis(); }
+        // Se mide contra el primer emoji de la sección, nunca contra su título: los títulos son
+        // pegajosos (position:sticky) y mientras uno está pegado arriba informa la posición
+        // donde está pegado, no dónde empieza su sección. Con el título, las solapas caían a
+        // mitad de camino o directamente al final de la lista.
+        const titulo = emojiGrid.querySelector('[data-seccion="' + sec.id + '"]');
+        const primero = titulo && titulo.nextElementSibling;
+        if(primero) emojiGrid.scrollTop = primero.offsetTop - emojiGrid.offsetTop - titulo.offsetHeight;
+      });
+      barraSecciones.appendChild(tab);
+    });
+
+    function botonEmoji(emoji, palabras){
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.textContent = emoji;
+      btn.title = palabras.split(' ').slice(0,5).join(', ');
+      btn.style.cssText = 'background:none;border:1px solid transparent;cursor:pointer;font-size:17px;padding:3px;border-radius:5px;line-height:1.2;';
+      btn.addEventListener('mouseenter', ()=>{ btn.style.background = 'var(--surface-2)'; btn.style.borderColor = 'var(--border)'; });
+      btn.addEventListener('mouseleave', ()=>{ btn.style.background = 'none'; btn.style.borderColor = 'transparent'; });
+      btn.addEventListener('click', ()=>{
+        targetInput.value = reemplazar ? emoji : (targetInput.value + emoji);
+        targetInput.dispatchEvent(new Event('input'));
+        container.remove();
+      });
+      return btn;
+    }
 
     function renderEmojis(filter=''){
       emojiGrid.innerHTML = '';
       const buscado = sinTildes(filter).trim();
-      let encontrados = 0;
-      EMOJI_PICKER_EMOJIS.forEach(({emoji, palabras})=>{
-        if(!buscado || sinTildes(palabras).includes(buscado)){
-          encontrados++;
-          const btn = document.createElement('button');
-          btn.type = 'button'; btn.textContent = emoji;
-          btn.title = palabras.split(' ').slice(0,5).join(', ');
-          btn.style.cssText = 'background:none;border:1px solid var(--border);cursor:pointer;font-size:16px;padding:4px;border-radius:4px;';
-          btn.addEventListener('click', ()=>{
-            targetInput.value = reemplazar ? emoji : (targetInput.value + emoji);
-            targetInput.dispatchEvent(new Event('input'));
-            container.remove();
-          });
-          emojiGrid.appendChild(btn);
+
+      // Con búsqueda se muestra una sola lista de coincidencias: los títulos de sección
+      // sobran cuando el resultado son cuatro emojis desperdigados.
+      if(buscado){
+        const encontrados = EMOJI_PICKER_EMOJIS.filter(e => sinTildes(e.palabras).includes(buscado));
+        encontrados.forEach(e => emojiGrid.appendChild(botonEmoji(e.emoji, e.palabras)));
+        if(!encontrados.length){
+          const vacio = document.createElement('div');
+          vacio.style.cssText = 'grid-column:1/-1;color:var(--muted-2);font-size:11.5px;font-style:italic;padding:10px 4px;text-align:center;';
+          vacio.textContent = 'Ningún emoji con “' + filter + '”. Probá con: fiesta, comida, video, fuego…';
+          emojiGrid.appendChild(vacio);
         }
-      });
-      if(encontrados === 0){
-        const vacio = document.createElement('div');
-        vacio.style.cssText = 'grid-column:1/-1;color:var(--muted-2);font-size:11.5px;font-style:italic;padding:10px 4px;text-align:center;';
-        vacio.textContent = 'Ningún emoji con “' + filter + '”. Probá con: fiesta, comida, video, fuego…';
-        emojiGrid.appendChild(vacio);
+        return;
       }
+
+      // Sin búsqueda, la lista completa con un título por sección.
+      const yaPuesto = new Set();
+      EMOJI_SECCIONES.forEach(sec=>{
+        const titulo = document.createElement('div');
+        titulo.dataset.seccion = sec.id;
+        titulo.textContent = sec.titulo;
+        titulo.style.cssText = 'grid-column:1/-1;font-size:10px;text-transform:uppercase;letter-spacing:.6px;' +
+          'color:var(--muted-2);font-family:\'IBM Plex Mono\',monospace;padding:8px 2px 3px;position:sticky;top:0;' +
+          'background:var(--card-bg);z-index:1;';
+        emojiGrid.appendChild(titulo);
+        sec.grupos.forEach(g=>{
+          g.emojis.forEach(emoji=>{
+            // Un emoji repetido en dos secciones se dibuja una sola vez, en la primera.
+            if(yaPuesto.has(emoji)) return;
+            yaPuesto.add(emoji);
+            const datos = EMOJI_PICKER_EMOJIS.find(e => e.emoji === emoji);
+            emojiGrid.appendChild(botonEmoji(emoji, datos ? datos.palabras : g.palabras));
+          });
+        });
+      });
+
     }
 
     searchInput.addEventListener('input', ()=>renderEmojis(searchInput.value));
     renderEmojis();
 
     container.appendChild(header);
+    container.appendChild(barraSecciones);
     container.appendChild(emojiGrid);
 
     // Cerrar al clickear fuera
