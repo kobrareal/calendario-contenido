@@ -2995,13 +2995,14 @@
   // escribiendo, así que ahí el comportamiento por defecto (agregar) es el correcto.
   function buildEmojiPicker(targetInput, opciones){
     const reemplazar = !!(opciones && opciones.reemplazar);
+    const ancla = (opciones && opciones.ancla) || null;
     const container = document.createElement('div');
     // Fondo opaco por el mismo motivo que .angle-menu: var(--surface-3) dejaba ver el
     // formulario de atrás a través de la grilla de emojis.
     // La clase (no solo el cssText de acá) es lo que le engancha la animación de
     // entrada definida en .emoji-picker-popup más abajo.
     container.className = 'emoji-picker-popup';
-    container.style.cssText = 'position:absolute;top:100%;left:0;background:var(--card-bg);border:1px solid var(--surface-3);border-radius:10px;padding:8px;z-index:200;min-width:320px;max-width:340px;box-shadow:0 16px 40px rgba(0,0,0,.65);';
+    container.style.cssText = 'position:fixed;top:0;left:0;background:var(--card-bg);border:1px solid var(--surface-3);border-radius:10px;padding:8px;z-index:1100;width:340px;max-width:calc(100vw - 16px);box-shadow:0 16px 40px rgba(0,0,0,.65);';
 
     const header = document.createElement('div');
     header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;';
@@ -3023,7 +3024,7 @@
     barraSecciones.style.cssText = 'display:flex;gap:2px;margin-bottom:6px;border-bottom:1px solid var(--surface-3);padding-bottom:6px;';
 
     const emojiGrid = document.createElement('div');
-    emojiGrid.style.cssText = 'display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px;max-height:260px;overflow-y:auto;scroll-behavior:smooth;';
+    emojiGrid.style.cssText = 'display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:3px;max-height:260px;overflow-y:auto;overflow-x:hidden;scroll-behavior:smooth;';
 
     EMOJI_SECCIONES.forEach(sec=>{
       const tab = document.createElement('button');
@@ -3107,6 +3108,40 @@
     container.appendChild(header);
     container.appendChild(barraSecciones);
     container.appendChild(emojiGrid);
+
+    // El panel cuelga del <body> y no del botón que lo abre. Adentro del detalle del día hay
+    // secciones con backdrop-filter, y en Chrome un elemento con ese filtro se pinta por
+    // encima de cualquier cosa posicionada que venga antes: el bloque de "Stories" le tapaba
+    // la mitad de abajo a la paleta. Colgado del body no hay ancestro que pueda taparlo, ni
+    // recortarlo cuando el panel del día scrollea.
+    const ubicar = ()=>{
+      if(!ancla) return;
+      const r = ancla.getBoundingClientRect();
+      const alto = container.offsetHeight || 340;
+      const ancho = container.offsetWidth || 340;
+      // Se abre hacia abajo; si no entra y arriba sí, se abre para arriba. Y nunca se pasa
+      // de los bordes de la pantalla.
+      const haciaArriba = (r.bottom + alto > window.innerHeight - 8) && (r.top - alto > 8);
+      container.style.top = Math.max(8, haciaArriba ? r.top - alto - 6 : r.bottom + 6) + 'px';
+      container.style.left = Math.max(8, Math.min(r.left, window.innerWidth - ancho - 8)) + 'px';
+    };
+
+    // Se reubica mientras esté a la vista, y los oyentes se dan de baja solos en cuanto el
+    // panel deja de estar en la página: se lo cierra desde media docena de lugares distintos
+    // y encadenar un cleanup en cada uno era garantía de olvidarse de alguno.
+    const alMoverse = ()=>{
+      if(!container.isConnected){
+        window.removeEventListener('scroll', alMoverse, true);
+        window.removeEventListener('resize', alMoverse);
+        return;
+      }
+      ubicar();
+    };
+    window.addEventListener('scroll', alMoverse, true);
+    window.addEventListener('resize', alMoverse);
+
+    document.body.appendChild(container);
+    ubicar();
 
     // Cerrar al clickear fuera
     setTimeout(()=>{
@@ -5142,9 +5177,8 @@
     emojiBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
       document.querySelectorAll('[data-emoji-picker]').forEach(p=>p.remove());
-      const picker = buildEmojiPicker(campo);
+      const picker = buildEmojiPicker(campo, { ancla: emojiBtn });
       picker.setAttribute('data-emoji-picker', 'true');
-      emojiWrap.appendChild(picker);
     });
     emojiWrap.appendChild(emojiBtn);
     fila.appendChild(emojiWrap);
@@ -6714,9 +6748,8 @@
     emojiBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
       document.querySelectorAll('[data-emoji-picker]').forEach(p=>p.remove());
-      const picker = buildEmojiPicker(textarea);
+      const picker = buildEmojiPicker(textarea, { ancla: emojiBtn });
       picker.setAttribute('data-emoji-picker', 'true');
-      emojiRow.appendChild(picker);
     });
     emojiRow.appendChild(emojiBtn);
     accionesRow.appendChild(emojiRow);
@@ -7011,9 +7044,8 @@
     emojiBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
       document.querySelectorAll('[data-emoji-picker]').forEach(p=>p.remove());
-      const picker = buildEmojiPicker(textarea);
+      const picker = buildEmojiPicker(textarea, { ancla: emojiBtn });
       picker.setAttribute('data-emoji-picker', 'true');
-      emojiRow.appendChild(picker);
     });
     emojiRow.appendChild(emojiBtn);
     accionesRow.appendChild(emojiRow);
@@ -7564,9 +7596,8 @@
       emojiBtn.addEventListener('click', (e)=>{
         e.stopPropagation();
         document.querySelectorAll('[data-emoji-picker]').forEach(p=>p.remove());
-        const picker = buildEmojiPicker(emojiInput, { reemplazar: true });
+        const picker = buildEmojiPicker(emojiInput, { reemplazar: true, ancla: emojiBtn });
         picker.setAttribute('data-emoji-picker', 'true');
-        emojiBtn.parentElement.appendChild(picker);
       });
       textInput.addEventListener('input', ()=>{ angles[idx].name = textInput.value; angleModalDirty=true; });
       delBtn.addEventListener('click', ()=>{ angles.splice(idx,1); angleModalDirty=true; renderAnglesModal(); });
