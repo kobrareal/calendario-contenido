@@ -238,9 +238,16 @@ module.exports = async (req, res) => {
       if (Date.now() - arranque > TOPE_TOTAL - TOPE_LLAMADA) break;
       try{
         let json = await pedirle(modelo, prompt);
-        // "Unknown name thinkingConfig": esta versión no lo admite. Se apaga el apagado y se
-        // vuelve a pedir, una sola vez.
-        if (json.error && sinPensar && /thinking/i.test(json.error.message || '')) {
+        // El modelo rechazó el pedido y lo único fuera de lo común que le mandamos es el
+        // thinkingConfig, así que se prueba una vez sin él. Google no siempre dice qué campo
+        // le molestó: a veces contesta "Unknown name thinkingConfig" y a veces un escueto
+        // "Request contains an invalid argument", que es lo que devolvían los modelos que
+        // directamente no conocen el campo.
+        const rechazoElAjuste = json.error && sinPensar &&
+          (/thinking/i.test(json.error.message || '') ||
+           json.error.code === 400 ||
+           /invalid argument/i.test(json.error.message || ''));
+        if (rechazoElAjuste) {
           sinPensar = false;
           json = await pedirle(modelo, prompt);
         }
