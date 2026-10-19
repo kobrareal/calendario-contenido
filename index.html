@@ -6252,6 +6252,11 @@
   //
   // El id de la tarea queda guardado en el posteo, así el mismo botón después actualiza en
   // vez de crear otra: sin eso, tocarlo dos veces dejaría tareas duplicadas.
+  // Apagado por ahora: el botón "Mandar a ClickUp" no aparece en las tarjetas. Todo lo demás
+  // (la función del servidor, la configuración guardada de cada marca) queda como está, así
+  // que para volver a mostrarlo alcanza con poner esto en true.
+  const CLICKUP_ACTIVO = false;
+
   let clickupConfig = null; // { listId, listaNombre } — de la marca que se está mirando
 
   async function loadClickup(){
@@ -7436,7 +7441,7 @@
     cuerpo.appendChild(buildBloquePublicacion(key, item, false));
     // El estado ya no va acá: comparte el renglón de arriba con "No mostrar en el feed".
     cuerpo.appendChild(buildClientNoteBox(key, item));
-    cuerpo.appendChild(buildClickupRow(key, item, false));
+    if(CLICKUP_ACTIVO) cuerpo.appendChild(buildClickupRow(key, item, false));
 
     return card;
   }
@@ -7627,7 +7632,7 @@
     cuerpo.appendChild(buildBloquePublicacion(key, item, true));
     // El estado ya se puso arriba, junto al resto de las decisiones de la tarjeta.
     cuerpo.appendChild(buildClientNoteBox(key, item));
-    cuerpo.appendChild(buildClickupRow(key, item, true));
+    if(CLICKUP_ACTIVO) cuerpo.appendChild(buildClickupRow(key, item, true));
 
     return card;
   }
