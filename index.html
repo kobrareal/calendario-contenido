@@ -1851,6 +1851,17 @@
     background:rgba(0,0,0,.65);color:#fff;font-size:11px;display:grid;place-items:center;
   }
   .pub-acciones button:hover{background:rgba(0,0,0,.85);}
+  .pub-extras{display:flex;flex-direction:column;gap:var(--s-2);}
+  .pub-extras:empty{display:none;}
+  .pub-fila{display:flex;align-items:center;gap:var(--s-2);font-size:var(--t-xs);color:var(--muted);}
+  .pub-etiqueta{flex:none;width:88px;}
+  .pub-portada{width:34px;height:60px;object-fit:cover;border-radius:var(--r-1);background:var(--card-bg-2);flex:none;}
+  .pub-colab{
+    flex:1;min-width:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-1);
+    color:var(--text);font-size:var(--t-xs);padding:6px 8px;
+  }
+  .pub-colab:focus{outline:none;border-color:var(--accent);}
+  .pub-colab:disabled{opacity:.6;}
   .pub-aviso{font-size:var(--t-xs);line-height:var(--lh-xs);color:var(--muted);}
   .pub-aviso.falta{color:#f0b849;}
   .pub-aviso.ok{color:var(--ok);}
@@ -3360,7 +3371,11 @@
         orden: Number.isFinite(it.orden) ? it.orden : null,
         // Archivos finales y pedido de publicación automática. Ver buildBloquePublicacion().
         media: normalizarMedia(it.media),
-        programar: !!it.programar
+        programar: !!it.programar,
+        // Portada del reel (la miniatura con la que aparece en el feed) y cuentas invitadas
+        // como colaboradoras. Las stories no admiten ninguna de las dos.
+        portada: (it.portada && typeof it.portada.url === 'string') ? { url: it.portada.url, ruta: it.portada.ruta || '' } : null,
+        colaboradores: normalizarColaboradores(it.colaboradores)
       };
       });
     }else if(feed && (feed.angle || feed.text || feed.thumb)){
@@ -3394,7 +3409,11 @@
         orden: Number.isFinite(it.orden) ? it.orden : null,
         // Archivos finales y pedido de publicación automática. Ver buildBloquePublicacion().
         media: normalizarMedia(it.media),
-        programar: !!it.programar
+        programar: !!it.programar,
+        // Portada del reel (la miniatura con la que aparece en el feed) y cuentas invitadas
+        // como colaboradoras. Las stories no admiten ninguna de las dos.
+        portada: (it.portada && typeof it.portada.url === 'string') ? { url: it.portada.url, ruta: it.portada.ruta || '' } : null,
+        colaboradores: normalizarColaboradores(it.colaboradores)
       };
       });
     }else if(stories && (stories.angle || stories.text)){
@@ -4996,12 +5015,13 @@
 
   // Horario del posteo. Se cambia manteniendo apretado y deslizando a los costados: un
   // desplegable de 24 opciones obliga a abrir, buscar en la lista y elegir, y eso se hace
-  // decenas de veces por mes. Las horas se mueven de a una y los minutos de a 15, que son
-  // los saltos con los que realmente se agenda un posteo.
+  // decenas de veces por mes. Las horas se mueven de a una y los minutos de a 5: con la
+  // publicación automática la hora exacta importa, y 5 minutos es también cada cuánto pasa
+  // el publicador (api/publicar.js), así que una grilla más fina no adelantaría nada.
   //
   // Se conserva el formato "HH:MM" porque es con el que compareByTime ordena el día.
   const PX_POR_PASO = 14;   // cuánto hay que correr para cambiar un valor
-  const MINUTOS_PASO = 15;
+  const MINUTOS_PASO = 5;
 
   function buildSelectorHorario(item, alCambiar){
     const cont = document.createElement('div');
@@ -5040,11 +5060,11 @@
       if(cual === 'hora'){
         item.time = dos((((p.h + pasos) % 24) + 24) % 24) + ':' + dos(p.m);
       }else{
-        // Se redondea a la grilla de cuartos antes de moverse: un horario viejo como 09:20
-        // tiene que caer en un cuarto al primer toque, no arrastrar el desfase para siempre.
-        const cuartos = 60 / MINUTOS_PASO;
+        // Se redondea a la grilla antes de moverse: un horario cargado a mano como 09:22
+        // tiene que caer en la grilla al primer toque, no arrastrar el desfase para siempre.
+        const pasosPorHora = 60 / MINUTOS_PASO;
         const desde = Math.round(p.m / MINUTOS_PASO);
-        const m = ((((desde + pasos) % cuartos) + cuartos) % cuartos) * MINUTOS_PASO;
+        const m = ((((desde + pasos) % pasosPorHora) + pasosPorHora) % pasosPorHora) * MINUTOS_PASO;
         item.time = dos(p.h) + ':' + dos(m);
       }
     };
@@ -5099,6 +5119,8 @@
                 : (e.key === 'ArrowLeft' || e.key === 'ArrowDown') ? -1 : 0;
         if(!d) return;
         e.preventDefault();
+        // Sin esto la flecha también llega al atajo del panel y cambia de día.
+        e.stopPropagation();
         mover(cual, d);
         pintar();
         clearTimeout(tGuardado);
@@ -6667,6 +6689,18 @@
   const PUB_MAX_COPY = 2200;
   const PUB_MAX_HASHTAGS = 30;
 
+  // Instagram admite hasta 3 colaboradores por posteo, por nombre de usuario.
+  const PUB_MAX_COLABORADORES = 3;
+  const USUARIO_IG = /^[a-z0-9._]{1,30}$/;
+  // Acepta lo que se escriba ("@uno, dos  @tres") y deja solo los nombres, sin @ ni repetidos.
+  function normalizarColaboradores(valor){
+    const lista = Array.isArray(valor) ? valor : String(valor || '').split(/[\s,;]+/);
+    const vistos = new Set();
+    return lista
+      .map(u => String(u || '').trim().replace(/^@+/, '').toLowerCase())
+      .filter(u => u && !vistos.has(u) && vistos.add(u));
+  }
+
   function normalizarMedia(lista){
     if(!Array.isArray(lista)) return [];
     return lista
@@ -6707,6 +6741,11 @@
       if(fuera.length) faltan.push(fuera.length === 1
         ? 'recortar una imagen: el feed acepta de 4:5 (vertical) a 1.91:1 (horizontal)'
         : `recortar ${fuera.length} imágenes: el feed acepta de 4:5 (vertical) a 1.91:1 (horizontal)`);
+
+      const colab = item.colaboradores || [];
+      if(colab.length > PUB_MAX_COLABORADORES) faltan.push(`dejar ${PUB_MAX_COLABORADORES} colaboradores como máximo`);
+      const malos = colab.filter(u => !USUARIO_IG.test(u));
+      if(malos.length) faltan.push('corregir el usuario de colaborador "' + malos[0] + '"');
 
       const texto = item.text || '';
       if(texto.length > PUB_MAX_COPY) faltan.push(`acortar el copy (Instagram admite hasta ${PUB_MAX_COPY} caracteres)`);
@@ -6895,6 +6934,83 @@
     galeria.className = 'pub-media';
     caja.appendChild(galeria);
 
+    // Portada y colaboradores: solo para el feed. La portada, además, solo existe en el reel:
+    // en una imagen o un carrusel la miniatura del feed es la primera imagen.
+    const extras = document.createElement('div');
+    extras.className = 'pub-extras';
+    let portadaFila = null, portadaVista = null, portadaQuitar = null, portadaBtn = null, colabInput = null;
+    if(!esStory){
+      if(kindFeed(item.kind) === 'reel'){
+        portadaFila = document.createElement('div');
+        portadaFila.className = 'pub-fila';
+        const etiqueta = document.createElement('span');
+        etiqueta.className = 'pub-etiqueta'; etiqueta.textContent = 'Portada';
+        etiqueta.title = 'La miniatura con la que el reel aparece en el feed. Sin portada, Instagram usa el primer cuadro del video.';
+        portadaVista = document.createElement('img');
+        portadaVista.className = 'pub-portada'; portadaVista.alt = 'Portada del reel';
+        portadaBtn = document.createElement('button');
+        portadaBtn.type = 'button'; portadaBtn.className = 'btn small';
+        portadaBtn.innerHTML = '<i class="fa-regular fa-image"></i>Subir portada';
+        portadaQuitar = document.createElement('button');
+        portadaQuitar.type = 'button'; portadaQuitar.className = 'pub-link'; portadaQuitar.textContent = 'quitar';
+        const portadaInput = document.createElement('input');
+        portadaInput.type = 'file'; portadaInput.accept = 'image/*'; portadaInput.style.display = 'none';
+        portadaFila.append(etiqueta, portadaVista, portadaBtn, portadaQuitar, portadaInput);
+        extras.appendChild(portadaFila);
+
+        portadaBtn.addEventListener('click', ()=> portadaInput.click());
+        portadaInput.addEventListener('change', async ()=>{
+          const archivo = portadaInput.files[0];
+          portadaInput.value = '';
+          if(!archivo) return;
+          portadaBtn.disabled = true;
+          try{
+            const subido = await subirMedio(archivo, p => { portadaBtn.textContent = Math.round(p*100) + '%'; });
+            pushUndo(key);
+            item.portada = { url: subido.url, ruta: subido.ruta };
+            // Es la misma miniatura que se ve en la vista previa del feed del calendario.
+            try{
+              item.thumb = await compressImageFile(archivo);
+              const vista = caja.closest('.item-card') && caja.closest('.item-card').querySelector('.thumb-preview');
+              if(vista){ vista.src = item.thumb; vista.classList.add('show'); }
+            }catch(e){ /* sin miniatura en el calendario: la portada igual sale */ }
+            guardar();
+            renderCalendar();
+            showToast('Portada cargada');
+          }catch(err){
+            showToast(err.message || 'No se pudo subir la portada');
+          }finally{
+            portadaBtn.disabled = false;
+            pintarAviso(); // vuelve a poner el texto del botón según haya portada o no
+          }
+        });
+        portadaQuitar.addEventListener('click', ()=>{
+          pushUndo(key);
+          item.portada = null;
+          guardar();
+        });
+      }
+
+      const colabFila = document.createElement('label');
+      colabFila.className = 'pub-fila';
+      const colabEtiqueta = document.createElement('span');
+      colabEtiqueta.className = 'pub-etiqueta'; colabEtiqueta.textContent = 'Colaboradores';
+      colabEtiqueta.title = 'Cuentas invitadas a figurar como coautoras. Cada una recibe la invitación en Instagram y tiene que aceptarla.';
+      colabInput = document.createElement('input');
+      colabInput.type = 'text'; colabInput.className = 'pub-colab';
+      colabInput.placeholder = '@usuario, @otro (hasta 3)';
+      colabInput.value = (item.colaboradores || []).map(u => '@' + u).join(', ');
+      colabInput.addEventListener('change', ()=>{
+        pushUndo(key);
+        item.colaboradores = normalizarColaboradores(colabInput.value);
+        colabInput.value = item.colaboradores.map(u => '@' + u).join(', ');
+        guardar();
+      });
+      colabFila.append(colabEtiqueta, colabInput);
+      extras.appendChild(colabFila);
+    }
+    caja.appendChild(extras);
+
     const aviso = document.createElement('div');
     aviso.className = 'pub-aviso';
     caja.appendChild(aviso);
@@ -6983,6 +7099,15 @@
       interruptor.disabled = cerrado;
       filaBotones.style.display = cerrado ? 'none' : '';
       galeria.querySelectorAll('.pub-acciones').forEach(a => { a.style.display = cerrado ? 'none' : ''; });
+      if(portadaFila){
+        const hay = !!(item.portada && item.portada.url);
+        portadaVista.style.display = hay ? '' : 'none';
+        if(hay && portadaVista.getAttribute('src') !== item.portada.url) portadaVista.src = item.portada.url;
+        portadaBtn.style.display = cerrado ? 'none' : '';
+        portadaBtn.innerHTML = hay ? '<i class="fa-regular fa-image"></i>Cambiar' : '<i class="fa-regular fa-image"></i>Subir portada';
+        portadaQuitar.style.display = hay && !cerrado ? '' : 'none';
+      }
+      if(colabInput) colabInput.disabled = cerrado;
       const faltan = problemasPublicacion(key, item, esStory);
       if(item.programar && estadoIG.cargado && !estadoIG.conectado && !estadoIG.noConfigurado && !estadoIG.error){
         faltan.unshift('conectar la cuenta de Instagram');

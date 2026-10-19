@@ -53,6 +53,7 @@ function problema(item, esStory) {
   if (kind === 'reel' && (media.length !== 1 || videos !== 1)) return 'Un reel lleva exactamente un video.';
   if (kind === 'imagen' && (media.length !== 1 || videos !== 0)) return 'Un posteo de imagen lleva exactamente una imagen.';
   if (kind === 'carrusel' && (media.length < 2 || media.length > 10)) return 'Un carrusel lleva entre 2 y 10 archivos.';
+  if ((item.colaboradores || []).length > 3) return 'Instagram admite hasta 3 colaboradores.';
   return '';
 }
 
@@ -70,6 +71,10 @@ async function estadoContenedor(id, token) {
 async function empezar(item, esStory, cuenta, token) {
   const media = item.media;
   const caption = esStory ? undefined : (item.text || '');
+  // Colaboradores: van en el contenedor que se publica (en un carrusel, el padre, no cada
+  // imagen). Instagram los recibe como lista JSON de nombres de usuario.
+  const colab = (Array.isArray(item.colaboradores) ? item.colaboradores : []).slice(0, 3);
+  const conColab = (p) => colab.length ? Object.assign(p, { collaborators: JSON.stringify(colab) }) : p;
   const archivo = (m, extra) => Object.assign(
     m.tipo === 'video' ? { video_url: m.url } : { image_url: m.url }, extra);
 
@@ -78,17 +83,21 @@ async function empezar(item, esStory, cuenta, token) {
   }
   const kind = ['carrusel', 'imagen'].includes(item.kind) ? item.kind : 'reel';
   if (kind === 'imagen') {
-    return { contenedor: await crearContenedor(cuenta, token, { image_url: media[0].url, caption }) };
+    return { contenedor: await crearContenedor(cuenta, token, conColab({ image_url: media[0].url, caption })) };
   }
   if (kind === 'reel') {
-    return { contenedor: await crearContenedor(cuenta, token, { media_type: 'REELS', video_url: media[0].url, caption }) };
+    const reel = conColab({ media_type: 'REELS', video_url: media[0].url, caption });
+    // La portada es la miniatura con la que el reel aparece en el feed; sin ella, Instagram
+    // toma el primer cuadro del video.
+    if (item.portada && item.portada.url) reel.cover_url = item.portada.url;
+    return { contenedor: await crearContenedor(cuenta, token, reel) };
   }
   const hijos = [];
   for (const m of media) {
     hijos.push(await crearContenedor(cuenta, token,
       archivo(m, m.tipo === 'video' ? { media_type: 'VIDEO', is_carousel_item: 'true' } : { is_carousel_item: 'true' })));
   }
-  return { hijos, caption };
+  return { hijos, caption, colaboradores: colab };
 }
 
 // Avanza un registro "procesando" todo lo que se pueda en esta vuelta. Devuelve el registro
@@ -100,9 +109,9 @@ async function avanzar(reg, cuenta, token) {
       if (e.codigo === 'ERROR' || e.codigo === 'EXPIRED') throw new Error('Instagram rechazó un archivo del carrusel. ' + e.detalle);
       if (e.codigo !== 'FINISHED') return reg;
     }
-    reg.contenedor = await crearContenedor(cuenta, token, {
-      media_type: 'CAROUSEL', children: reg.hijos.join(','), caption: reg.caption || ''
-    });
+    const padre = { media_type: 'CAROUSEL', children: reg.hijos.join(','), caption: reg.caption || '' };
+    if (reg.colaboradores && reg.colaboradores.length) padre.collaborators = JSON.stringify(reg.colaboradores);
+    reg.contenedor = await crearContenedor(cuenta, token, padre);
   }
   const e = await estadoContenedor(reg.contenedor, token);
   if (e.codigo === 'ERROR' || e.codigo === 'EXPIRED') throw new Error('Instagram no pudo procesar el archivo. ' + e.detalle);
