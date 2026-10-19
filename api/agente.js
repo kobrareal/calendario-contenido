@@ -29,7 +29,7 @@ Cómo trabajás:
   encuadres, duración, qué decir en los primeros 3 segundos, qué mostrar, qué evitar.
 
 Sobre el calendario que te pasan:
-- Cada día puede tener posteos de feed (reel o carrusel) y stories.
+- Cada día puede tener posteos de feed (reel, carrusel o imagen sola) y stories.
 - Cada posteo tiene un ángulo de contenido, que es la categoría temática que definió la marca.
 - Un mes equilibrado no repite el mismo ángulo días seguidos ni concentra todo en una semana.
 
@@ -123,7 +123,7 @@ module.exports = async (req, res) => {
       return `    [${it.id}] ${tipo} | ${ang}${it.time ? ' | ' + it.time : ''}${t ? ' | ' + t : ''}`;
     };
     resumen.push(`  ${dia}:`);
-    feed.forEach(it => resumen.push(linea(it, it.kind === 'carrusel' ? 'carrusel' : 'reel')));
+    feed.forEach(it => resumen.push(linea(it, ['carrusel', 'imagen'].includes(it.kind) ? it.kind : 'reel')));
     stories.forEach(it => resumen.push(linea(it, 'story')));
   }
 

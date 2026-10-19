@@ -19,7 +19,7 @@
 const MODELOS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.0-flash'];
 const LARGO_MAXIMO_CONTEXTO = 4000;
 
-const ETIQUETAS = { reel: 'Reel', carrusel: 'Carrusel', story: 'Story' };
+const ETIQUETAS = { reel: 'Reel', carrusel: 'Carrusel', imagen: 'posteo de una sola imagen', story: 'Story' };
 
 // El copy tiene un techo de caracteres, y el largo se pide como parte del encargo en vez de
 // recortar lo que vuelve. Cortar a mano deja la última frase por la mitad, que es peor que
@@ -129,7 +129,8 @@ module.exports = async (req, res) => {
 
   // El carrusel es el caso aparte: nadie lo dice en voz alta, se lee en pantalla. Su guión
   // es el texto de cada placa, y pedirle "lo que se dice" devolvería un locutor sin video.
-  const esCarrusel = cuerpo.kind === 'carrusel';
+  // Una imagen sola se guiona igual: es texto que se lee sobre la imagen, no que se dice.
+  const esCarrusel = cuerpo.kind === 'carrusel' || cuerpo.kind === 'imagen';
 
   const baseGuion = esCarrusel
     ? 'Sos guionista de contenido para redes sociales. Escribís el texto que va ESCRITO EN ' +

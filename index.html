@@ -435,7 +435,7 @@
     .item-resumen.desborda:hover .item-resumen-txt{animation:none;}
     .item-resumen.desborda .item-resumen-txt{text-overflow:ellipsis;overflow:hidden;display:block;}
   }
-  .kind-toggle{display:flex;gap:6px;}
+  .kind-toggle{display:flex;gap:6px;flex-wrap:wrap;}
   .kind-opt{
     background:var(--card-bg-2);border:1px solid var(--border);color:var(--muted);
     padding:6px 10px;border-radius:8px;font-size:12px;cursor:pointer;
@@ -1827,6 +1827,37 @@
     --t-rojo:242,97,122;
   }
 
+  /* ---------- publicación automática ---------- */
+  .pub-box{
+    margin-top:var(--s-3);padding:var(--s-3);border-radius:var(--r-2);
+    border:1px solid var(--border);background:var(--surface);
+    display:flex;flex-direction:column;gap:var(--s-2);
+  }
+  .pub-box.activa{border-color:rgba(var(--t-violeta),.55);background:var(--accent-soft);}
+  .pub-head{display:flex;align-items:center;gap:var(--s-2);font-size:var(--t-sm);font-weight:600;cursor:pointer;}
+  .pub-head i{margin-right:2px;}
+  .pub-media{display:flex;flex-wrap:wrap;gap:var(--s-2);}
+  .pub-celda{position:relative;width:76px;height:76px;border-radius:var(--r-1);overflow:hidden;background:var(--card-bg-2);flex:none;}
+  .pub-celda img,.pub-celda video{width:100%;height:100%;object-fit:cover;display:block;}
+  .pub-marca,.pub-num{
+    position:absolute;font-size:var(--t-xs);color:#fff;background:rgba(0,0,0,.6);
+    border-radius:var(--r-1);padding:1px 5px;pointer-events:none;
+  }
+  .pub-marca{left:4px;bottom:4px;}
+  .pub-num{left:4px;top:4px;}
+  .pub-acciones{position:absolute;right:3px;top:3px;display:flex;gap:3px;}
+  .pub-acciones button{
+    width:22px;height:22px;border-radius:var(--r-1);border:none;cursor:pointer;
+    background:rgba(0,0,0,.65);color:#fff;font-size:11px;display:grid;place-items:center;
+  }
+  .pub-acciones button:hover{background:rgba(0,0,0,.85);}
+  .pub-aviso{font-size:var(--t-xs);line-height:var(--lh-xs);color:var(--muted);}
+  .pub-aviso.falta{color:#f0b849;}
+  .pub-aviso.ok{color:var(--ok);}
+  .pub-botones{display:flex;align-items:center;gap:var(--s-2);}
+  .pub-progreso{font-size:var(--t-xs);color:var(--muted);font-family:'IBM Plex Mono',monospace;}
+  .pub-botones .btn{--tinte:var(--t-violeta);}
+
   /* Base tintada: reemplaza el gris de var(--surface-2) por un azul muy diluido y
      un degradado apenas perceptible que le da volumen. */
   .btn{
@@ -1885,7 +1916,7 @@
   #undoBtn,#redoBtn{--tinte:var(--t-azul);}
 
   /* Por familia de acción, en el resto de la app. */
-  #addReelBtn,#addCarruselBtn,#addStoryBtn,#addIdeaBtn,#addAngleBtn,
+  #addReelBtn,#addCarruselBtn,#addImagenBtn,#addStoryBtn,#addIdeaBtn,#addAngleBtn,
   .btn-nueva-idea,#kitAgregarColor,[data-subir]{--tinte:var(--t-verde);}
   .ai-generate-btn,#agenteEnviarBtn{--tinte:var(--t-violeta);}
   #manageImagesBtn,.thumb-row .btn{--tinte:var(--t-cian);}
@@ -2271,6 +2302,7 @@
             <option value="">Todo el contenido</option>
             <option value="reel">Solo reels</option>
             <option value="carrusel">Solo carruseles</option>
+            <option value="imagen">Solo imágenes</option>
             <option value="story">Solo stories</option>
           </select>
           <select id="angleFilterSelect" title="Mostrar solo los días que tengan contenido de un ángulo">
@@ -2398,6 +2430,7 @@
                 <option value="">Cualquier tipo</option>
                 <option value="reel">Reel</option>
                 <option value="carrusel">Carrusel</option>
+                <option value="imagen">Imagen</option>
                 <option value="story">Story</option>
               </select>
               <div class="angle-picker" id="newIdeaAnglePicker" style="flex:1;"></div>
@@ -2411,6 +2444,7 @@
               <button type="button" class="ik-tab active" data-kind="">Todo</button>
               <button type="button" class="ik-tab" data-kind="reel">Reels</button>
               <button type="button" class="ik-tab" data-kind="carrusel">Carruseles</button>
+              <button type="button" class="ik-tab" data-kind="imagen">Imágenes</button>
               <button type="button" class="ik-tab" data-kind="story">Stories</button>
             </div>
             <select id="ideaFilterSelect" title="Filtrar por ángulo"><option value="">Todos los ángulos</option></select>
@@ -2509,6 +2543,7 @@
         <div style="display:flex;gap:6px;">
           <button type="button" class="btn ghost small admin-only" id="addReelBtn" title="Agregar un reel a este día">+ Reel</button>
           <button type="button" class="btn ghost small admin-only" id="addCarruselBtn" title="Agregar un carrusel a este día">+ Carrusel</button>
+          <button type="button" class="btn ghost small admin-only" id="addImagenBtn" title="Agregar un posteo de una sola imagen a este día">+ Imagen</button>
         </div>
       </div>
       <div id="feedContent">
@@ -2726,6 +2761,7 @@
     <select id="ideaToCalKind" class="idea-kind-select" style="width:100%;margin-bottom:var(--s-3);">
       <option value="reel">Reel</option>
       <option value="carrusel">Carrusel</option>
+      <option value="imagen">Imagen</option>
       <option value="story">Story</option>
     </select>
     <div style="display:flex;gap:var(--s-3);">
@@ -3176,7 +3212,7 @@
   let saveTimer = null;
   let angleModalDirty = false;
   let angleFilter = '';
-  // Filtro por tipo de posteo. '' = mostrar todo. 'reel' | 'carrusel' | 'story'.
+  // Filtro por tipo de posteo. '' = mostrar todo. 'reel' | 'carrusel' | 'imagen' | 'story'.
   // Los días que no tengan un ítem del tipo elegido quedan atenuados con .dimmed, misma
   // mecánica que angleFilter (no oculta días, solo baja su relieve para no perder la grilla).
   let kindFilter = '';
@@ -3274,6 +3310,16 @@
     'cambios':    { label:'Pidió cambios', icono:'✏️', color:'#f0b849' }
   };
 
+  // ---------- tipos de posteo del feed ----------
+  // La imagen sola se sumó con la publicación automática. Antes una foto suelta se cargaba
+  // como carrusel, pero Instagram pide entre 2 y 10 archivos para publicar un carrusel, así
+  // que el programador necesita saber de entrada cuál de los dos es.
+  // Lo que no se reconoce cae en reel, igual que hacía el código antes de que hubiera tres.
+  const KINDS_FEED = { reel:'Reel', carrusel:'Carrusel', imagen:'Imagen' };
+  const ICONOS_KIND = { reel:'🎬', carrusel:'🖼', imagen:'📷', story:'📱' };
+  function kindFeed(k){ return KINDS_FEED[k] ? k : 'reel'; }
+  function etiquetaKind(k){ return KINDS_FEED[kindFeed(k)]; }
+
   function normalizeEntry(entry){
     if(!entry) return {feed:[], stories:[]};
     let feed = entry.feed, stories = entry.stories;
@@ -3282,7 +3328,7 @@
       const angs = idsAngulos(it);
       return {
         id: it.id || genId(),
-        kind: it.kind==='carrusel' ? 'carrusel' : 'reel',
+        kind: kindFeed(it.kind),
         // `angle` es el espejo del primero de `angles`, para lo que todavía lee el campo
         // viejo (links de solo lectura ya entregados, extensión, asistente). Ver idsAngulos().
         angle: angs[0] || null,
@@ -3307,7 +3353,10 @@
         approvalAt: it.approvalAt || '',
         // Posición dentro del día cuando se acomodó a mano. null = todavía sin acomodar,
         // y entonces manda el horario. Ver compareByTime().
-        orden: Number.isFinite(it.orden) ? it.orden : null
+        orden: Number.isFinite(it.orden) ? it.orden : null,
+        // Archivos finales y pedido de publicación automática. Ver buildBloquePublicacion().
+        media: normalizarMedia(it.media),
+        programar: !!it.programar
       };
       });
     }else if(feed && (feed.angle || feed.text || feed.thumb)){
@@ -3338,7 +3387,10 @@
         approvalAt: it.approvalAt || '',
         // Posición dentro del día cuando se acomodó a mano. null = todavía sin acomodar,
         // y entonces manda el horario. Ver compareByTime().
-        orden: Number.isFinite(it.orden) ? it.orden : null
+        orden: Number.isFinite(it.orden) ? it.orden : null,
+        // Archivos finales y pedido de publicación automática. Ver buildBloquePublicacion().
+        media: normalizarMedia(it.media),
+        programar: !!it.programar
       };
       });
     }else if(stories && (stories.angle || stories.text)){
@@ -4145,7 +4197,7 @@
   $('pasteDayBtn').addEventListener('click', async ()=>{
     if(!openDate || !dayClipboard) return;
     pushUndo(openDate);
-    monthData[openDate] = JSON.parse(JSON.stringify(dayClipboard));
+    monthData[openDate] = copiaSinProgramar(dayClipboard);
     await saveDayNow(openDate);
     renderCalendar();
     openDayPanel(openDate);
@@ -4161,7 +4213,7 @@
       if(sourceDay>daysInMonth || targetDay>daysInMonth) continue;
       const sourceKey = dateKey(viewYear,viewMonth,sourceDay), targetKey = dateKey(viewYear,viewMonth,targetDay);
       pushUndo(targetKey);
-      monthData[targetKey] = JSON.parse(JSON.stringify(monthData[sourceKey] || {feed:[], stories:[]}));
+      monthData[targetKey] = copiaSinProgramar(monthData[sourceKey] || {feed:[], stories:[]});
       await saveDayNow(targetKey);
       count++;
     }
@@ -4317,7 +4369,7 @@
       }
       const tipo = document.createElement('span');
       tipo.className = 'sem-tipo';
-      tipo.textContent = listName === 'stories' ? 'Story' : (it.kind === 'carrusel' ? 'Carrusel' : 'Reel');
+      tipo.textContent = listName === 'stories' ? 'Story' : etiquetaKind(it.kind);
       arriba.appendChild(tipo);
       if(it.approval && it.approval !== 'sin-revisar'){
         const ap = document.createElement('span');
@@ -4475,7 +4527,7 @@
       const conFiltro = kindFilter !== '';
       const mostrarFeedVacia = !conFiltro;
       const mostrarStoriesVacia = !conFiltro;
-      if(!conFiltro || kindFilter === 'reel' || kindFilter === 'carrusel'){
+      if(!conFiltro || kindFilter !== 'story'){
         appendItemTags(tags, visibles.feed, mostrarFeedVacia ? 'R' : null, key, 'feed');
       }
       if(!conFiltro || kindFilter === 'story'){
@@ -4647,7 +4699,7 @@
     }
     items.forEach(it=>{
       const tag = document.createElement('div');
-      const kindLabel = it.kind ? (it.kind==='carrusel' ? 'C' : 'R') : 'S';
+      const kindLabel = it.kind ? ({carrusel:'C', imagen:'I'}[it.kind] || 'R') : 'S';
       const hiddenMark = it.hideFromPreview ? ' 🚫' : '';
       // En la celda del mes entra un solo nombre, así que se escribe el del primer ángulo y
       // los demás los cuenta el degradado del fondo. Los nombres completos están en el
@@ -4668,7 +4720,7 @@
       // el ancho es de unos cien píxeles: todo lo que se mete ahí le saca lugar al título,
       // que es lo único que permite reconocer el posteo de un vistazo. La hora, el estado y
       // la revisión del cliente se leen al pasar el mouse, y el resto al abrirlo.
-      const NOMBRE_TIPO = { R:'Reel', C:'Carrusel', S:'Story' };
+      const NOMBRE_TIPO = { R:'Reel', C:'Carrusel', I:'Imagen', S:'Story' };
       const tooltip = [
         (it.time ? it.time + ' · ' : '') + NOMBRE_TIPO[kindLabel],
         it.title || '',
@@ -5350,13 +5402,14 @@
   const TIPOS_POSTEO = [
     { valor:'reel',     etiqueta:'🎬 Reel' },
     { valor:'carrusel', etiqueta:'🖼 Carrusel' },
+    { valor:'imagen',   etiqueta:'📷 Imagen' },
     { valor:'story',    etiqueta:'📱 Story' }
   ];
 
   function buildSelectorTipo(key, item, esStory){
     const cont = document.createElement('div');
     cont.className = 'kind-toggle';
-    const actual = esStory ? 'story' : (item.kind === 'carrusel' ? 'carrusel' : 'reel');
+    const actual = esStory ? 'story' : kindFeed(item.kind);
 
     TIPOS_POSTEO.forEach(t=>{
       const btn = document.createElement('button');
@@ -5412,7 +5465,7 @@
     });
 
     enfocarTarjeta(item.id, { tope:true, destello:true });
-    showToast(vaAStories ? 'Pasó a Stories' : 'Pasó al feed como ' + (nuevo === 'carrusel' ? 'carrusel' : 'reel'));
+    showToast(vaAStories ? 'Pasó a Stories' : 'Pasó al feed como ' + etiquetaKind(nuevo).toLowerCase());
   }
 
   // Trae una tarjeta a la vista. Después de repintar la lista, el nodo anterior ya no existe
@@ -6224,7 +6277,7 @@
   // lleva la fecha y el tipo: en una lista de treinta tareas, "Reel" repetido no orienta.
   function tareaDesde(key, item, esStory){
     const [anio, mes, dia] = key.split('-').map(Number);
-    const tipo = esStory ? 'Story' : (item.kind === 'carrusel' ? 'Carrusel' : 'Reel');
+    const tipo = esStory ? 'Story' : etiquetaKind(item.kind);
     const angulo = nombresAngulos(item);
     const titulo = (item.title || '').trim();
 
@@ -6586,9 +6639,333 @@
     return card;
   }
 
+  // ---------- publicación automática en Instagram ----------
+  // Cada posteo guarda sus archivos finales (item.media) y si se tiene que publicar solo
+  // (item.programar). Lo publica una función del servidor que corre cada pocos minutos, así
+  // que no hace falta tener el calendario abierto a la hora de salir.
+  //
+  // "Programar" acá no es el estado de producción "Programado": ese indica que se cargó a
+  // mano en Instagram. Por eso el interruptor dice "Publicar automáticamente".
+  //
+  // Los archivos se suben a Supabase Storage por un permiso que firma /api/medios: van
+  // directo del navegador a Supabase porque Vercel no acepta cuerpos de más de 4,5 MB.
+
+  // Límite por archivo del plan gratis de Supabase. Un reel de 30 a 60 segundos exportado
+  // para redes entra de sobra; uno en 4K sin comprimir, no.
+  const PUB_MAX_BYTES = 50 * 1024 * 1024;
+  // Instagram toma imágenes de hasta 1440 px de ancho: más grande no se ve mejor, solo pesa más.
+  const PUB_MAX_LADO = 1440;
+  const PUB_MAX_COPY = 2200;
+  const PUB_MAX_HASHTAGS = 30;
+
+  function normalizarMedia(lista){
+    if(!Array.isArray(lista)) return [];
+    return lista
+      .filter(m => m && typeof m.url === 'string' && m.url)
+      .map(m => ({
+        url: m.url, ruta: m.ruta || '',
+        tipo: m.tipo === 'video' ? 'video' : 'imagen',
+        ancho: Number(m.ancho) || 0, alto: Number(m.alto) || 0
+      }));
+  }
+
+  // Qué falta para que el servidor pueda publicarlo. Vacío = listo. Las mismas reglas que
+  // aplica Instagram, revisadas acá para avisar mientras se arma y no a la hora de salir.
+  function problemasPublicacion(key, item, esStory){
+    const faltan = [];
+    const media = item.media || [];
+    const videos = media.filter(m => m.tipo === 'video').length;
+    const imagenes = media.length - videos;
+
+    if(!item.time) faltan.push('el horario');
+    else if(momentoDelPosteo(key, item) < Date.now()) faltan.push('un horario que no haya pasado');
+
+    if(esStory){
+      if(media.length !== 1) faltan.push(media.length ? 'dejar un solo archivo (una story lleva uno)' : 'la imagen o el video de la story');
+    }else{
+      const kind = kindFeed(item.kind);
+      if(kind === 'reel'){
+        if(videos !== 1 || imagenes) faltan.push(media.length ? 'dejar un solo video (un reel lleva uno)' : 'el video del reel');
+      }else if(kind === 'imagen'){
+        if(imagenes !== 1 || videos) faltan.push(media.length ? 'dejar una sola imagen' : 'la imagen');
+      }else{
+        if(media.length < 2) faltan.push('al menos 2 archivos (un carrusel lleva entre 2 y 10)');
+        if(media.length > 10) faltan.push('sacar archivos: un carrusel lleva hasta 10');
+      }
+      // Instagram rechaza imágenes de feed más altas que 4:5 o más anchas que 1.91:1.
+      const fuera = media.filter(m => m.tipo === 'imagen' && m.ancho && m.alto &&
+        (m.ancho / m.alto < 0.8 - 0.01 || m.ancho / m.alto > 1.91 + 0.01));
+      if(fuera.length) faltan.push(fuera.length === 1
+        ? 'recortar una imagen: el feed acepta de 4:5 (vertical) a 1.91:1 (horizontal)'
+        : `recortar ${fuera.length} imágenes: el feed acepta de 4:5 (vertical) a 1.91:1 (horizontal)`);
+
+      const texto = item.text || '';
+      if(texto.length > PUB_MAX_COPY) faltan.push(`acortar el copy (Instagram admite hasta ${PUB_MAX_COPY} caracteres)`);
+      if((texto.match(/#[^\s#]+/g) || []).length > PUB_MAX_HASHTAGS) faltan.push(`dejar ${PUB_MAX_HASHTAGS} hashtags como máximo`);
+    }
+    return faltan;
+  }
+
+  // Lee ancho y alto antes de subir: con eso se avisa de una proporción que Instagram va a
+  // rechazar sin tener que esperar a la hora de publicar.
+  function medidasDeVideo(file){
+    return new Promise(resolve=>{
+      const v = document.createElement('video');
+      v.preload = 'metadata';
+      v.muted = true;
+      const url = URL.createObjectURL(file);
+      const fin = (r)=>{ URL.revokeObjectURL(url); resolve(r); };
+      v.onloadedmetadata = ()=> fin({ ancho: v.videoWidth, alto: v.videoHeight });
+      v.onerror = ()=> fin({ ancho: 0, alto: 0 });
+      v.src = url;
+    });
+  }
+
+  // Toda imagen pasa a JPEG: es el único formato de imagen que acepta la API de Instagram,
+  // y así un PNG o una captura de pantalla funcionan igual sin que nadie tenga que convertirla.
+  function imagenAJpeg(file){
+    return new Promise((resolve, reject)=>{
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('No se pudo leer la imagen')); };
+      img.onload = ()=>{
+        URL.revokeObjectURL(url);
+        let w = img.naturalWidth, h = img.naturalHeight;
+        if(w > PUB_MAX_LADO){ h = Math.round(h * PUB_MAX_LADO / w); w = PUB_MAX_LADO; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        // Fondo blanco: un PNG con transparencia pasado a JPEG quedaría con fondo negro.
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+        canvas.toBlob(b => b ? resolve({ blob:b, ancho:w, alto:h }) : reject(new Error('No se pudo convertir la imagen')),
+          'image/jpeg', 0.92);
+      };
+      img.src = url;
+    });
+  }
+
+  // Sube un archivo y devuelve la entrada para item.media. alProgreso recibe 0..1.
+  async function subirMedio(file, alProgreso){
+    let blob, tipoMime, medidas, tipo;
+    if(file.type.startsWith('image/')){
+      const r = await imagenAJpeg(file);
+      blob = r.blob; tipoMime = 'image/jpeg'; medidas = r; tipo = 'imagen';
+    }else if(file.type === 'video/mp4' || file.type === 'video/quicktime'){
+      blob = file; tipoMime = file.type; medidas = await medidasDeVideo(file); tipo = 'video';
+    }else{
+      throw new Error('Formato no admitido. Usá una imagen, o un video MP4 o MOV.');
+    }
+    if(blob.size > PUB_MAX_BYTES){
+      throw new Error(`El archivo pesa ${Math.round(blob.size/1048576)} MB y el máximo es ${PUB_MAX_BYTES/1048576} MB. Exportalo más liviano.`);
+    }
+
+    const res = await fetch('/api/medios', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ token: TOKEN, accion:'firmar', tipo: tipoMime, cliente: CLIENT_ID }),
+      cache:'no-store'
+    });
+    let json = null;
+    try{ json = await res.json(); }catch(e){ /* sin JSON: se reporta abajo */ }
+    if(!res.ok || !json) throw new Error((json && json.error) || ('No se pudo preparar la subida (' + res.status + ')'));
+
+    // XMLHttpRequest y no fetch: fetch no informa el avance de una subida, y con un video
+    // de 40 MB una barra quieta parece colgada.
+    await new Promise((resolve, reject)=>{
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', json.subida);
+      xhr.setRequestHeader('Content-Type', tipoMime);
+      xhr.upload.onprogress = e => { if(e.lengthComputable && alProgreso) alProgreso(e.loaded / e.total); };
+      xhr.onload = ()=> (xhr.status >= 200 && xhr.status < 300) ? resolve()
+        : reject(new Error('La subida falló (' + xhr.status + ')'));
+      xhr.onerror = ()=> reject(new Error('Se cortó la conexión durante la subida'));
+      xhr.send(blob);
+    });
+
+    return { url: json.url, ruta: json.ruta, tipo, ancho: medidas.ancho || 0, alto: medidas.alto || 0 };
+  }
+
+  function buildBloquePublicacion(key, item, esStory){
+    const caja = document.createElement('div');
+    caja.className = 'pub-box';
+
+    const cabeza = document.createElement('label');
+    cabeza.className = 'pub-head';
+    const interruptor = document.createElement('input');
+    interruptor.type = 'checkbox';
+    interruptor.checked = !!item.programar;
+    const titulo = document.createElement('span');
+    titulo.innerHTML = '<i class="fa-brands fa-instagram"></i> Publicar automáticamente';
+    cabeza.appendChild(interruptor);
+    cabeza.appendChild(titulo);
+    caja.appendChild(cabeza);
+
+    const galeria = document.createElement('div');
+    galeria.className = 'pub-media';
+    caja.appendChild(galeria);
+
+    const aviso = document.createElement('div');
+    aviso.className = 'pub-aviso';
+    caja.appendChild(aviso);
+
+    const filaBotones = document.createElement('div');
+    filaBotones.className = 'pub-botones';
+    const subirBtn = document.createElement('button');
+    subirBtn.type = 'button'; subirBtn.className = 'btn small';
+    subirBtn.innerHTML = '<i class="fa-solid fa-cloud-arrow-up"></i>Subir archivos';
+    subirBtn.title = 'Las imágenes y videos finales, tal como se van a publicar';
+    const entrada = document.createElement('input');
+    entrada.type = 'file'; entrada.style.display = 'none';
+    entrada.accept = 'image/*,video/mp4,video/quicktime';
+    // Solo el carrusel lleva varios: en el resto, elegir uno solo evita subir de más.
+    entrada.multiple = !esStory && kindFeed(item.kind) === 'carrusel';
+    const progreso = document.createElement('span');
+    progreso.className = 'pub-progreso';
+    filaBotones.appendChild(subirBtn);
+    filaBotones.appendChild(entrada);
+    filaBotones.appendChild(progreso);
+    caja.appendChild(filaBotones);
+
+    const pintarAviso = ()=>{
+      const faltan = problemasPublicacion(key, item, esStory);
+      caja.classList.toggle('activa', !!item.programar);
+      aviso.classList.remove('ok', 'falta');
+      if(!item.programar){
+        aviso.textContent = faltan.length ? 'Para publicarlo solo falta: ' + faltan.join(' · ') : 'Listo para programar.';
+        return;
+      }
+      if(faltan.length){
+        aviso.classList.add('falta');
+        aviso.textContent = 'No se va a publicar hasta que cargues: ' + faltan.join(' · ');
+      }else{
+        aviso.classList.add('ok');
+        const [y, m, d] = key.split('-');
+        aviso.textContent = `Se publica solo el ${d}/${m} a las ${item.time}.` +
+          (esStory ? ' Las stories se publican sin texto: Instagram no deja agregarlo por API.' : '');
+      }
+    };
+
+    const pintarGaleria = ()=>{
+      galeria.innerHTML = '';
+      const media = item.media || [];
+      media.forEach((m, i)=>{
+        const celda = document.createElement('div');
+        celda.className = 'pub-celda';
+        const vista = document.createElement(m.tipo === 'video' ? 'video' : 'img');
+        vista.src = m.url;
+        if(m.tipo === 'video'){ vista.muted = true; vista.preload = 'metadata'; }
+        else vista.alt = 'Archivo ' + (i + 1);
+        celda.appendChild(vista);
+        if(m.tipo === 'video'){
+          const marca = document.createElement('span');
+          marca.className = 'pub-marca'; marca.innerHTML = '<i class="fa-solid fa-play"></i>';
+          celda.appendChild(marca);
+        }
+        if(media.length > 1){
+          const num = document.createElement('span');
+          num.className = 'pub-num'; num.textContent = i + 1;
+          celda.appendChild(num);
+        }
+        const acciones = document.createElement('div');
+        acciones.className = 'pub-acciones';
+        // Mover a la izquierda alcanza para cualquier orden y no gasta un segundo botón
+        // en una celda chica.
+        if(i > 0){
+          const izq = document.createElement('button');
+          izq.type = 'button'; izq.title = 'Mover antes'; izq.innerHTML = '<i class="fa-solid fa-arrow-left"></i>';
+          izq.addEventListener('click', ()=>{
+            pushUndo(key);
+            [media[i-1], media[i]] = [media[i], media[i-1]];
+            guardar();
+          });
+          acciones.appendChild(izq);
+        }
+        const quitar = document.createElement('button');
+        quitar.type = 'button'; quitar.title = 'Quitar este archivo'; quitar.innerHTML = '<i class="fa-solid fa-xmark"></i>';
+        // El archivo queda en el almacenamiento: puede estar usado por un posteo duplicado
+        // o por una copia del día, y borrarlo dejaría a ese otro sin su archivo.
+        quitar.addEventListener('click', ()=>{
+          pushUndo(key);
+          media.splice(i, 1);
+          guardar();
+        });
+        acciones.appendChild(quitar);
+        celda.appendChild(acciones);
+        galeria.appendChild(celda);
+      });
+      galeria.style.display = media.length ? '' : 'none';
+    };
+
+    const guardar = ()=>{
+      scheduleSaveDay(key);
+      pintarGaleria();
+      pintarAviso();
+      renderCalendarPronto();
+    };
+
+    interruptor.addEventListener('change', ()=>{
+      pushUndo(key);
+      item.programar = interruptor.checked;
+      guardar();
+      showToast(item.programar ? 'Programado para publicarse solo' : 'Ya no se publica solo');
+    });
+
+    subirBtn.addEventListener('click', ()=> entrada.click());
+    entrada.addEventListener('change', async ()=>{
+      const archivos = [...entrada.files];
+      entrada.value = '';
+      if(!archivos.length) return;
+      subirBtn.disabled = true;
+      let subidos = 0;
+      try{
+        for(const [n, archivo] of archivos.entries()){
+          const prefijo = archivos.length > 1 ? `${n+1}/${archivos.length} · ` : '';
+          progreso.textContent = prefijo + 'preparando…';
+          const nuevo = await subirMedio(archivo, p => { progreso.textContent = prefijo + Math.round(p*100) + '%'; });
+          if(!Array.isArray(item.media)) item.media = [];
+          pushUndo(key);
+          item.media.push(nuevo);
+          // La miniatura de la vista previa sale del primer archivo si todavía no tenía una:
+          // ya está la imagen final, no tiene sentido pedir que se cargue otra.
+          if(!item.thumb && nuevo.tipo === 'imagen'){
+            try{
+              item.thumb = await compressImageFile(archivo);
+              const vista = caja.closest('.item-card') && caja.closest('.item-card').querySelector('.thumb-preview');
+              if(vista){ vista.src = item.thumb; vista.classList.add('show'); }
+            }catch(e){ /* sin miniatura */ }
+          }
+          subidos++;
+          guardar();
+        }
+        progreso.textContent = '';
+        showToast(subidos === 1 ? 'Archivo subido' : `${subidos} archivos subidos`);
+      }catch(err){
+        progreso.textContent = '';
+        showToast(err.message || 'No se pudo subir el archivo');
+      }finally{
+        subirBtn.disabled = false;
+        if(subidos) renderCalendar();
+      }
+    });
+
+    pintarGaleria();
+    pintarAviso();
+    return caja;
+  }
+
+  // Una copia nunca sale programada: que el mismo contenido se publique dos veces porque se
+  // duplicó un día para usarlo de base es justo el error que no se puede deshacer.
+  function copiaSinProgramar(entrada){
+    const c = JSON.parse(JSON.stringify(entrada));
+    ['feed', 'stories'].forEach(l => (c[l] || []).forEach(it => { it.programar = false; }));
+    return c;
+  }
+
   function createFeedItemCard(key, item){
     if(IS_READONLY){
-      return createReadOnlyItemCard(key, item, { kindLabel: item.kind==='carrusel' ? '🖼 Carrusel' : '🎬 Reel', hasThumb:true });
+      return createReadOnlyItemCard(key, item, { kindLabel: ICONOS_KIND[kindFeed(item.kind)] + ' ' + etiquetaKind(item.kind), hasThumb:true });
     }
     const card = document.createElement('div');
     card.className = 'item-card';
@@ -6728,7 +7105,7 @@
     // gastaba un renglón entero para tres cifras, y arriba queda a la vista mientras se
     // escribe sin tener que buscarlo al pie.
     textLabel.appendChild(agregarContador(textarea));
-    cuerpo.appendChild(buildAiBox(key, item, item.kind==='carrusel' ? 'carrusel' : 'reel', (text)=>{
+    cuerpo.appendChild(buildAiBox(key, item, kindFeed(item.kind), (text)=>{
       textarea.value = text;
       textarea._refrescarContador();
     }));
@@ -6782,7 +7159,7 @@
     let bloqueGuion = null;
     const alternarGuion = ()=>{
       if(!bloqueGuion){
-        bloqueGuion = buildBloqueGuion(key, item, item.kind==='carrusel' ? 'carrusel' : 'reel');
+        bloqueGuion = buildBloqueGuion(key, item, kindFeed(item.kind));
         scriptContainer.appendChild(bloqueGuion);
         scriptBtn.innerHTML = '<i class="fa-solid fa-clapperboard"></i>Ocultar guión';
       }else{
@@ -6901,6 +7278,7 @@
     // Sin etiqueta "Miniatura": los botones ya dicen qué hacen, y ponerla al costado
     // gastaba la columna izquierda entera para un control que ocupa dos renglones.
     cuerpo.appendChild(thumbRow);
+    cuerpo.appendChild(buildBloquePublicacion(key, item, false));
     // El estado ya no va acá: comparte el renglón de arriba con "No mostrar en el feed".
     cuerpo.appendChild(buildClientNoteBox(key, item));
     cuerpo.appendChild(buildClickupRow(key, item, false));
@@ -7091,6 +7469,7 @@
     cuerpo.appendChild(accionesRow);
     cuerpo.appendChild(scriptContainer); // acá se despliega el textarea del guión al pedirlo
 
+    cuerpo.appendChild(buildBloquePublicacion(key, item, true));
     // El estado ya se puso arriba, junto al resto de las decisiones de la tarjeta.
     cuerpo.appendChild(buildClientNoteBox(key, item));
     cuerpo.appendChild(buildClickupRow(key, item, true));
@@ -7120,6 +7499,8 @@
     agregarPosteo('feed', {kind:'reel', angle:null, text:'', thumb:''}, 'feed'));
   $('addCarruselBtn').addEventListener('click', ()=>
     agregarPosteo('feed', {kind:'carrusel', angle:null, text:'', thumb:''}, 'feed'));
+  $('addImagenBtn').addEventListener('click', ()=>
+    agregarPosteo('feed', {kind:'imagen', angle:null, text:'', thumb:''}, 'feed'));
   $('addStoryBtn').addEventListener('click', ()=>
     agregarPosteo('stories', {angle:null, text:''}, 'stories'));
 
@@ -7635,7 +8016,7 @@
     items.forEach(item=>{
       const row = document.createElement('div');
       row.className = 'image-row';
-      const kindLabel = item.kind==='carrusel' ? 'Carrusel' : 'Reel';
+      const kindLabel = etiquetaKind(item.kind);
       row.innerHTML = `
         <img src="${item.thumb}" alt="" />
         <div class="info">Día ${item.d} · ${kindLabel} <div class="d">${MESES[viewMonth]} ${viewYear}</div></div>
@@ -7958,7 +8339,7 @@
       const meta = document.createElement('div');
       meta.className = 'meta';
       meta.appendChild(tiraDeAngulos(it));
-      const tipo = entrada.lista === 'stories' ? 'Story' : (it.kind === 'carrusel' ? 'Carrusel' : 'Reel');
+      const tipo = entrada.lista === 'stories' ? 'Story' : etiquetaKind(it.kind);
       const detalle = document.createElement('span');
       const restan = diasRestantes(entrada);
       detalle.textContent = `${tipo} · del ${entrada.dia} · se borra en ${restan} día${restan===1?'':'s'}`;
@@ -8041,7 +8422,7 @@
       const campos = ['titulo','texto','angulo'].filter(k=>c[k]).map(k=>k);
       return { titulo: `Modificar un posteo del ${cuando}`, detalle: 'Cambia: ' + (campos.join(', ') || 'nada') + (c.titulo ? ' → “'+String(c.titulo).slice(0,60)+'”' : '') };
     }
-    const tipo = c.lista === 'stories' ? 'story' : (c.kind === 'carrusel' ? 'carrusel' : 'reel');
+    const tipo = c.lista === 'stories' ? 'story' : kindFeed(c.kind);
     return {
       titulo: `Agregar un ${tipo} el ${cuando}`,
       detalle: [c.angulo ? 'Ángulo: ' + c.angulo : null, (c.titulo || c.texto || '').slice(0,90) || null].filter(Boolean).join(' · ')
@@ -8134,8 +8515,8 @@
     if(c.accion === 'agregar'){
       const tipo = document.createElement('select');
       tipo.className = 'cambio-input';
-      tipo.innerHTML = '<option value="reel">Reel</option><option value="carrusel">Carrusel</option><option value="story">Story</option>';
-      tipo.value = c.lista === 'stories' ? 'story' : (c.kind === 'carrusel' ? 'carrusel' : 'reel');
+      tipo.innerHTML = '<option value="reel">Reel</option><option value="carrusel">Carrusel</option><option value="imagen">Imagen</option><option value="story">Story</option>';
+      tipo.value = c.lista === 'stories' ? 'story' : kindFeed(c.kind);
       tipo.addEventListener('change', ()=>{
         // La lista y el kind son dos campos que tienen que moverse juntos: una story no
         // lleva kind, y un posteo de feed no puede quedar en la lista de stories.
@@ -8198,7 +8579,7 @@
       const lista = c.lista === 'stories' ? 'stories' : 'feed';
       const nuevo = {
         id: genId(),
-        kind: lista === 'feed' ? (c.kind === 'carrusel' ? 'carrusel' : 'reel') : undefined,
+        kind: lista === 'feed' ? kindFeed(c.kind) : undefined,
         // El asistente propone un ángulo por posteo. Se guardan los dos campos para que el
         // posteo nazca con la misma forma que los que se cargan a mano.
         angle: anguloPorNombre(c.angulo),
@@ -8640,7 +9021,7 @@
 
   function abrirDuplicarItem(item, tipo, keyOrigen){
     dupPendiente = { item, tipo };
-    const etiqueta = tipo === 'stories' ? 'story' : (item.kind === 'carrusel' ? 'carrusel' : 'reel');
+    const etiqueta = tipo === 'stories' ? 'story' : etiquetaKind(item.kind).toLowerCase();
     const resumen = (item.text || item.context || item.title || '').trim();
     $('dupItemHint').textContent = resumen
       ? `Vas a duplicar el ${etiqueta}: “${resumen.slice(0,70)}${resumen.length>70?'…':''}”`
@@ -8652,6 +9033,7 @@
   async function duplicarItemEnFecha(item, tipo, destinoKey){
     const copia = JSON.parse(JSON.stringify(item));
     copia.id = genId(); // id nuevo: si comparte el del original, editar uno editaría los dos
+    copia.programar = false; // ver copiaSinProgramar()
 
     const prefijoMesVisible = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-`;
     if(destinoKey.startsWith(prefijoMesVisible)){
@@ -8826,7 +9208,7 @@
   let ideas = [];
   let newIdeaAngleIds = []; // ángulos elegidos en el formulario de alta
   let ideaFilterAngle = '';
-  let ideaFilterKind = ''; // '' = todos | 'reel' | 'carrusel' | 'story'
+  let ideaFilterKind = ''; // '' = todos | 'reel' | 'carrusel' | 'imagen' | 'story'
 
   // ¿El link de referencia apunta a un video? Sirve para marcar la miniatura con un ▶ y que
   // se entienda que hay algo para mirar, no solo una foto.
@@ -9036,6 +9418,7 @@
       <option value="">Sin tipo</option>
       <option value="reel">Reel</option>
       <option value="carrusel">Carrusel</option>
+      <option value="imagen">Imagen</option>
       <option value="story">Story</option>
     `;
     kindSel.value = idea.kind || '';
@@ -9132,6 +9515,7 @@
       <option value="">Cualquier tipo</option>
       <option value="reel">Reel</option>
       <option value="carrusel">Carrusel</option>
+      <option value="imagen">Imagen</option>
       <option value="story">Story</option>
     `;
     kindSelect.value = idea.kind || '';
@@ -9307,7 +9691,7 @@
       if(kind === 'story'){
         entrada.stories.push(nuevo);
       }else{
-        nuevo.kind = (kind === 'carrusel') ? 'carrusel' : 'reel';
+        nuevo.kind = kindFeed(kind);
         entrada.feed.push(nuevo);
       }
       entrada.feed.sort(compareByTime);
@@ -9426,7 +9810,7 @@
           const d = Number(dayKeyStr.split('-')[2]);
           (entry.feed||[]).forEach(it=>{
             if(matchesSearch(it, keyword, angleFilterVal)){
-              results.push({key: dayKeyStr, year, month, d, kind: it.kind==='carrusel'?'🖼 Carrusel':'🎬 Reel', angles: idsAngulos(it), text: it.text||it.context||''});
+              results.push({key: dayKeyStr, year, month, d, kind: ICONOS_KIND[kindFeed(it.kind)] + ' ' + etiquetaKind(it.kind), angles: idsAngulos(it), text: it.text||it.context||''});
             }
           });
           (entry.stories||[]).forEach(it=>{
