@@ -6678,12 +6678,10 @@
   // "Programar" acá no es el estado de producción "Programado": ese indica que se cargó a
   // mano en Instagram. Por eso el interruptor dice "Publicar automáticamente".
   //
-  // Los archivos se suben a Supabase Storage por un permiso que firma /api/medios: van
-  // directo del navegador a Supabase porque Vercel no acepta cuerpos de más de 4,5 MB.
-
-  // Límite por archivo del plan gratis de Supabase. Un reel de 30 a 60 segundos exportado
-  // para redes entra de sobra; uno en 4K sin comprimir, no.
-  const PUB_MAX_BYTES = 50 * 1024 * 1024;
+  // Los archivos se suben a Cloudflare R2 (o a Supabase, si R2 no está configurado) por un
+  // permiso que firma /api/medios: van directo del navegador al almacenamiento porque Vercel
+  // no acepta cuerpos de más de 4,5 MB. El tope de tamaño lo pone el servidor, que sabe
+  // dónde se guarda: 300 MB con R2, 50 MB con Supabase.
   // Instagram toma imágenes de hasta 1440 px de ancho: más grande no se ve mejor, solo pesa más.
   const PUB_MAX_LADO = 1440;
   const PUB_MAX_COPY = 2200;
@@ -6805,14 +6803,10 @@
     }else{
       throw new Error('Formato no admitido. Usá una imagen, o un video MP4 o MOV.');
     }
-    if(blob.size > PUB_MAX_BYTES){
-      throw new Error(`El archivo pesa ${Math.round(blob.size/1048576)} MB y el máximo es ${PUB_MAX_BYTES/1048576} MB. Exportalo más liviano.`);
-    }
-
     const res = await fetch('/api/medios', {
       method:'POST',
       headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ token: TOKEN, accion:'firmar', tipo: tipoMime, cliente: CLIENT_ID }),
+      body: JSON.stringify({ token: TOKEN, accion:'firmar', tipo: tipoMime, tamano: blob.size, cliente: CLIENT_ID }),
       cache:'no-store'
     });
     let json = null;

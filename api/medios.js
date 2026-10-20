@@ -1,17 +1,24 @@
 // Archivos finales de cada posteo: el video del reel, las imágenes del carrusel, la story.
 //
 // Instagram no recibe archivos: recibe un link público y lo descarga él. Así que cada
-// archivo tiene que vivir en algún lado con dirección propia, y ese lado es Supabase Storage,
-// la misma cuenta que ya guarda los datos. El plan gratis trae 1 GB y no suma otro servicio.
+// archivo tiene que vivir en algún lado con dirección propia. Ese lado es Cloudflare R2 si
+// está configurado (lib/r2.js: 10 GB gratis, archivos grandes) y si no, Supabase Storage, la
+// misma cuenta que guarda los datos (gratis hasta 50 MB por archivo y 1 GB en total).
 //
 // El archivo NO pasa por esta función: Vercel corta los cuerpos de más de 4,5 MB y un reel
 // pesa bastante más. Acá solo se firma un permiso de subida para una ruta puntual, y el
-// navegador sube directo a Supabase con ese permiso. La service_key nunca sale del servidor.
+// navegador sube directo con ese permiso. Las claves nunca salen del servidor.
 //
 // Las rutas empiezan con la marca ("marca/2026-10/abc123.jpg"): es lo que permite verificar
 // al borrar que nadie toque archivos de otra marca, con el mismo criterio que lib/acceso.js.
 
 const { SUPABASE_URL, SERVICE_KEY, cabeceras, resolverToken, codigoAlAzar } = require('../lib/acceso');
+const { r2Configurado, permisoDeSubida } = require('../lib/r2');
+
+// Tope por archivo según dónde se guarde. Con R2 manda Instagram: 300 MB es lo máximo que
+// acepta para un reel. Con Supabase manda su plan gratis.
+const MB = 1024 * 1024;
+const MAXIMO = () => (r2Configurado() ? 300 : 50) * MB;
 
 const BUCKET = 'medios';
 const STORAGE = () => SUPABASE_URL + '/storage/v1';
@@ -62,11 +69,19 @@ module.exports = async (req, res) => {
     if (cuerpo.accion === 'firmar') {
       const ext = EXTENSIONES[cuerpo.tipo];
       if (!ext) return res.status(400).json({ error: 'Formato no admitido. Usá JPG, MP4 o MOV.' });
+      const tamano = Number(cuerpo.tamano) || 0;
+      if (tamano > MAXIMO()) {
+        return res.status(413).json({
+          error: `El archivo pesa ${Math.round(tamano / MB)} MB y el máximo es ${MAXIMO() / MB} MB. Exportalo más liviano.`
+        });
+      }
 
-      await asegurarBucket();
       const mes = new Date().toISOString().slice(0, 7);
       const ruta = `${carpetaDe(sesion, cuerpo.cliente)}/${mes}/${codigoAlAzar(16)}.${ext}`;
 
+      if (r2Configurado()) return res.status(200).json(Object.assign({ ruta }, permisoDeSubida(ruta)));
+
+      await asegurarBucket();
       const r = await fetch(`${STORAGE()}/object/upload/sign/${BUCKET}/${ruta}`, {
         method: 'POST', headers: cabeceras(), body: '{}'
       });
