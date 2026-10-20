@@ -1,0 +1,8 @@
+{
+  "name": "calendario-contenido",
+  "private": true,
+  "description": "Las funciones de api/ usan @vercel/blob para guardar los archivos finales de cada posteo.",
+  "dependencies": {
+    "@vercel/blob": "2.8.2"
+  }
+}

@@ -19,6 +19,7 @@
 // (el mismo formato que usa Vercel Cron, por si algún día se pasa a ese).
 
 const { leerRegistro, leerClaves } = require('../lib/acceso');
+const { borrarArchivos } = require('../lib/archivos');
 const {
   APP_SECRET, claveConexion, claveRegistro, prefijoDatos, leerJson, guardarJson, graph
 } = require('../lib/instagram');
@@ -228,6 +229,10 @@ module.exports = async (req, res) => {
         registro[c.id] = { estado: 'publicado', mediaId: publicado.id, permalink, at: new Date().toISOString() };
         await guardar();
         anotar(marca, c.id, 'publicado');
+        // Instagram ya tiene su copia: los archivos se borran para no llenar el almacenamiento.
+        // Si falla no pasa nada grave; el posteo salió igual.
+        const borrados = await borrarArchivos([].concat(c.item.media || [], c.item.portada || []));
+        if (borrados.error) anotar(marca, c.id, 'no se pudieron borrar los archivos: ' + borrados.error);
       } catch (e) {
         const msg = e.codigo === 190
           ? 'La conexión con Instagram venció o se revocó. Volvé a conectar la cuenta.'

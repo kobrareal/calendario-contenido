@@ -1839,6 +1839,11 @@
   .pub-media{display:flex;flex-wrap:wrap;gap:var(--s-2);}
   .pub-celda{position:relative;width:76px;height:76px;border-radius:var(--r-1);overflow:hidden;background:var(--card-bg-2);flex:none;}
   .pub-celda img,.pub-celda video{width:100%;height:100%;object-fit:cover;display:block;}
+  .pub-celda.borrado img,.pub-celda.borrado video{display:none;}
+  .pub-celda.borrado::after{
+    content:'Borrado tras publicar';position:absolute;inset:0;display:grid;place-items:center;
+    text-align:center;padding:4px;font-size:10px;line-height:1.2;color:var(--muted);
+  }
   .pub-marca,.pub-num{
     position:absolute;font-size:var(--t-xs);color:#fff;background:rgba(0,0,0,.6);
     border-radius:var(--r-1);padding:1px 5px;pointer-events:none;
@@ -6678,10 +6683,10 @@
   // "Programar" acá no es el estado de producción "Programado": ese indica que se cargó a
   // mano en Instagram. Por eso el interruptor dice "Publicar automáticamente".
   //
-  // Los archivos se suben a Cloudflare R2 (o a Supabase, si R2 no está configurado) por un
-  // permiso que firma /api/medios: van directo del navegador al almacenamiento porque Vercel
-  // no acepta cuerpos de más de 4,5 MB. El tope de tamaño lo pone el servidor, que sabe
-  // dónde se guarda: 300 MB con R2, 50 MB con Supabase.
+  // Los archivos van directo del navegador al almacenamiento (Vercel no acepta cuerpos de más
+  // de 4,5 MB), con un permiso que firma /api/medios. Dónde se guardan lo decide el servidor:
+  // Cloudflare R2, Vercel Blob o Supabase. El tope de tamaño también: 300 MB en los dos
+  // primeros, 50 MB en Supabase.
   // Instagram toma imágenes de hasta 1440 px de ancho: más grande no se ve mejor, solo pesa más.
   const PUB_MAX_LADO = 1440;
   const PUB_MAX_COPY = 2200;
@@ -6812,6 +6817,23 @@
     let json = null;
     try{ json = await res.json(); }catch(e){ /* sin JSON: se reporta abajo */ }
     if(!res.ok || !json) throw new Error((json && json.error) || ('No se pudo preparar la subida (' + res.status + ')'));
+
+    // Vercel Blob: la subida la hace su propia librería, que pide el permiso a /api/medios
+    // para la ruta que se acaba de reservar. Se carga recién acá —pesa 100 KB— porque la
+    // mayoría de las visitas al calendario no suben nada.
+    if(json.modo === 'blob'){
+      const { upload } = await import('/vendor/vercel-blob-client.js');
+      const subido = await upload(json.ruta, blob, {
+        access: 'public',
+        handleUploadUrl: '/api/medios',
+        clientPayload: JSON.stringify({ token: TOKEN, cliente: CLIENT_ID }),
+        contentType: tipoMime,
+        // En partes a partir de 20 MB: si se corta la conexión se reintenta la parte, no todo.
+        multipart: blob.size > 20 * 1024 * 1024,
+        onUploadProgress: e => { if(alProgreso) alProgreso(e.percentage / 100); }
+      });
+      return { url: subido.url, ruta: json.ruta, tipo, ancho: medidas.ancho || 0, alto: medidas.alto || 0 };
+    }
 
     // XMLHttpRequest y no fetch: fetch no informa el avance de una subida, y con un video
     // de 40 MB una barra quieta parece colgada.
@@ -7096,7 +7118,10 @@
       if(portadaFila){
         const hay = !!(item.portada && item.portada.url);
         portadaVista.style.display = hay ? '' : 'none';
-        if(hay && portadaVista.getAttribute('src') !== item.portada.url) portadaVista.src = item.portada.url;
+        if(hay && portadaVista.getAttribute('src') !== item.portada.url){
+          portadaVista.onerror = ()=>{ portadaVista.style.display = 'none'; };
+          portadaVista.src = item.portada.url;
+        }
         portadaBtn.style.display = cerrado ? 'none' : '';
         portadaBtn.innerHTML = hay ? '<i class="fa-regular fa-image"></i>Cambiar' : '<i class="fa-regular fa-image"></i>Subir portada';
         portadaQuitar.style.display = hay && !cerrado ? '' : 'none';
@@ -7131,6 +7156,12 @@
         const celda = document.createElement('div');
         celda.className = 'pub-celda';
         const vista = document.createElement(m.tipo === 'video' ? 'video' : 'img');
+        // Después de publicarse, el archivo se borra del almacenamiento (ver api/publicar.js):
+        // se muestra eso en vez de un ícono de imagen rota.
+        vista.addEventListener('error', ()=>{
+          celda.classList.add('borrado');
+          celda.title = 'El archivo se borró del almacenamiento después de publicarse';
+        });
         vista.src = m.url;
         if(m.tipo === 'video'){ vista.muted = true; vista.preload = 'metadata'; }
         else vista.alt = 'Archivo ' + (i + 1);
@@ -7236,10 +7267,17 @@
 
   // Una copia nunca sale programada: que el mismo contenido se publique dos veces porque se
   // duplicó un día para usarlo de base es justo el error que no se puede deshacer.
+  // Tampoco se lleva los archivos finales: el publicador los borra apenas sale el original
+  // (para no llenar el almacenamiento), y la copia se quedaría apuntando a nada.
   function copiaSinProgramar(entrada){
     const c = JSON.parse(JSON.stringify(entrada));
-    ['feed', 'stories'].forEach(l => (c[l] || []).forEach(it => { it.programar = false; }));
+    ['feed', 'stories'].forEach(l => (c[l] || []).forEach(sinArchivosFinales));
     return c;
+  }
+  function sinArchivosFinales(it){
+    it.programar = false;
+    it.media = [];
+    it.portada = null;
   }
 
   function createFeedItemCard(key, item){
@@ -9312,7 +9350,7 @@
   async function duplicarItemEnFecha(item, tipo, destinoKey){
     const copia = JSON.parse(JSON.stringify(item));
     copia.id = genId(); // id nuevo: si comparte el del original, editar uno editaría los dos
-    copia.programar = false; // ver copiaSinProgramar()
+    sinArchivosFinales(copia); // ver copiaSinProgramar()
 
     const prefijoMesVisible = `${viewYear}-${String(viewMonth+1).padStart(2,'0')}-`;
     if(destinoKey.startsWith(prefijoMesVisible)){

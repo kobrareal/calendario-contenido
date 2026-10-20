@@ -1,9 +1,13 @@
 // Archivos finales de cada posteo: el video del reel, las imágenes del carrusel, la story.
 //
 // Instagram no recibe archivos: recibe un link público y lo descarga él. Así que cada
-// archivo tiene que vivir en algún lado con dirección propia. Ese lado es Cloudflare R2 si
-// está configurado (lib/r2.js: 10 GB gratis, archivos grandes) y si no, Supabase Storage, la
-// misma cuenta que guarda los datos (gratis hasta 50 MB por archivo y 1 GB en total).
+// archivo tiene que vivir en algún lado con dirección propia. Se usa el primero que esté
+// configurado de estos tres:
+//   1. Cloudflare R2 (lib/r2.js): 10 GB gratis, pide tarjeta para activarlo.
+//   2. Vercel Blob (BLOB_READ_WRITE_TOKEN, lo carga Vercel al conectar el almacén): 1 GB
+//      gratis y sin tope práctico por archivo. Como el espacio es poco, api/publicar.js borra
+//      los archivos apenas Instagram los publica.
+//   3. Supabase Storage, la misma cuenta que guarda los datos: 50 MB por archivo y 1 GB.
 //
 // El archivo NO pasa por esta función: Vercel corta los cuerpos de más de 4,5 MB y un reel
 // pesa bastante más. Acá solo se firma un permiso de subida para una ruta puntual, y el
@@ -14,11 +18,18 @@
 
 const { SUPABASE_URL, SERVICE_KEY, cabeceras, resolverToken, codigoAlAzar } = require('../lib/acceso');
 const { r2Configurado, permisoDeSubida } = require('../lib/r2');
+const { handleUpload } = require('@vercel/blob/client');
 
-// Tope por archivo según dónde se guarde. Con R2 manda Instagram: 300 MB es lo máximo que
-// acepta para un reel. Con Supabase manda su plan gratis.
+const blobConfigurado = () => !!process.env.BLOB_READ_WRITE_TOKEN;
+
+// Tope por archivo según dónde se guarde. Con R2 y Blob manda Instagram: 300 MB es lo máximo
+// que acepta para un reel. Con Supabase manda su plan gratis.
 const MB = 1024 * 1024;
-const MAXIMO = () => (r2Configurado() ? 300 : 50) * MB;
+const MAXIMO = () => (r2Configurado() || blobConfigurado() ? 300 : 50) * MB;
+
+// La forma exacta de una ruta que arma "firmar". Se vuelve a comprobar cuando Blob pide el
+// permiso de subida, porque ahí la ruta llega desde el navegador.
+const RUTA_VALIDA = /^[a-z0-9-]+\/\d{4}-\d{2}\/[a-z0-9]+\.(jpg|mp4|mov)$/;
 
 const BUCKET = 'medios';
 const STORAGE = () => SUPABASE_URL + '/storage/v1';
@@ -60,6 +71,37 @@ module.exports = async (req, res) => {
   }
 
   const cuerpo = req.body || {};
+
+  // Segundo paso de una subida a Vercel Blob: la librería del navegador (vendor/) pide acá el
+  // permiso para la ruta que le dio "firmar". El link del calendario viaja en clientPayload.
+  if (cuerpo.type === 'blob.generate-client-token') {
+    if (!blobConfigurado()) return res.status(501).json({ error: 'Vercel Blob no está conectado.' });
+    try {
+      const respuesta = await handleUpload({
+        body: cuerpo,
+        request: req,
+        onBeforeGenerateToken: async (ruta, payload) => {
+          let datos = {};
+          try { datos = JSON.parse(payload || '{}'); } catch (e) { /* queda vacío y falla abajo */ }
+          const ses = await resolverToken(datos.token);
+          if (!ses) throw new Error('Link inválido o dado de baja.');
+          if (!RUTA_VALIDA.test(ruta) || !ruta.startsWith(carpetaDe(ses, datos.cliente) + '/')) {
+            throw new Error('Ruta de archivo inválida.');
+          }
+          return {
+            allowedContentTypes: Object.keys(EXTENSIONES),
+            maximumSizeInBytes: MAXIMO(),
+            addRandomSuffix: false, // la ruta ya lleva una parte al azar
+            allowOverwrite: false
+          };
+        }
+      });
+      return res.status(200).json(respuesta);
+    } catch (e) {
+      return res.status(400).json({ error: e.message });
+    }
+  }
+
   let sesion;
   try { sesion = await resolverToken(cuerpo.token); }
   catch (e) { return res.status(502).json({ error: 'No se pudo verificar el acceso.' }); }
@@ -80,6 +122,9 @@ module.exports = async (req, res) => {
       const ruta = `${carpetaDe(sesion, cuerpo.cliente)}/${mes}/${codigoAlAzar(16)}.${ext}`;
 
       if (r2Configurado()) return res.status(200).json(Object.assign({ ruta }, permisoDeSubida(ruta)));
+      // Con Blob la subida la hace la librería del navegador, que vuelve a pedir permiso acá
+      // (blob.generate-client-token) para esta misma ruta.
+      if (blobConfigurado()) return res.status(200).json({ modo: 'blob', ruta });
 
       await asegurarBucket();
       const r = await fetch(`${STORAGE()}/object/upload/sign/${BUCKET}/${ruta}`, {
