@@ -72,28 +72,33 @@ async function tituloYAngulo(cuerpo, apiKey, res) {
     (reglas && reglas.evitar.length ? 'En el título no uses: ' + reglas.evitar.map(p => '"' + p + '"').join(', ') + '.\n' : '') +
     '\nCopy:\n' + texto;
 
+  let ultimo = '';
   for (const modelo of MODELOS) {
     try {
-      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`, {
+      // Sin el razonamiento previo, como en el copy: para un título de cinco palabras no
+      // aporta nada y multiplica la demora. Si el modelo no conoce el ajuste, se pide sin él.
+      const pedir = (sinPensar) => fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.3 }
+          generationConfig: Object.assign({ responseMimeType: 'application/json', temperature: 0.3 },
+            sinPensar ? { thinkingConfig: { thinkingBudget: 0 } } : {})
         }),
-        signal: AbortSignal.timeout(12000)
-      });
-      const j = await r.json();
-      if (j.error) continue; // saturado o alias dado de baja: se prueba el siguiente
+        signal: AbortSignal.timeout(9000)
+      }).then(r => r.json());
+      let j = await pedir(true);
+      if (j.error && (j.error.code === 400 || /thinking|invalid argument/i.test(j.error.message || ''))) j = await pedir(false);
+      if (j.error) { ultimo = j.error.message || ('error ' + j.error.code); continue; } // saturado o dado de baja: el siguiente
       const salida = j.candidates && j.candidates[0] && j.candidates[0].content &&
         j.candidates[0].content.parts && j.candidates[0].content.parts[0] && j.candidates[0].content.parts[0].text;
       const datos = JSON.parse(String(salida || '{}').replace(/^```(?:json)?/i, '').replace(/```$/, '').trim());
       const titulo = pideTitulo ? String(datos.titulo || '').replace(/[#"“”]/g, '').trim().slice(0, 60) : '';
       const angulo = pideAngulo && angulos.some(a => a.id === datos.angulo) ? datos.angulo : '';
       return res.status(200).json({ titulo, angulo });
-    } catch (e) { /* timeout o JSON roto: siguiente modelo */ }
+    } catch (e) { ultimo = e.name === 'TimeoutError' ? 'no contestó a tiempo' : e.message; } // siguiente modelo
   }
-  return res.status(504).json({ error: 'Gemini no respondió. Probá de nuevo en un momento.' });
+  return res.status(504).json({ error: 'Gemini no respondió (' + (ultimo || 'sin detalle') + '). Probá de nuevo en un momento.' });
 }
 
 module.exports = async (req, res) => {
