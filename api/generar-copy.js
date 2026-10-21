@@ -39,6 +39,63 @@ const LARGO_GUION = 1400;
 // un límite que igual es una guía y no una regla de la plataforma.
 const MARGEN = 1.08;
 
+// Título y ángulo a partir de un copy ya escrito, para los posteos que no los tienen. Vive
+// acá y no en una función aparte porque el plan Hobby de Vercel admite pocas funciones, y
+// comparte con el copy la clave, los modelos y las reglas de la marca.
+//
+// El ángulo se elige SOLO de la lista de la marca y se valida contra ella: un ángulo
+// inventado no tendría color ni aparecería en los filtros.
+async function tituloYAngulo(cuerpo, apiKey, res) {
+  const texto = String(cuerpo.texto || '').trim().slice(0, 3000);
+  if (texto.length < 20) return res.status(400).json({ error: 'El copy es muy corto para deducir algo.' });
+  const angulos = (Array.isArray(cuerpo.angulos) ? cuerpo.angulos : [])
+    .filter(a => a && a.id && a.nombre).slice(0, 40)
+    .map(a => ({ id: String(a.id).slice(0, 60), nombre: String(a.nombre).slice(0, 80) }));
+  const pideTitulo = !!cuerpo.pideTitulo;
+  const pideAngulo = !!cuerpo.pideAngulo && angulos.length > 0;
+  if (!pideTitulo && !pideAngulo) return res.status(200).json({ titulo: '', angulo: '' });
+
+  const reglas = normalizarReglas(cuerpo.reglas);
+  const prompt =
+    'Leé este copy de un ' + (ETIQUETAS[cuerpo.kind] || 'posteo') + ' de Instagram y devolvé un único ' +
+    'objeto JSON, sin texto alrededor, con esta forma: {"titulo": "...", "angulo": "..."}.\n' +
+    (pideTitulo
+      ? '- "titulo": de 2 a 5 palabras en MAYÚSCULAS que digan de qué trata, para reconocerlo de un ' +
+        'vistazo en un calendario. Estilo: "CAMPERAS, DESCUENTO 30%", "DETRÁS DE ESCENA TALLER". ' +
+        'Sin emojis, sin hashtags, sin comillas.\n'
+      : '- "titulo": dejalo vacío.\n') +
+    (pideAngulo
+      ? '- "angulo": el id del ángulo de esta lista que mejor describa el posteo. Si ninguno encaja ' +
+        'con claridad, dejalo vacío: es mejor sin ángulo que con uno equivocado.\n' +
+        angulos.map(a => '  ' + a.id + ' = ' + a.nombre).join('\n') + '\n'
+      : '- "angulo": dejalo vacío.\n') +
+    (reglas && reglas.evitar.length ? 'En el título no uses: ' + reglas.evitar.map(p => '"' + p + '"').join(', ') + '.\n' : '') +
+    '\nCopy:\n' + texto;
+
+  for (const modelo of MODELOS) {
+    try {
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: 'application/json', temperature: 0.3 }
+        }),
+        signal: AbortSignal.timeout(12000)
+      });
+      const j = await r.json();
+      if (j.error) continue; // saturado o alias dado de baja: se prueba el siguiente
+      const salida = j.candidates && j.candidates[0] && j.candidates[0].content &&
+        j.candidates[0].content.parts && j.candidates[0].content.parts[0] && j.candidates[0].content.parts[0].text;
+      const datos = JSON.parse(String(salida || '{}').replace(/^```(?:json)?/i, '').replace(/```$/, '').trim());
+      const titulo = pideTitulo ? String(datos.titulo || '').replace(/[#"“”]/g, '').trim().slice(0, 60) : '';
+      const angulo = pideAngulo && angulos.some(a => a.id === datos.angulo) ? datos.angulo : '';
+      return res.status(200).json({ titulo, angulo });
+    } catch (e) { /* timeout o JSON roto: siguiente modelo */ }
+  }
+  return res.status(504).json({ error: 'Gemini no respondió. Probá de nuevo en un momento.' });
+}
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -53,6 +110,7 @@ module.exports = async (req, res) => {
   }
 
   const cuerpo = req.body || {};
+  if (cuerpo.formato === 'titulo-angulo') return tituloYAngulo(cuerpo, apiKey, res);
   const contexto = String(cuerpo.context || '').trim().slice(0, LARGO_MAXIMO_CONTEXTO);
   const etiqueta = ETIQUETAS[cuerpo.kind] || 'posteo';
   const angulo = String(cuerpo.angle || '').trim();

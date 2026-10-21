@@ -5552,6 +5552,59 @@
     });
   }
 
+  // ---------- título y ángulo automáticos ----------
+  // Un posteo con copy pero sin título o sin ángulo los recibe de la IA, deducidos del copy.
+  // Nunca pisa lo que ya está cargado, y el ángulo sale solo de los de la marca.
+  // Pasa al generar el copy y al terminar de escribirlo a mano (al salir del campo).
+  const yaAnalizados = new Map(); // id del posteo -> copy que ya se mandó, para no repetir el pedido
+  async function completarTituloYAngulo(key, item, kind){
+    if(IS_READONLY) return;
+    const pideTitulo = !(item.title || '').trim();
+    const pideAngulo = !idsAngulos(item).length && angles.length > 0;
+    const texto = (item.text || '').trim();
+    if((!pideTitulo && !pideAngulo) || texto.length < 40 || yaAnalizados.get(item.id) === texto) return;
+    yaAnalizados.set(item.id, texto);
+    let j;
+    try{
+      const res = await fetch('/api/generar-copy', {
+        method:'POST', headers:{'Content-Type':'application/json'}, cache:'no-store',
+        body: JSON.stringify({
+          formato:'titulo-angulo', texto, kind, pideTitulo, pideAngulo,
+          angulos: angles.map(a => ({ id: a.id, nombre: a.name })),
+          reglas: reglasParaIA() || undefined
+        })
+      });
+      if(!res.ok) return;
+      j = await res.json();
+    }catch(e){ return; } // es una ayuda: si falla, el posteo queda como estaba y no se avisa
+    // Mientras tanto la persona pudo haberlos cargado a mano: se vuelve a mirar.
+    const ponerTitulo = j.titulo && !(item.title || '').trim();
+    const ponerAngulo = j.angulo && !idsAngulos(item).length && angleById(j.angulo);
+    if(!ponerTitulo && !ponerAngulo) return;
+    rearmarConservandoFoco(key, item.id, ()=>{
+      if(ponerTitulo) item.title = j.titulo;
+      if(ponerAngulo) setAngulos(item, [j.angulo]);
+    });
+    showToast('Completé ' + [ponerTitulo ? 'el título' : '', ponerAngulo ? 'el ángulo (' + angleById(j.angulo).name + ')' : '']
+      .filter(Boolean).join(' y ') + ' a partir del copy');
+  }
+
+  // Rearmar la tarjeta (para que el selector de ángulos muestre el nuevo) le saca el foco a
+  // lo que se esté escribiendo. Se recuerda en qué campo estaba y se lo devuelve.
+  function rearmarConservandoFoco(key, itemId, cambio){
+    const tarjeta = ()=> document.querySelector(`#dayOverlay .item-card[data-item-id="${itemId}"]`);
+    const campos = (t)=> t ? [...t.querySelectorAll('input[type=text], textarea')] : [];
+    const activo = document.activeElement;
+    const indice = campos(tarjeta()).indexOf(activo);
+    const seleccion = indice >= 0 ? [activo.selectionStart, activo.selectionEnd] : null;
+    mutateAndRerender(key, cambio);
+    if(indice < 0) return;
+    const nuevo = campos(tarjeta())[indice];
+    if(!nuevo) return;
+    nuevo.focus({ preventScroll:true });
+    try{ nuevo.setSelectionRange(seleccion[0], seleccion[1]); }catch(e){ /* campo sin selección */ }
+  }
+
   // Builds the "context/idea" + "<i class="fa-solid fa-wand-magic-sparkles"></i>Generar copy" box shared by Reel/Carrusel/Story cards.
   // Calls the configured Apps Script backend, which talks to Gemini server-side (API key never
   // touches the browser). onGenerated(text) is used to reflect the result into the item's own
@@ -5618,6 +5671,7 @@
         item.text = text;
         scheduleSaveDay(key);
         onGenerated(text);
+        completarTituloYAngulo(key, item, kindForPrompt);
         copyBtn.disabled = !text || !text.trim();
         showToast(text.length > COPY_MAX_LEN
           ? `Copy generado, ${text.length - COPY_MAX_LEN} caracteres por encima del límite`
@@ -7548,6 +7602,7 @@
       item.text = textarea.value;
       scheduleSaveDay(key);
     });
+    textarea.addEventListener('change', ()=> completarTituloYAngulo(key, item, kindFeed(item.kind)));
     // El contador va en el mismo renglón que la etiqueta, a la derecha: abajo del campo
     // gastaba un renglón entero para tres cifras, y arriba queda a la vista mientras se
     // escribe sin tener que buscarlo al pie.
@@ -7847,6 +7902,7 @@
       item.text = textarea.value;
       scheduleSaveDay(key);
     });
+    textarea.addEventListener('change', ()=> completarTituloYAngulo(key, item, 'story'));
     // El contador comparte renglón con la etiqueta, igual que en los posteos de feed.
     textLabel.appendChild(agregarContador(textarea));
     cuerpo.appendChild(buildAiBox(key, item, 'story', (text)=>{
