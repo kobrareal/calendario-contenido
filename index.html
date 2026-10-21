@@ -1838,7 +1838,11 @@
   .pub-head i{margin-right:2px;}
   .pub-media{display:flex;flex-wrap:wrap;gap:var(--s-2);}
   .pub-celda{position:relative;width:76px;height:76px;border-radius:var(--r-1);overflow:hidden;background:var(--card-bg-2);flex:none;}
-  .pub-celda img,.pub-celda video{width:100%;height:100%;object-fit:cover;display:block;}
+  .pub-celda img,.pub-celda video{width:100%;height:100%;object-fit:cover;display:block;pointer-events:none;}
+  /* touch-action:none para que en el celular arrastrar mueva la foto y no la página. */
+  .pub-celda.movible{cursor:grab;touch-action:none;}
+  .pub-celda.arrastrando{cursor:grabbing;z-index:2;box-shadow:0 8px 24px rgba(0,0,0,.5);opacity:.9;}
+  .pub-celda.destino{outline:2px solid var(--accent);outline-offset:2px;}
   .pub-celda.borrado img,.pub-celda.borrado video{display:none;}
   .pub-celda.borrado::after{
     content:'Borrado tras publicar';position:absolute;inset:0;display:grid;place-items:center;
@@ -7176,24 +7180,13 @@
           num.className = 'pub-num'; num.textContent = i + 1;
           celda.appendChild(num);
         }
+        if(media.length > 1) activarArrastre(celda, i, media);
         const acciones = document.createElement('div');
         acciones.className = 'pub-acciones';
-        // Mover a la izquierda alcanza para cualquier orden y no gasta un segundo botón
-        // en una celda chica.
-        if(i > 0){
-          const izq = document.createElement('button');
-          izq.type = 'button'; izq.title = 'Mover antes'; izq.innerHTML = '<i class="fa-solid fa-arrow-left"></i>';
-          izq.addEventListener('click', ()=>{
-            pushUndo(key);
-            [media[i-1], media[i]] = [media[i], media[i-1]];
-            guardar();
-          });
-          acciones.appendChild(izq);
-        }
         const quitar = document.createElement('button');
         quitar.type = 'button'; quitar.title = 'Quitar este archivo'; quitar.innerHTML = '<i class="fa-solid fa-xmark"></i>';
-        // El archivo queda en el almacenamiento: puede estar usado por un posteo duplicado
-        // o por una copia del día, y borrarlo dejaría a ese otro sin su archivo.
+        // El archivo queda en el almacenamiento: con "deshacer" vuelve a la tarjeta, y si se
+        // hubiera borrado volvería apuntando a nada.
         quitar.addEventListener('click', ()=>{
           pushUndo(key);
           media.splice(i, 1);
@@ -7205,6 +7198,57 @@
       });
       galeria.style.display = media.length ? '' : 'none';
     };
+
+    // Orden de los archivos arrastrando: el primero es la portada del carrusel y el orden es
+    // el que se ve al deslizar en Instagram. Con eventos de puntero y no con el arrastre nativo
+    // del navegador, que en pantallas táctiles no funciona.
+    function activarArrastre(celda, desde, media){
+      celda.classList.add('movible');
+      celda.title = 'Arrastrá para cambiar el orden';
+      celda.addEventListener('pointerdown', (e)=>{
+        // Publicado o procesándose: el orden ya no se toca. Los botones de la celda tampoco arrastran.
+        if(interruptor.disabled || e.target.closest('button')) return;
+        if(e.pointerType === 'mouse' && e.button !== 0) return;
+        e.preventDefault();
+        try{ celda.setPointerCapture(e.pointerId); }catch(err){ /* sin captura igual funciona adentro */ }
+        const x0 = e.clientX, y0 = e.clientY;
+        const celdas = [...galeria.children];
+        const centros = celdas.map(c => { const r = c.getBoundingClientRect(); return { x: r.left + r.width/2, y: r.top + r.height/2 }; });
+        let moviendo = false, hacia = desde;
+
+        const mover = (ev)=>{
+          const dx = ev.clientX - x0, dy = ev.clientY - y0;
+          // Unos píxeles de margen: un toque que tiembla no es un arrastre.
+          if(!moviendo && Math.hypot(dx, dy) < 5) return;
+          moviendo = true;
+          celda.classList.add('arrastrando');
+          celda.style.transform = `translate(${dx}px, ${dy}px)`;
+          // El destino es la celda cuyo centro quedó más cerca del puntero.
+          let mejor = Infinity;
+          centros.forEach((c, j)=>{
+            const d = Math.hypot(ev.clientX - c.x, ev.clientY - c.y);
+            if(d < mejor){ mejor = d; hacia = j; }
+          });
+          celdas.forEach((c, j)=> c.classList.toggle('destino', moviendo && j === hacia && j !== desde));
+        };
+        const soltar = ()=>{
+          celda.removeEventListener('pointermove', mover);
+          celda.removeEventListener('pointerup', soltar);
+          celda.removeEventListener('pointercancel', soltar);
+          celda.classList.remove('arrastrando');
+          celda.style.transform = '';
+          celdas.forEach(c => c.classList.remove('destino'));
+          if(!moviendo || hacia === desde) return;
+          pushUndo(key);
+          const [archivo] = media.splice(desde, 1);
+          media.splice(hacia, 0, archivo);
+          guardar();
+        };
+        celda.addEventListener('pointermove', mover);
+        celda.addEventListener('pointerup', soltar);
+        celda.addEventListener('pointercancel', soltar);
+      });
+    }
 
     const guardar = ()=>{
       scheduleSaveDay(key);
