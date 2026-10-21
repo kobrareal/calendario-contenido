@@ -7,6 +7,7 @@
 // un mes de trabajo, y el agente no necesita permiso de escritura sobre nada.
 
 const { resolverToken, leerClaves } = require('../lib/acceso');
+const { normalizarReglas, bloqueReglas } = require('../lib/reglas-ia');
 
 const MODELO = 'gemini-flash-latest';
 const MAX_PEDIDO = 1500;
@@ -130,6 +131,8 @@ module.exports = async (req, res) => {
   // Catálogo de la marca. Es lo que separa "proponé contenido de producto" de "proponé
   // contenido sobre el Buzo Alaska, que es de frisa peinada y está disponible".
   const catalogo = String((req.body || {}).productos || '').trim().slice(0, 8000);
+  // Las reglas de estilo valen para todo texto que el asistente proponga ("titulo" y "texto").
+  const reglas = bloqueReglas(normalizarReglas((req.body || {}).reglas));
 
   const contexto = [
     `Mes del calendario: ${m + 1}/${a} (${diasDelMes} días).`,
@@ -137,6 +140,7 @@ module.exports = async (req, res) => {
     `Ángulos disponibles: ${angulos.length ? angulos.map(x => x.name).join(' | ') : '(la marca no definió ninguno)'}`,
     '',
     catalogo ? 'Catálogo de la marca:\n' + catalogo + '\n' : '',
+    reglas ? reglas.trim() + '\nAplicalas a todo título y texto que propongas en "cambios".\n' : '',
     'Contenido cargado:',
     resumen.length ? resumen.join('\n') : '  (el mes está completamente vacío)',
     '',

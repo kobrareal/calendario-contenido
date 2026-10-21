@@ -8,6 +8,8 @@
 // Para configurar la clave: en Vercel, Settings > Environment Variables > Add New,
 // nombre GEMINI_API_KEY, valor la clave de https://aistudio.google.com/apikey
 
+const { normalizarReglas, bloqueReglas, incumplidas } = require('../lib/reglas-ia');
+
 // Lista de modelos, en orden de preferencia. Se usan alias ("-latest") y no nombres de
 // versión fijos: Google los redirige al modelo vigente, así esto no se rompe cada vez que
 // renombran o discontinúan una versión puntual (ya pasó dos veces con el backend anterior).
@@ -110,6 +112,12 @@ module.exports = async (req, res) => {
     'meterlo sí o sí. Si la idea ' + pieza + ' no habla de un producto puntual, no lo nombres ' +
     'ni lo describas. Solo mencionás un producto cuando la idea lo pide de forma explícita. ';
 
+  // Reglas de estilo de la marca (kit de marca > Reglas para la IA). Las de hashtags solo
+  // aplican al copy: el guión no lleva hashtags.
+  const reglas = normalizarReglas(cuerpo.reglas);
+  const conHashtags = !esGuion;
+  const bloqueDeReglas = bloqueReglas(reglas, { conHashtags });
+
   const bloqueProductos = catalogo
     ? 'Estos son los productos reales de la marca. Si el texto habla de un producto, tiene ' +
       'que ser uno de esta lista, con las características que dice acá. No inventes productos ' +
@@ -137,7 +145,7 @@ module.exports = async (req, res) => {
       'CADA PLACA de un carrusel de Instagram.' + conAngulo + ' ' +
       'Esto NO es el pie de la publicación: el pie es otro pedido y no lo tenés que escribir. ' +
       'Nada de hashtags, nada de emojis, nada de "link en bio". ' +
-      voz + bloqueProductos +
+      voz + bloqueProductos + bloqueDeReglas +
       'FORMATO: una placa por renglón, empezando cada uno con "PLACA 1:", "PLACA 2:", y así. ' +
       'Entre 5 y 7 placas. ' +
       'La placa 1 es la portada y lleva una sola frase, la que tiene que frenar el scroll. ' +
@@ -152,7 +160,7 @@ module.exports = async (req, res) => {
       'Esto NO es el pie de la publicación. Si escribís algo que se leería debajo del video ' +
       'en vez de decirse en voz alta, está mal. Nada de hashtags, nada de emojis, nada de ' +
       '"link en bio", y no lo cierres con una frase de pie de foto. ' +
-      voz + bloqueProductos +
+      voz + bloqueProductos + bloqueDeReglas +
       'ESTRUCTURA: el primer renglón es el gancho, lo que se dice en los primeros 3 segundos, ' +
       'y tiene que dar una razón para no seguir scrolleando. Después el desarrollo, una idea ' +
       'por renglón. El último renglón es lo que se le pide a quien mira. ' +
@@ -167,7 +175,7 @@ module.exports = async (req, res) => {
     'Sos un/a community manager escribiendo el copy para un ' + etiqueta + ' de Instagram' +
     (angulo ? (' con ángulo de contenido "' + angulo + '"') : '') + '. ' +
     'Escribí en español, con tono cercano y natural (podés usar "vos"), listo para publicar. ' +
-    voz + bloqueProductos +
+    voz + bloqueProductos + bloqueDeReglas +
     'IMPORTANTE: el copy no puede superar los ' + largoMax + ' caracteres contando espacios. ' +
     'Apuntá a ' + frases + '. Es preferible quedarse corto que pasarse. ' +
     'Tiene que terminar de forma completa: nunca cortes una idea por la mitad. ' +
@@ -319,9 +327,26 @@ module.exports = async (req, res) => {
       if (condensado && condensado.length < texto.length) texto = condensado;
     }
 
+    // Reglas de la marca que no se respetaron: se le devuelve el texto para que corrija solo
+    // eso, una vez y si queda tiempo, igual que con el largo. Lo que quede se avisa.
+    let avisos = incumplidas(texto, reglas, { conHashtags });
+    if (avisos.length && (Date.now() - arranque) < (TOPE_TOTAL - TOPE_LLAMADA)) {
+      try {
+        const corregido = await llamar(
+          'Corregí este texto para que cumpla las reglas de la marca, cambiando lo mínimo ' +
+          'indispensable: mismo tono, mismo formato, mismo largo aproximado' +
+          (conHashtags ? ' y la misma cantidad de hashtags' : '') + '. ' +
+          'Problemas a resolver: ' + avisos.join('; ') + '.\n\n' + bloqueDeReglas + voz +
+          'Devolvé SOLO el texto corregido, sin explicaciones ni comillas.\n\n' + texto
+        );
+        const quedan = corregido ? incumplidas(corregido, reglas, { conHashtags }) : avisos;
+        if (corregido && quedan.length < avisos.length) { texto = corregido; avisos = quedan; }
+      } catch (e) { /* se devuelve el que había, con su aviso */ }
+    }
+
     // Se devuelve el largo pedido para que la interfaz sepa contra qué comparar y pueda
     // avisar, en vez de recortar por su cuenta.
-    return res.status(200).json({ text: texto, maxLen: largoMax });
+    return res.status(200).json({ text: texto, maxLen: largoMax, avisos });
   } catch (err) {
     if (err && err.demoro) return res.status(504).json({ error: err.message });
     if (err && err.deGoogle) return res.status(502).json({ error: err.message });

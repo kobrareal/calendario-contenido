@@ -1350,6 +1350,8 @@
     font-family:'Inter',sans-serif; font-size:13px; line-height:1.55;
   }
   .kit-textarea{min-height:70px; resize:vertical;}
+  .kit-etiqueta{display:block;font-size:var(--t-xs);color:var(--muted);margin:10px 0 4px;}
+  .kit-etiqueta span{color:var(--muted-2);}
   .kit-input:focus, .kit-textarea:focus{outline:none; border-color:var(--accent);}
 
   @media(max-width:640px){
@@ -1828,6 +1830,15 @@
   }
 
   /* ---------- publicación automática ---------- */
+  /* Marca en el calendario (mes y semana): el logo de Instagram, con el color del estado. */
+  .pub-marca-cal{
+    display:inline-flex;align-items:center;justify-content:center;flex:none;
+    width:14px;height:14px;border-radius:4px;font-size:9px;line-height:1;margin-right:3px;
+    color:#fff;background:#8b5cf6;box-shadow:0 0 0 1px rgba(0,0,0,.25);
+  }
+  .pub-marca-cal.proc{background:#d9a441;}
+  .pub-marca-cal.ok{background:#22a06b;}
+  .pub-marca-cal.error{background:var(--danger);}
   .pub-box{
     margin-top:var(--s-3);padding:var(--s-3);border-radius:var(--r-2);
     border:1px solid var(--border);background:var(--surface);
@@ -2413,6 +2424,19 @@
             </div>
             <p class="hint kit-nota">Lo que la marca vende. La IA los usa para escribir sobre productos reales en vez de inventarlos.</p>
             <div class="kit-productos" id="kitProductos"></div>
+          </div>
+
+          <div class="kit-seccion">
+            <div class="kit-seccion-head"><h3>Reglas para la IA</h3></div>
+            <p class="hint kit-nota">Se aplican a los copys, los guiones y el asistente de esta marca. Si igual se escapa una palabra o un hashtag prohibido, la IA lo reescribe y, si queda, te avisa.</p>
+            <label class="kit-etiqueta" for="kitIaEvitar">Palabras y frases a evitar <span>(una por renglón)</span></label>
+            <textarea id="kitIaEvitar" class="kit-textarea" placeholder="Ej:&#10;descubrí&#10;no te lo podés perder&#10;increíble"></textarea>
+            <label class="kit-etiqueta" for="kitIaHashtagsNo">Hashtags prohibidos</label>
+            <input type="text" id="kitIaHashtagsNo" class="kit-input" placeholder="Ej: #instagood #love #fyp" />
+            <label class="kit-etiqueta" for="kitIaHashtagsFijos">Hashtags que van siempre <span>(entran dentro de los 4 del copy)</span></label>
+            <input type="text" id="kitIaHashtagsFijos" class="kit-input" placeholder="Ej: #wayfarer" />
+            <label class="kit-etiqueta" for="kitIaLibres">Otras reglas</label>
+            <textarea id="kitIaLibres" class="kit-textarea" placeholder="Ej: sin signos de exclamación · nunca mencionar precios · máximo 2 emojis por copy"></textarea>
           </div>
 
           <div class="kit-seccion">
@@ -3597,7 +3621,8 @@
           formato: formato || 'copy',
           // Los productos de la marca: sin esto, la IA inventa nombres y características
           // cuando el contexto menciona "el producto nuevo".
-          productos: productosParaIA() || undefined
+          productos: productosParaIA() || undefined,
+          reglas: reglasParaIA() || undefined
         }),
         cache: 'no-store'
       });
@@ -3609,6 +3634,11 @@
       if(res.status === 504) throw new Error('El generador tardó demasiado. Probá de nuevo en un momento.');
       if(!res.ok) throw new Error('El generador respondió con un error (' + res.status + ')');
       if(!json || typeof json.text !== 'string') throw new Error('Respuesta inesperada del generador de copys');
+      // Lo que la IA no respetó ni al reescribir: se avisa en vez de arreglarlo por su cuenta,
+      // porque sacar una palabra a ciegas puede dejar la frase sin sentido.
+      if(Array.isArray(json.avisos) && json.avisos.length){
+        setTimeout(()=> showToast('Revisá el texto: ' + json.avisos.join(' · ')), 2400);
+      }
       return json.text;
     }
   };
@@ -4403,6 +4433,8 @@
       tipo.className = 'sem-tipo';
       tipo.textContent = listName === 'stories' ? 'Story' : etiquetaKind(it.kind);
       arriba.appendChild(tipo);
+      const marcaPub = marcaPublicacionHtml(key, it);
+      if(marcaPub) arriba.insertAdjacentHTML('beforeend', marcaPub);
       if(it.approval && it.approval !== 'sin-revisar'){
         const ap = document.createElement('span');
         ap.textContent = APROBACIONES[it.approval].icono;
@@ -4760,13 +4792,14 @@
         est && it.status !== 'pendiente' ? 'Estado: ' + est.label : '',
         it.approval && it.approval !== 'sin-revisar' ? 'Cliente: ' + APROBACIONES[it.approval].label : '',
         it.hideFromPreview ? 'No se muestra en la vista previa del feed' : '',
+        key && estadoPublicacion(key, it) ? MARCAS_PUBLICACION[estadoPublicacion(key, it)].titulo : '',
         it.text ? '\n' + it.text : ''
       ].filter(Boolean).join('\n');
 
       // En el chip queda solo la letra del tipo y el título. El horario ya no se dibuja:
       // los posteos vienen ordenados cronológicamente, así que la secuencia se ve sola, y
       // ese ancho pasa al título.
-      const marca = `<span class="k">${kindLabel}</span>`;
+      const marca = `<span class="k">${kindLabel}</span>` + (key ? marcaPublicacionHtml(key, it) : '');
       if(a){
         tag.className = 'tag tag-truncated';
         tag.style.background = degradadoAngulos(listaAngulos);
@@ -5886,6 +5919,8 @@
     const editable = !IS_READONLY;
     $('kitTipografias').disabled = !editable;
     $('kitNotas').disabled = !editable;
+    const reglas = brandKit.reglasIA || {};
+    CAMPOS_REGLAS_IA.forEach(([id, campo])=>{ $(id).value = reglas[campo] || ''; $(id).disabled = !editable; });
     document.querySelectorAll('#kitDashboard [data-subir], #kitAgregarColor').forEach(b => b.style.display = editable ? '' : 'none');
   }
 
@@ -6136,6 +6171,26 @@
   // una línea, 80 entradas son unos 5000 caracteres: entra de sobra en el pedido y evita
   // que la IA proponga contenido sobre "los productos" ignorando media tienda.
   const MAX_PRODUCTOS_IA = 80;
+  // Reglas de estilo de la marca para la IA. Se guardan como se escriben y se ordenan recién
+  // acá: palabras una por renglón, hashtags sin "#" ni repetidos, en minúscula.
+  const CAMPOS_REGLAS_IA = [
+    ['kitIaEvitar', 'evitar'], ['kitIaHashtagsNo', 'hashtagsNo'],
+    ['kitIaHashtagsFijos', 'hashtagsFijos'], ['kitIaLibres', 'libres']
+  ];
+  function reglasParaIA(){
+    const r = brandKit.reglasIA || {};
+    const hashtags = (txt)=> [...new Set(String(txt || '').split(/[\s,;]+/)
+      .map(h => h.replace(/^#+/, '').trim().toLowerCase()).filter(Boolean))];
+    const reglas = {
+      evitar: [...new Set(String(r.evitar || '').split(/\n+/).map(x => x.trim()).filter(Boolean))].slice(0, 60),
+      hashtagsNo: hashtags(r.hashtagsNo).slice(0, 60),
+      hashtagsFijos: hashtags(r.hashtagsFijos).slice(0, 4),
+      libres: String(r.libres || '').trim().slice(0, 2000)
+    };
+    const hayAlgo = reglas.evitar.length || reglas.hashtagsNo.length || reglas.hashtagsFijos.length || reglas.libres;
+    return hayAlgo ? reglas : null;
+  }
+
   function productosParaIA(){
     const activos = (brandKit.productos || []).filter(p => (p.nombre || '').trim());
     if(!activos.length) return null;
@@ -6258,6 +6313,13 @@
   });
 
   let kitTemporizador = null;
+  CAMPOS_REGLAS_IA.forEach(([id, campo])=>{
+    $(id).addEventListener('input', ()=>{
+      brandKit.reglasIA = Object.assign({}, brandKit.reglasIA, { [campo]: $(id).value });
+      clearTimeout(kitTemporizador);
+      kitTemporizador = setTimeout(saveKit, 700);
+    });
+  });
   ['kitTipografias', 'kitNotas'].forEach(id=>{
     $(id).addEventListener('input', ()=>{
       brandKit[id === 'kitTipografias' ? 'tipografias' : 'notas'] = $(id).value;
@@ -6863,6 +6925,29 @@
   let estadoIGPedido = null, estadoIGHora = 0;
   const refrescosIG = new Set(); // los pintarAviso de las cajas que están en pantalla
 
+  // Cómo va la publicación automática de un posteo, para marcarlo en el calendario:
+  // 'publicado' | 'error' | 'procesando' (lo que dejó el publicador) o 'programado' (tiene el
+  // interruptor y todavía no pasó). null si no se publica solo.
+  // Va con try porque el calendario se puede pintar antes de que exista estadoIG.
+  function estadoPublicacion(key, it){
+    let pub = null;
+    try{ pub = (estadoIG.publicaciones || {})[key + '|' + it.id] || null; }catch(e){ pub = null; }
+    if(pub) return pub.estado === 'publicado' || pub.estado === 'error' ? pub.estado : 'procesando';
+    return it.programar ? 'programado' : null;
+  }
+  const MARCAS_PUBLICACION = {
+    programado: { clase:'prog',  titulo:'Se publica solo en Instagram' },
+    procesando: { clase:'proc',  titulo:'Publicándose en Instagram' },
+    publicado:  { clase:'ok',    titulo:'Publicado en Instagram' },
+    error:      { clase:'error', titulo:'No se pudo publicar en Instagram' }
+  };
+  function marcaPublicacionHtml(key, it){
+    const e = estadoPublicacion(key, it);
+    if(!e) return '';
+    const m = MARCAS_PUBLICACION[e];
+    return `<span class="pub-marca-cal ${m.clase}" title="${m.titulo}"><i class="fa-brands fa-instagram"></i></span>`;
+  }
+
   function cargarEstadoIG(forzar){
     if(estadoIGPedido) return estadoIGPedido;
     if(!forzar && estadoIG.cargado && Date.now() - estadoIGHora < 60000) return Promise.resolve();
@@ -6883,6 +6968,7 @@
         estadoIGHora = Date.now();
         estadoIGPedido = null;
         refrescosIG.forEach(fn => fn());
+        renderCalendarPronto(); // las marcas de publicado / error del calendario
       }
     })();
     return estadoIGPedido;
@@ -9013,7 +9099,8 @@
           token: TOKEN, pedido, anio: viewYear, mes: viewMonth, cliente: CLIENT_ID,
           // Con los productos a la vista, "armame el mes" propone contenido sobre lo que la
           // marca vende de verdad en lugar de ideas genéricas.
-          productos: productosParaIA() || undefined
+          productos: productosParaIA() || undefined,
+          reglas: reglasParaIA() || undefined
         })
       });
       const json = await res.json().catch(()=>null);
@@ -11234,6 +11321,7 @@
     // terminan. Si algo falla, el calendario ya está usable igual.
     loadNotificaciones().then(actualizarCampanita).catch(()=>{});
     loadPapelera().catch(()=>{});
+    cargarEstadoIG(); // marca en el calendario qué se publicó, qué falló y qué se está publicando
     // El kit se pinta con lo que ya vino en el arranque —nombres y colores— y las imágenes
     // llegan después. Un logo en buena calidad pesa cientos de veces más que el resto de los
     // datos juntos, y esperarlas para mostrar el calendario sería pagar ese peso siempre.
