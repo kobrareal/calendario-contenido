@@ -89,14 +89,14 @@ async function tituloYAngulo(cuerpo, apiKey, res) {
       }).then(r => r.json());
       let j = await pedir(true);
       if (j.error && (j.error.code === 400 || /thinking|invalid argument/i.test(j.error.message || ''))) j = await pedir(false);
-      if (j.error) { ultimo = j.error.message || ('error ' + j.error.code); continue; } // saturado o dado de baja: el siguiente
+      if (j.error) { ultimo += modelo + ': ' + (j.error.message || ('error ' + j.error.code)).slice(0, 120) + ' | '; continue; } // saturado o dado de baja: el siguiente
       const salida = j.candidates && j.candidates[0] && j.candidates[0].content &&
         j.candidates[0].content.parts && j.candidates[0].content.parts[0] && j.candidates[0].content.parts[0].text;
       const datos = JSON.parse(String(salida || '{}').replace(/^```(?:json)?/i, '').replace(/```$/, '').trim());
       const titulo = pideTitulo ? String(datos.titulo || '').replace(/[#"“”]/g, '').trim().slice(0, 60) : '';
       const angulo = pideAngulo && angulos.some(a => a.id === datos.angulo) ? datos.angulo : '';
       return res.status(200).json({ titulo, angulo });
-    } catch (e) { ultimo = e.name === 'TimeoutError' ? 'no contestó a tiempo' : e.message; } // siguiente modelo
+    } catch (e) { ultimo += modelo + ': ' + (e.name === 'TimeoutError' ? 'no contestó a tiempo' : e.message) + ' | '; } // siguiente modelo
   }
   return res.status(504).json({ error: 'Gemini no respondió (' + (ultimo || 'sin detalle') + '). Probá de nuevo en un momento.' });
 }
