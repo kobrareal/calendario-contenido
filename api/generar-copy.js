@@ -15,10 +15,11 @@ const { normalizarReglas, bloqueReglas, incumplidas } = require('../lib/reglas-i
 // renombran o discontinúan una versión puntual (ya pasó dos veces con el backend anterior).
 //
 // Son varios y no uno porque "the model is overloaded" es un error de todos los días: el
-// primero es el de siempre, el segundo es la versión liviana —más rápida y con menos cola,
-// de sobra para un copy de 500 caracteres— y el tercero es una versión estable por si los
-// dos alias fallan a la vez.
-const MODELOS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-2.0-flash'];
+// primero es el de siempre y el segundo es la versión liviana —más rápida y con menos cola,
+// de sobra para un copy de 500 caracteres—. El tercero vuelve a probar el primero: la
+// saturación suele ser de segundos. Antes ese lugar lo ocupaba gemini-2.0-flash como versión
+// fija de respaldo, pero Google la dio de baja (octubre 2026) y el tercer intento fallaba siempre.
+const MODELOS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-flash-latest'];
 const LARGO_MAXIMO_CONTEXTO = 4000;
 
 const ETIQUETAS = { reel: 'Reel', carrusel: 'Carrusel', imagen: 'posteo de una sola imagen', story: 'Story' };

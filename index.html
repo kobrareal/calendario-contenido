@@ -5574,9 +5574,9 @@
           reglas: reglasParaIA() || undefined
         })
       });
-      if(!res.ok) return;
+      if(!res.ok){ yaAnalizados.delete(item.id); return; } // la próxima edición lo vuelve a intentar
       j = await res.json();
-    }catch(e){ return; } // es una ayuda: si falla, el posteo queda como estaba y no se avisa
+    }catch(e){ yaAnalizados.delete(item.id); return; } // es una ayuda: si falla, el posteo queda como estaba y no se avisa
     // Mientras tanto la persona pudo haberlos cargado a mano: se vuelve a mirar.
     const ponerTitulo = j.titulo && !(item.title || '').trim();
     const ponerAngulo = j.angulo && !idsAngulos(item).length && angleById(j.angulo);
