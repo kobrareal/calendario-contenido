@@ -61,7 +61,7 @@ async function tituloYAngulo(cuerpo, apiKey, res) {
     'objeto JSON, sin texto alrededor, con esta forma: {"titulo": "...", "angulo": "..."}.\n' +
     (pideTitulo
       ? '- "titulo": de 2 a 5 palabras en MAYÚSCULAS que digan de qué trata, para reconocerlo de un ' +
-        'vistazo en un calendario. Estilo: "CAMPERAS, DESCUENTO 30%", "DETRÁS DE ESCENA TALLER". ' +
+        'vistazo en un calendario. Estilo de ejemplo, de otros rubros: "CAMPERAS, DESCUENTO 30%", "RECETA DE BUDÍN". ' +
         'Sin emojis, sin hashtags, sin comillas.\n'
       : '- "titulo": dejalo vacío.\n') +
     (pideAngulo
