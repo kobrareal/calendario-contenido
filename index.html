@@ -2296,199 +2296,328 @@
   }
 
   /* =====================================================================
-     TEMA KLIX · Klix Kobrakool
+     TEMA KLIX · Klix Kobrakool (v2)
      ---------------------------------------------------------------------
-     Va al final para pisar los valores de arriba sin tocar cada regla. Sale del manual
-     de klix contenido (paleta, tipografías, isotipo K) aplicado con criterio de pantalla
-     de trabajo, no de pieza para redes:
-       - Fondo Noche y superficies planas que se separan por un escalón de tono y una
-         línea de 1px. Sin vidrio esmerilado ni sombras en lo que está quieto: la sombra
-         queda para lo que flota (menús, modales).
-       - Un solo color de acción, el Verde Señal: el botón principal, lo activo y lo que
-         se publica solo. El cian marca el foco del teclado. El rosa no se usa en la
-         interfaz: vive en el degradado de marca.
-       - El degradado de marca aparece una vez, en el filo de la barra de arriba. Repetido
-         en cada botón deja de ser marca y pasa a ser decoración.
+     Va al final para pisar los valores de arriba sin tocar cada regla. Es el lenguaje
+     del manual de klix contenido llevado a la app:
+       - Fondo "galaxia": Noche con nebulosas (rosa a la derecha, cian abajo a la
+         izquierda, un toque de verde arriba), partículas tipo estrellas, un arco de luz
+         que cruza por detrás de los paneles y una grilla fina en perspectiva al pie.
+       - Paneles de vidrio: translúcidos y desenfocados, con el borde luminoso en el
+         degradado de marca y la pestaña tipo carpeta en el encabezado.
+       - El degradado de marca (cian → verde → niebla → rosa, 120°) en las acciones, en lo
+         seleccionado y en el día de hoy. Los días de la semana lo recorren de lunes a
+         domingo: cada columna toma su tramo del degradado.
+       - Lenguaje de cámara: esquinas de visor alrededor del mes, etiquetas /// en mono y
+         el punto de guardado que late como un REC.
        - Sora en títulos, Manrope en el texto, IBM Plex Mono en las etiquetas chicas.
      ===================================================================== */
   :root{
     --bg-a:#06080A;
-    --surface:#0D1114;
-    --surface-2:#141A1E;
-    --surface-3:#1B2328;
-    --border:#1F282E;
-    --linea-fuerte:#2C373E;
+    --surface:rgba(16,22,26,.58);
+    --surface-2:rgba(255,255,255,.07);
+    --surface-3:rgba(255,255,255,.12);
+    --border:rgba(255,255,255,.10);
+    --linea-fuerte:rgba(255,255,255,.22);
     --text:#FFFFFF;
     --muted:#BCBDB5;     /* Niebla */
-    --muted-2:#8B8D86;   /* Niebla un escalón abajo: 6:1 sobre Noche, se sigue leyendo */
+    --muted-2:#8B8D86;
     --accent:#00FF7A;    /* Verde Señal */
     --accent-2:#00FFE0;  /* Cian Pulso */
+    --rosa:#FF4FE0;      /* Rosa Eco */
     --accent-hover:#5CFFA6;
     --accent-soft:rgba(0,255,122,.14);
-    --glow:rgba(0,255,122,.30);
+    --glow:rgba(0,255,170,.38);
     --ok:#00FF7A;
     --danger:#FF5C7A;
-    --radius:16px;
-    --card-bg:#0D1114;
-    --card-bg-2:#0A0D10;
-    --ai-bg:#0A1513;
-    --ai-border:rgba(0,255,224,.26);
-    --tooltip-bg:#1B2328;
-    --glass-blur:none;
-    --glass-blur-sm:none;
-    --sh-1:none;
-    --sh-2:none;
-    --r-2:8px;
-    --r-3:14px;
-    --r-4:18px;
-    /* Los tintes de los botones se apagan: el color queda para la acción y los datos. */
-    --t-azul:188,189,181;
-    --t-violeta:188,189,181;
-    --t-cian:188,189,181;
+    --radius:18px;
+    --card-bg:rgba(14,19,23,.72);
+    --card-bg-2:rgba(9,12,15,.78);
+    --ai-bg:rgba(0,255,224,.06);
+    --ai-border:rgba(0,255,224,.30);
+    --tooltip-bg:#141B20;
+    --glass-blur:blur(20px) saturate(150%);
+    --glass-blur-sm:blur(12px) saturate(140%);
+    --r-2:10px;
+    --r-3:16px;
+    --r-4:20px;
+    /* Los tintes de los botones del encabezado siguen el degradado de marca. */
+    --t-azul:0,255,224;
+    --t-cian:0,255,224;
     --t-verde:0,255,122;
+    --t-violeta:255,79,224;
     --klix-grad:linear-gradient(120deg,#00FFE0 0%,#00FF7A 38%,#BCBDB5 66%,#FF4FE0 100%);
+    --klix-grad-accion:linear-gradient(120deg,#00FFE0 0%,#00FF7A 70%,#7DFFB8 100%);
+    --klix-borde:linear-gradient(120deg,rgba(0,255,224,.65) 0%,rgba(0,255,122,.5) 38%,rgba(188,189,181,.22) 66%,rgba(255,79,224,.6) 100%);
     --f-titulo:'Sora',sans-serif;
     --f-texto:'Manrope',sans-serif;
     --f-mono:'IBM Plex Mono',monospace;
   }
 
+  /* ---------- fondo galaxia ---------- */
   body{
-    /* Noche plana, con un rastro muy tenue de la nebulosa de marca arriba (cian a la
-       izquierda, rosa a la derecha). A esta intensidad se percibe como luz, no como dibujo. */
-    background:
-      radial-gradient(900px 380px at -120px -160px, rgba(0,255,224,.07) 0%, rgba(0,255,224,0) 70%),
-      radial-gradient(900px 380px at calc(100% + 120px) -160px, rgba(255,79,224,.06) 0%, rgba(255,79,224,0) 70%),
-      var(--bg-a);
-    background-repeat:no-repeat;
+    background:#06080A;
     font-family:var(--f-texto);
   }
-  ::selection{background:rgba(0,255,224,.28);}
+  /* Nebulosas y arco de luz: fijos a la pantalla, por detrás de todo. */
+  body::before{
+    content:'';position:fixed;inset:0;z-index:-2;pointer-events:none;
+    background:
+      /* arco de luz: un anillo enorme del que se ve solo el tramo de arriba */
+      radial-gradient(150vmax 62vmax at 50% 118%, transparent 64%, rgba(0,255,224,.22) 64.6%, rgba(0,255,122,.16) 65.3%, rgba(255,79,224,.14) 66.1%, transparent 67.2%),
+      radial-gradient(700px 520px at 100% 22%, rgba(255,79,224,.16), transparent 70%),
+      radial-gradient(760px 560px at -6% 96%, rgba(0,255,224,.13), transparent 70%),
+      radial-gradient(620px 360px at 34% -8%, rgba(0,255,122,.10), transparent 72%),
+      #06080A;
+  }
+  /* Partículas y grilla en perspectiva al pie. */
+  body::after{
+    content:'';position:fixed;left:-10%;right:-10%;bottom:-6vh;height:44vh;z-index:-1;pointer-events:none;
+    background:
+      linear-gradient(rgba(0,255,224,.10) 1px, transparent 1px) 0 0 / 64px 64px,
+      linear-gradient(90deg, rgba(0,255,224,.10) 1px, transparent 1px) 0 0 / 64px 64px;
+    transform:perspective(520px) rotateX(62deg);
+    transform-origin:50% 100%;
+    -webkit-mask-image:linear-gradient(to top, #000 0%, rgba(0,0,0,.5) 45%, transparent 100%);
+            mask-image:linear-gradient(to top, #000 0%, rgba(0,0,0,.5) 45%, transparent 100%);
+  }
+  .app{
+    position:relative;
+    background:
+      radial-gradient(1.2px 1.2px at 8% 14%, rgba(255,255,255,.55), transparent 60%),
+      radial-gradient(1px 1px at 23% 61%, rgba(255,255,255,.40), transparent 60%),
+      radial-gradient(1.4px 1.4px at 41% 9%, rgba(0,255,224,.55), transparent 60%),
+      radial-gradient(1px 1px at 57% 38%, rgba(255,255,255,.35), transparent 60%),
+      radial-gradient(1.3px 1.3px at 72% 18%, rgba(255,79,224,.5), transparent 60%),
+      radial-gradient(1px 1px at 86% 54%, rgba(255,255,255,.4), transparent 60%),
+      radial-gradient(1.2px 1.2px at 93% 7%, rgba(0,255,122,.5), transparent 60%),
+      radial-gradient(1px 1px at 15% 88%, rgba(255,255,255,.3), transparent 60%),
+      radial-gradient(1.2px 1.2px at 64% 82%, rgba(0,255,224,.4), transparent 60%);
+    background-size:640px 640px;
+  }
+  ::selection{background:rgba(0,255,224,.30);}
 
-  /* Títulos en Sora, con el tracking negativo que pide una letra de display. */
+  /* ---------- tipografía ---------- */
   h1, h2, h3, .brand h1, .month-label, .panel-head h2, .sheet-head h2, .display, .sem-dia,
   .kit-seccion-head h3{
     font-family:var(--f-titulo);
     letter-spacing:-0.02em;
   }
   .mono, .field-label, .tag .k, .item-resumen, .sem-hora, .pub-progreso{font-family:var(--f-mono);}
+  /* El mes, como titular de pieza: la palabra clave en el degradado. */
+  .month-label{
+    background:var(--klix-grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+    font-weight:700;
+  }
+  .ideas-dashboard-head h3::before, .kit-dashboard-head h3::before, .notas-mes-head .field-label::before{
+    content:'/// ';font-family:var(--f-mono);font-weight:500;font-size:.8em;
+    background:var(--klix-grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+  }
 
   /* ---------- barra de la marca del producto ---------- */
-  .klix-barra{
-    display:flex;align-items:center;gap:10px;
-    padding:0 2px 12px;
+  .klix-barra{display:flex;align-items:center;gap:10px;padding:0 2px 16px;}
+  .klix-barra img{width:26px;height:26px;display:block;flex:none;filter:drop-shadow(0 0 8px rgba(0,255,122,.45));}
+  .klix-nombre{font-family:var(--f-titulo);font-weight:800;font-size:16px;letter-spacing:-0.02em;color:var(--text);}
+  .klix-nombre b{
+    font-weight:800;background:var(--klix-grad);-webkit-background-clip:text;background-clip:text;color:transparent;
   }
-  .klix-barra img{width:24px;height:24px;display:block;flex:none;}
-  .klix-nombre{font-family:var(--f-titulo);font-weight:700;font-size:15px;letter-spacing:-0.02em;color:var(--text);}
-  .klix-nombre b{color:var(--accent);font-weight:700;}
   .klix-hud{
-    margin-left:auto;font-family:var(--f-mono);font-size:11px;color:var(--muted-2);
-    white-space:nowrap;
+    margin-left:auto;font-family:var(--f-mono);font-size:11px;color:var(--muted);
+    white-space:nowrap;display:flex;align-items:center;gap:8px;
   }
+  /* REC de visor de cámara al lado de la etiqueta. */
+  .klix-hud::before{
+    content:'';width:7px;height:7px;border-radius:50%;background:#FF4F6D;
+    box-shadow:0 0 10px rgba(255,79,109,.9);animation:klixRec 1.6s ease-in-out infinite;
+  }
+  @keyframes klixRec{0%,100%{opacity:1}50%{opacity:.25}}
   @media (max-width:560px){ .klix-hud{display:none;} }
 
-  /* ---------- superficies planas ---------- */
-  header.top{
-    background:var(--surface);border:1px solid var(--border);
-    backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;
-    overflow:visible;
+  /* ---------- paneles de vidrio con borde luminoso ---------- */
+  /* El borde va en un pseudo-elemento con máscara: así el degradado se dibuja solo en el
+     contorno y el interior queda translúcido. Con el truco de dos fondos (padding-box y
+     border-box) el degradado se transparentaría a través del vidrio. */
+  header.top, .panel, .kit-dashboard, .ideas-dashboard, .notas-mes-box, .modal{
+    background:linear-gradient(160deg, rgba(22,30,35,.62), rgba(10,14,17,.66));
+    border:1px solid transparent;
+    backdrop-filter:var(--glass-blur);-webkit-backdrop-filter:var(--glass-blur);
+    box-shadow:0 18px 50px rgba(0,0,0,.45), 0 0 40px rgba(0,255,170,.05);
   }
-  /* El filo de marca: el único lugar donde aparece el degradado klix. */
-  header.top::before{
-    content:'';position:absolute;left:18px;right:18px;top:-1px;height:2px;border-radius:2px;
-    background:var(--klix-grad);pointer-events:none;
+  header.top, .kit-dashboard, .ideas-dashboard, .notas-mes-box{position:relative;}
+  header.top::before, .kit-dashboard::before, .ideas-dashboard::before, .notas-mes-box::before{
+    content:'';position:absolute;inset:0;border-radius:inherit;padding:1px;pointer-events:none;
+    background:var(--klix-borde);
+    -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;
+            mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            mask-composite:exclude;
   }
-  .panel, .modal, .modal-back .modal, .kit-dashboard, .cell, .item-card, .ai-box,
-  .pub-box, .emoji-picker-popup{
-    backdrop-filter:none;-webkit-backdrop-filter:none;
+  /* La pestaña de carpeta del encabezado, con su rótulo en mono. */
+  header.top{overflow:visible;margin-top:12px;}
+  header.top::after{
+    content:'/// AGENDA';position:absolute;top:-19px;left:22px;height:19px;padding:0 14px;
+    display:flex;align-items:center;
+    font-family:var(--f-mono);font-size:10px;letter-spacing:.08em;color:#06080A;font-weight:500;
+    background:var(--klix-grad);border-radius:8px 8px 0 0;
   }
-  .cell{border-color:var(--border);}
+  /* El panel del día y los modales tienen scroll propio: un borde en ::before se iría con
+     el contenido. El panel lleva el degradado en su borde izquierdo y el modal un contorno. */
+  .panel{border:none;border-left:1px solid;border-image:linear-gradient(180deg,#00FFE0,#00FF7A 40%,#BCBDB5 70%,#FF4FE0) 1;}
+  .modal{border:1px solid rgba(0,255,224,.35);box-shadow:0 24px 70px rgba(0,0,0,.6), 0 0 40px rgba(0,255,170,.12);}
+  .item-card{
+    background:linear-gradient(170deg, rgba(255,255,255,.055), rgba(255,255,255,.02));
+    border-color:rgba(255,255,255,.09);
+  }
+  .ai-box{background:var(--ai-bg);border-color:var(--ai-border);}
 
   /* ---------- botones ---------- */
-  /* Neutros por defecto: superficie, línea de 1px y texto claro. El color es del primario. */
   .btn{
-    background:var(--surface-2);border-color:var(--border);color:var(--text);
+    background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:var(--text);
     box-shadow:none;
     transition:background-color .15s ease, border-color .15s ease, color .15s ease,
-               transform 160ms var(--ease-out);
+               box-shadow .15s ease, transform 160ms var(--ease-out);
   }
-  .btn:hover{background:var(--surface-3);border-color:var(--linea-fuerte);}
-  .btn i:not(.fa-lg){color:var(--muted);}
-  .btn:hover i:not(.fa-lg){color:var(--text);}
+  .btn:hover{background:rgba(255,255,255,.1);border-color:rgba(0,255,224,.45);box-shadow:0 0 18px rgba(0,255,224,.15);}
+  .btn i:not(.fa-lg){color:rgb(var(--tinte, var(--t-cian)));}
   .btn.primary, .ai-generate-btn{
-    background:var(--accent);border-color:transparent;color:#06080A;font-weight:700;box-shadow:none;
+    background:var(--klix-grad-accion);border-color:transparent;color:#06080A;font-weight:700;
+    box-shadow:0 0 22px rgba(0,255,170,.28);
   }
-  .btn.primary:hover, .ai-generate-btn:hover{background:var(--accent-hover);border-color:transparent;filter:none;}
+  .btn.primary:hover, .ai-generate-btn:hover{
+    background:var(--klix-grad-accion);filter:brightness(1.08) saturate(1.1);
+    border-color:transparent;box-shadow:0 0 30px rgba(0,255,170,.42);
+  }
   .btn.primary i, .ai-generate-btn i{color:#06080A !important;}
   .btn.ghost{background:transparent;border-color:transparent;color:var(--muted);}
-  .btn.ghost:hover{background:var(--surface-2);border-color:transparent;color:var(--text);}
-  .btn.ghost i{color:var(--muted);opacity:1;}
+  .btn.ghost:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.12);color:var(--text);box-shadow:none;}
   .btn.peligro{color:#FF8FA3;}
   .btn.peligro i{color:#FF8FA3 !important;}
   .btn:active{transform:scale(.97);}
-  /* En pantallas táctiles el hover queda "pegado" después del toque. */
   @media (hover:none){
-    .btn:hover{background:var(--surface-2);border-color:var(--border);}
-    .btn.ghost:hover{background:transparent;}
-    .btn.primary:hover, .ai-generate-btn:hover{background:var(--accent);}
+    .btn:hover{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);box-shadow:none;}
+    .btn.ghost:hover{background:transparent;border-color:transparent;}
   }
-
-  /* Foco del teclado en Cian Pulso: se ve sobre cualquier superficie. */
+  .month-nav button{
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:var(--accent-2);
+  }
+  .month-nav button:hover{border-color:rgba(0,255,224,.5);box-shadow:0 0 18px rgba(0,255,224,.25);}
   .btn:focus-visible, button:focus-visible, a:focus-visible, select:focus-visible,
   input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible{
     outline:2px solid var(--accent-2);outline-offset:2px;
   }
 
-  /* ---------- selecciones activas: verde plano con texto Noche ---------- */
+  /* ---------- selecciones activas: degradado de marca ---------- */
   .kind-opt.active, .view-opt.active, .weekday-opt.active, .ik-tab.active{
-    background:var(--accent);border-color:transparent;color:#06080A;font-weight:700;
+    background:var(--klix-grad-accion);border-color:transparent;color:#06080A;font-weight:700;
+    box-shadow:0 0 16px rgba(0,255,170,.25);
   }
-  .kind-opt:hover:not(.active), .view-opt:hover:not(.active), .weekday-opt:hover:not(.active){border-color:var(--linea-fuerte);}
 
-  /* El día de hoy: pastilla verde plana, sin brillo. */
-  .cell.today .daynum{background:var(--accent);color:#06080A;font-weight:700;box-shadow:none;}
-  .cell.today{border-color:rgba(0,255,122,.45);}
+  /* ---------- calendario ---------- */
+  /* Esquinas de visor de cámara alrededor del mes. */
+  .calendar-scroll{
+    position:relative;padding:14px;
+    background:
+      linear-gradient(#00FFE0,#00FFE0) top left / 22px 2px no-repeat,
+      linear-gradient(#00FFE0,#00FFE0) top left / 2px 22px no-repeat,
+      linear-gradient(#FF4FE0,#FF4FE0) top right / 22px 2px no-repeat,
+      linear-gradient(#FF4FE0,#FF4FE0) top right / 2px 22px no-repeat,
+      linear-gradient(#00FF7A,#00FF7A) bottom left / 22px 2px no-repeat,
+      linear-gradient(#00FF7A,#00FF7A) bottom left / 2px 22px no-repeat,
+      linear-gradient(#BCBDB5,#BCBDB5) bottom right / 22px 2px no-repeat,
+      linear-gradient(#BCBDB5,#BCBDB5) bottom right / 2px 22px no-repeat;
+  }
+  /* Cada día de la semana toma su tramo del degradado de marca. */
+  .cell.dia-0{--dia-rgb:0,255,224;}
+  .cell.dia-1{--dia-rgb:0,255,182;}
+  .cell.dia-2{--dia-rgb:0,255,122;}
+  .cell.dia-3{--dia-rgb:110,232,160;}
+  .cell.dia-4{--dia-rgb:188,189,181;}
+  .cell.dia-5{--dia-rgb:228,128,212;}
+  .cell.dia-6{--dia-rgb:255,79,224;}
+  .weekdays div.dia-0{color:#00FFE0;}
+  .weekdays div.dia-1{color:#00FFB6;}
+  .weekdays div.dia-2{color:#00FF7A;}
+  .weekdays div.dia-3{color:#6EE8A0;}
+  .weekdays div.dia-4{color:#BCBDB5;}
+  .weekdays div.dia-5{color:#E480D4;}
+  .weekdays div.dia-6{color:#FF4FE0;}
+  .weekdays div{font-family:var(--f-mono);opacity:.85;}
+  .cell{
+    --vidrio-a:rgba(255,255,255,.075);
+    --vidrio-b:rgba(255,255,255,.022);
+    background:
+      radial-gradient(90px 90px at 0% 0%, rgba(var(--dia-rgb),.26) 0%, rgba(var(--dia-rgb),0) 70%),
+      radial-gradient(110px 110px at 100% 100%, rgba(var(--dia-rgb),.12) 0%, rgba(var(--dia-rgb),0) 70%),
+      linear-gradient(180deg, var(--vidrio-a) 0%, var(--vidrio-b) 100%);
+    border:1px solid rgba(255,255,255,.10);
+    border-radius:14px;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 1px 2px rgba(0,0,0,.25);
+    backdrop-filter:var(--glass-blur-sm);-webkit-backdrop-filter:var(--glass-blur-sm);
+    transition:transform 180ms var(--ease-out), box-shadow 180ms var(--ease-out), border-color 180ms ease;
+  }
+  .cell.finde{--vidrio-a:rgba(255,255,255,.05);--vidrio-b:rgba(255,255,255,.015);}
+  /* El levantamiento al pasar el mouse, con el brillo del color de su día. */
+  @media (hover:hover) and (pointer:fine){
+    .cell:hover{
+      transform:translateY(-3px);
+      border-color:rgba(var(--dia-rgb),.55);
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 12px 26px rgba(0,0,0,.5), 0 0 22px rgba(var(--dia-rgb),.22);
+    }
+  }
+  .cell:active{transform:translateY(-1px) scale(.99);}
+  .cell.empty, .cell.empty:hover{background:none;border-color:transparent;box-shadow:none;transform:none;backdrop-filter:none;-webkit-backdrop-filter:none;}
+  .cell:focus-visible{outline:2px solid var(--accent-2);outline-offset:2px;}
+  .cell.today{
+    border-color:rgba(0,255,122,.6);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 0 0 1px rgba(0,255,122,.35), 0 0 28px rgba(0,255,122,.22);
+  }
+  .cell.today .daynum{
+    background:var(--klix-grad-accion);color:#06080A;font-weight:800;
+    box-shadow:0 0 14px rgba(0,255,170,.55);
+  }
+  .cell.drop-target{border-color:var(--accent-2);background:rgba(0,255,224,.10);box-shadow:0 0 0 1px var(--accent-2), 0 0 26px rgba(0,255,224,.35);}
 
-  /* Barra de carga: el degradado de marca entra acá porque es movimiento de marca. */
-  .loading-progress{background:var(--klix-grad);box-shadow:none;}
+  /* ---------- carga y guardado ---------- */
+  .loading-progress{background:var(--klix-grad);box-shadow:0 0 12px rgba(0,255,170,.6);}
+  .save-dot.saving{background:#FF4F6D;color:#FF4F6D;}
+  .save-dot.saved{background:var(--accent);color:var(--accent);}
 
   /* ---------- campos ---------- */
   input[type=text], input[type=url], input[type=search], input[type=number], input[type=date],
   textarea, select, .kit-input, .kit-textarea, .pub-colab, .rule-text-input, .copy-textarea{
-    border-color:var(--border);
+    background-color:rgba(0,0,0,.28);border-color:rgba(255,255,255,.12);
   }
-  input:focus, textarea:focus, select:focus, .kit-input:focus, .kit-textarea:focus{border-color:var(--accent-2);}
+  input:focus, textarea:focus, select:focus, .kit-input:focus, .kit-textarea:focus{
+    border-color:var(--accent-2);box-shadow:0 0 0 3px rgba(0,255,224,.12);
+  }
 
   /* ---------- publicación automática ---------- */
-  .pub-box.activa{border-color:rgba(0,255,122,.45);background:rgba(0,255,122,.06);}
+  .pub-box{background:rgba(255,255,255,.035);border-color:rgba(255,255,255,.10);}
+  .pub-box.activa{
+    border-color:rgba(255,79,224,.5);
+    background:linear-gradient(150deg, rgba(255,79,224,.08), rgba(0,255,224,.05));
+  }
   .pub-aviso.ok{color:var(--accent);}
-  .pub-marca-cal{background:#00C860;color:#06080A;box-shadow:none;}
-  .pub-marca-cal.proc{background:#E0B341;}
-  .pub-marca-cal.ok{background:var(--accent);}
-  .pub-marca-cal.error{background:var(--danger);color:#fff;}
   .pub-link{color:var(--accent-2);}
+  /* Programado y publicado con colores opuestos del degradado: rosa lo que va a salir,
+     verde lo que ya salió. Ámbar mientras Instagram procesa, rojo si falló. */
+  .pub-marca-cal{color:#06080A;box-shadow:0 0 8px rgba(0,0,0,.4);}
+  .pub-marca-cal.prog{background:var(--rosa);box-shadow:0 0 10px rgba(255,79,224,.55);}
+  .pub-marca-cal.proc{background:#F5B83D;}
+  .pub-marca-cal.ok{background:var(--accent);box-shadow:0 0 10px rgba(0,255,122,.55);}
+  .pub-marca-cal.error{background:var(--danger);color:#fff;}
 
-  /* ---------- calendario ---------- */
-  /* Celdas planas. El color por día de la semana competía con el de los ángulos, que es
-     el dato que importa en la grilla; el fin de semana se distingue con un escalón de tono. */
-  .cell{background:var(--surface);border-color:var(--border);box-shadow:none;border-radius:12px;}
-  .cell.finde{background:#0A0D10;}
-  /* Sin levantarse al pasar el mouse: un día se toca decenas de veces por sesión, y
-     alcanza con que el borde responda. */
-  .cell:hover{border-color:var(--linea-fuerte);box-shadow:none;transform:none;}
-  .cell.empty, .cell.empty:hover{background:none;border-color:transparent;}
-  .cell:focus-visible{outline-color:var(--accent-2);}
-  .cell.today{box-shadow:none;}
-  .cell.drop-target{border-color:var(--accent);background:var(--accent-soft);box-shadow:none;}
-  .weekdays div, .weekdays div[class*="dia-"]{color:var(--muted-2);}
-
-  /* ---------- texto con jerarquía clara ---------- */
+  /* ---------- varios ---------- */
   .hint, .kit-nota{color:var(--muted);}
-  .avatar-placeholder{font-size:16px;color:var(--muted-2);}
+  .avatar-placeholder{font-size:16px;color:var(--muted);}
+  .avatar-img, .avatar-placeholder{box-shadow:0 0 0 2px #06080A, 0 0 0 3.5px rgba(0,255,170,.7);}
   .avatar-edit-btn{font-size:10px;}
+  .tag{border-radius:7px;}
 
   @media (prefers-reduced-motion: reduce){
-    .btn, .kind-opt{transition:background-color .15s ease, border-color .15s ease, color .15s ease;}
-    .btn:active, .kind-opt:active{transform:none;}
+    .cell, .btn, .kind-opt{transition:background-color .15s ease, border-color .15s ease, color .15s ease;}
+    .cell:hover, .cell:active, .btn:active, .kind-opt:active{transform:none;}
+    .klix-hud::before{animation:none;}
   }
 </style>
 </head>
