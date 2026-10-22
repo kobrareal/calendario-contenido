@@ -2,21 +2,21 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<title>Calendario de Contenido</title>
+<title>Klix Kobrakool</title>
 <!-- viewport-fit=cover + los safe-area del CSS: en iPhone la barra inferior del sistema
      tapaba los botones del pie del panel cuando se usa instalada. -->
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#0a0a0d">
+<meta name="theme-color" content="#06080A">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Calendario">
+<meta name="apple-mobile-web-app-title" content="Kobrakool">
 <link rel="manifest" href="manifest.json">
-<link rel="icon" href="icono.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icono.svg">
+<link rel="icon" href="/klix-isotipo-96.png" type="image/png">
+<link rel="apple-touch-icon" href="/klix-icono-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <!-- Only needed by the "Exportar" button; deferred so it never blocks first paint. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" defer></script>
@@ -166,7 +166,7 @@
        el alto total de la página: en un mes largo, empujaba las dos luces fuera de la vista. */
     background-repeat:no-repeat;
     color:var(--text);
-    font-family:'Inter',sans-serif;
+    font-family:'Manrope',sans-serif;
     font-size:var(--t-sm);
     line-height:var(--lh-sm);
     letter-spacing:-0.005em; /* tracking muy sutil negativo en tamaño de texto */
@@ -188,7 +188,7 @@
   .app{padding-bottom:calc(24px + env(safe-area-inset-bottom));}
   .panel > .panel-footer{padding-bottom:calc(10px + env(safe-area-inset-bottom));}
   .mono{font-family:'IBM Plex Mono',monospace;}
-  .display{font-family:'Inter',sans-serif;font-weight:800;letter-spacing:-.3px;}
+  .display{font-family:'Manrope',sans-serif;font-weight:800;letter-spacing:-.3px;}
   .glow-text{text-shadow:0 0 18px var(--glow);}
   /* Read-only client links (?vista=lectura) hide every editing/admin control. */
   body.read-only .admin-only{display:none !important;}
@@ -222,7 +222,7 @@
   }
   .brand{display:flex;align-items:center;gap:12px;}
   .brand h1{
-    font-family:'Inter',sans-serif;
+    font-family:'Manrope',sans-serif;
     /* font-weight 800 era demasiado pesado; se leía "app de bar" en vez de "herramienta
        profesional". 600 con tracking negativo (-0.02em en headings, como recomienda la
        skill) queda con presencia sin gritar. */
@@ -250,7 +250,7 @@
   }
   .month-nav button:hover{background:var(--surface-3);box-shadow:0 0 16px var(--glow);}
   .month-nav button:focus-visible, button:focus-visible, [tabindex]:focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
-  .month-label{font-family:'Inter',sans-serif;font-weight:var(--w-semibold);font-size:var(--t-lg);line-height:var(--lh-lg);letter-spacing:-0.015em;min-width:170px;text-align:center;text-transform:capitalize;white-space:nowrap;}
+  .month-label{font-family:'Manrope',sans-serif;font-weight:var(--w-semibold);font-size:var(--t-lg);line-height:var(--lh-lg);letter-spacing:-0.015em;min-width:170px;text-align:center;text-transform:capitalize;white-space:nowrap;}
 
   .top-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
   .btn{
@@ -259,7 +259,7 @@
        "consumer/marketing", no "herramienta profesional". Un radio parejo con las
        superficies (10-16px) hace que la app se lea como un editor, no como un landing. */
     padding:var(--s-2) var(--s-4);border-radius:var(--r-2);cursor:pointer;
-    font-size:var(--t-sm);font-family:'Inter',sans-serif;font-weight:var(--w-semibold);
+    font-size:var(--t-sm);font-family:'Manrope',sans-serif;font-weight:var(--w-semibold);
     letter-spacing:-0.005em;
     display:inline-flex;align-items:center;gap:var(--s-2);
     transition:background .15s var(--ease-out), border-color .15s var(--ease-out),
@@ -515,7 +515,7 @@
   .angle-filter{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);}
   .angle-filter select{
     background:var(--surface);border:1px solid var(--border);color:var(--text);
-    border-radius:8px;padding:6px 10px;font-family:'Inter',sans-serif;font-size:12.5px;cursor:pointer;
+    border-radius:8px;padding:6px 10px;font-family:'Manrope',sans-serif;font-size:12.5px;cursor:pointer;
   }
 
   /* ---------- calendar ---------- */
@@ -555,7 +555,7 @@
   .view-opt{
     background:var(--card-bg-2);border:1px solid var(--border);color:var(--muted);
     padding:5px 11px;border-radius:8px;font-size:12px;cursor:pointer;
-    font-family:'Inter',sans-serif;
+    font-family:'Manrope',sans-serif;
     transition:background .15s var(--ease-out), border-color .15s var(--ease-out),
                color .15s var(--ease-out), transform 120ms var(--ease-out);
   }
@@ -578,7 +578,7 @@
     display:flex;align-items:baseline;justify-content:space-between;gap:6px;
     padding-bottom:6px;margin-bottom:6px;border-bottom:1px solid var(--border);
   }
-  .sem-dia{font-family:'Inter',sans-serif;font-size:12px;font-weight:700;text-transform:capitalize;}
+  .sem-dia{font-family:'Manrope',sans-serif;font-size:12px;font-weight:700;text-transform:capitalize;}
   .sem-fecha{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted-2);}
   .cell.otro-mes{opacity:.55;}
   .cell.otro-mes .sem-fecha{color:var(--danger);}
@@ -802,7 +802,7 @@
     padding:16px 18px 12px;border-bottom:1px solid var(--border);
     display:flex;align-items:baseline;justify-content:space-between;
   }
-  .sheet-head h2{font-family:'Inter',sans-serif;font-size:15px;margin:0;font-weight:700;}
+  .sheet-head h2{font-family:'Manrope',sans-serif;font-size:15px;margin:0;font-weight:700;}
   .sheet-head span{font-size:11px;color:var(--muted-2);font-family:'IBM Plex Mono',monospace;}
   /* Cabecera fuera del sheet (arriba del mockup del iPhone), en vez de encima de la
      grilla — así el mockup se lee limpio, sin un encabezado propio. */
@@ -854,7 +854,7 @@
     border-bottom:1px solid #1a1a1d;
   }
   .ig-brand{
-    font-family:'Inter', sans-serif; font-weight:700; font-size:16px;
+    font-family:'Manrope', sans-serif; font-weight:700; font-size:16px;
     letter-spacing:-0.01em;
   }
   .ig-icons{ display:flex; gap:14px; font-size:18px; color:#fff; opacity:.85; }
@@ -1000,7 +1000,7 @@
   }
   .anotacion-input::placeholder{color:rgba(240,184,73,.5);}
   .anotacion-input:focus{outline:none;border-color:rgba(240,184,73,.7);background:rgba(240,184,73,.12);}
-  .panel-head h2{font-family:'Inter',sans-serif;font-weight:700;font-size:17px;margin:0;text-transform:capitalize;}
+  .panel-head h2{font-family:'Manrope',sans-serif;font-weight:700;font-size:17px;margin:0;text-transform:capitalize;}
   .close-x{
     background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer;
     width:30px;height:30px;border-radius:6px;
@@ -1073,7 +1073,7 @@
   .angle-buscador{
     flex:none;width:100%;margin-bottom:4px;
     background:var(--surface-2);border:1px solid var(--border);border-radius:7px;
-    color:var(--text);padding:7px 9px;font-family:'Inter',sans-serif;font-size:12.5px;
+    color:var(--text);padding:7px 9px;font-family:'Manrope',sans-serif;font-size:12.5px;
   }
   .angle-buscador::placeholder{color:var(--muted-2);}
   .angle-buscador:focus{outline:none;border-color:var(--accent);}
@@ -1107,7 +1107,7 @@
 
   textarea{
     width:100%;background:var(--card-bg-2);border:1px solid var(--border);border-radius:8px;
-    color:var(--text);font-family:'Inter',sans-serif;font-size:13.5px;padding:10px 12px;
+    color:var(--text);font-family:'Manrope',sans-serif;font-size:13.5px;padding:10px 12px;
     min-height:78px;resize:vertical;line-height:1.5;
   }
   textarea:focus{outline:none;border-color:var(--accent);}
@@ -1296,7 +1296,7 @@
     width:34px; height:34px; flex:none; border-radius:var(--r-1);
     background:var(--surface-3); color:var(--muted);
     display:flex; align-items:center; justify-content:center;
-    font-family:'Inter',serif; font-size:14px; font-weight:600; letter-spacing:-0.02em;
+    font-family:'Manrope',serif; font-size:14px; font-weight:600; letter-spacing:-0.02em;
   }
   .kit-fuente-datos{flex:1; min-width:0; display:flex; flex-direction:column; gap:1px;}
   .kit-fuente-meta{
@@ -1322,7 +1322,7 @@
   .kit-producto-arriba{display:flex; align-items:center; gap:var(--s-1);}
   .kit-producto-nombre{
     flex:1; min-width:0; background:none; border:none; color:var(--text);
-    font-family:'Inter',sans-serif; font-size:12.5px; font-weight:var(--w-semibold);
+    font-family:'Manrope',sans-serif; font-size:12.5px; font-weight:var(--w-semibold);
     padding:2px 4px; border-radius:var(--r-1);
   }
   .kit-producto-nombre:hover{background:var(--surface-3);}
@@ -1337,7 +1337,7 @@
   .kit-producto-estado:focus{outline:none; border-color:var(--accent);}
   .kit-producto-desc{
     width:100%; background:none; border:none; color:var(--muted);
-    font-family:'Inter',sans-serif; font-size:11.5px; line-height:1.45;
+    font-family:'Manrope',sans-serif; font-size:11.5px; line-height:1.45;
     padding:2px 4px; border-radius:var(--r-1);
   }
   .kit-producto-desc::placeholder{color:var(--muted-2);}
@@ -1347,7 +1347,7 @@
   .kit-input, .kit-textarea{
     width:100%; background:var(--surface-2); border:1px solid var(--border);
     border-radius:8px; color:var(--text); padding:9px 11px;
-    font-family:'Inter',sans-serif; font-size:13px; line-height:1.55;
+    font-family:'Manrope',sans-serif; font-size:13px; line-height:1.55;
   }
   .kit-textarea{min-height:70px; resize:vertical;}
   .kit-etiqueta{display:block;font-size:var(--t-xs);color:var(--muted);margin:10px 0 4px;}
@@ -1385,7 +1385,7 @@
     width:100%; min-height:46px; resize:vertical;
     background:var(--card-bg-2); border:1px solid var(--border); border-radius:8px;
     color:var(--text); padding:8px 10px;
-    font-family:'Inter',sans-serif; font-size:12.5px; line-height:1.5;
+    font-family:'Manrope',sans-serif; font-size:12.5px; line-height:1.5;
   }
   .guion-contexto:focus{outline:none; border-color:var(--accent-2);}
 
@@ -1414,7 +1414,7 @@
   .frase-txt{
     flex:1; min-width:0; text-align:left; cursor:pointer;
     background:var(--surface-2); border:1px solid transparent; border-radius:7px;
-    color:var(--text); padding:7px 9px; font-family:'Inter',sans-serif;
+    color:var(--text); padding:7px 9px; font-family:'Manrope',sans-serif;
     font-size:12px; line-height:1.45;
     display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
     transition:border-color .15s var(--ease-out), background .15s var(--ease-out);
@@ -1433,7 +1433,7 @@
     width:100%; min-height:52px; resize:vertical; margin-bottom:8px;
     background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
     color:var(--text); padding:8px 10px;
-    font-family:'Inter',sans-serif; font-size:12px; line-height:1.45;
+    font-family:'Manrope',sans-serif; font-size:12px; line-height:1.45;
   }
   .frase-campo:focus{outline:none; border-color:var(--accent);}
   .frase-alta-row{display:flex; gap:8px; align-items:center;}
@@ -1494,7 +1494,7 @@
   }
   .modal-back.open .modal{transform:scale(1);opacity:1;}
   @starting-style{ .modal-back.open .modal{transform:scale(.95);opacity:0;} }
-  .modal h2{font-family:'Inter',sans-serif;font-weight:var(--w-semibold);margin:0 0 var(--s-1);font-size:var(--t-lg);line-height:var(--lh-lg);letter-spacing:-0.015em;}
+  .modal h2{font-family:'Manrope',sans-serif;font-weight:var(--w-semibold);margin:0 0 var(--s-1);font-size:var(--t-lg);line-height:var(--lh-lg);letter-spacing:-0.015em;}
   .modal .hint{color:var(--muted);font-size:var(--t-sm);margin:0 0 var(--s-5);line-height:var(--lh-sm);}
   .angle-row{
     display:flex;align-items:center;gap:10px;margin-bottom:10px;
@@ -1533,7 +1533,7 @@
   .ideas-filter-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;font-size:12.5px;color:var(--muted);}
   .ideas-filter-row select{
     background:var(--surface);border:1px solid var(--border);color:var(--text);
-    border-radius:8px;padding:6px 10px;font-family:'Inter',sans-serif;font-size:12.5px;cursor:pointer;
+    border-radius:8px;padding:6px 10px;font-family:'Manrope',sans-serif;font-size:12.5px;cursor:pointer;
   }
   .idea-row{
     display:flex;align-items:flex-start;gap:12px;margin-bottom:10px;
@@ -1550,7 +1550,7 @@
   .ik-tab{
     background:var(--card-bg-2); border:1px solid var(--border); color:var(--muted);
     padding:var(--s-1) var(--s-3); border-radius:var(--r-1); font-size:var(--t-xs);
-    cursor:pointer; font-family:'Inter',sans-serif;
+    cursor:pointer; font-family:'Manrope',sans-serif;
     transition:background .15s var(--ease-out), color .15s var(--ease-out);
   }
   .ik-tab:hover{color:var(--text);}
@@ -1559,7 +1559,7 @@
   .idea-kind-select{
     background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-2);
     color:var(--text); padding:var(--s-1) var(--s-2); font-size:var(--t-xs);
-    font-family:'Inter',sans-serif; cursor:pointer;
+    font-family:'Manrope',sans-serif; cursor:pointer;
   }
 
   /* ---------- panel de Ideas siempre visible en la sidebar ---------- */
@@ -1741,7 +1741,7 @@
   .notas-mes-box textarea{
     width:100%;min-height:74px;resize:none;overflow:hidden;
     background:var(--surface-2);border:1px solid var(--border);border-radius:10px;
-    color:var(--text);padding:9px 11px;font-family:'Inter',sans-serif;font-size:13px;line-height:1.55;
+    color:var(--text);padding:9px 11px;font-family:'Manrope',sans-serif;font-size:13px;line-height:1.55;
   }
   .notas-mes-box textarea:focus{outline:none;border-color:var(--accent);}
 
@@ -1786,7 +1786,7 @@
   .cambio-input{
     width:100%;background:var(--card-bg-2);border:1px solid var(--border);border-radius:7px;
     color:var(--text);padding:6px 9px;
-    font-family:'Inter',sans-serif;font-size:12px;line-height:1.45;
+    font-family:'Manrope',sans-serif;font-size:12px;line-height:1.45;
   }
   .cambio-input:focus{outline:none;border-color:var(--accent);}
   .cambio-texto{min-height:64px;resize:vertical;}
@@ -2118,7 +2118,7 @@
   .rule-card-head{display:flex;align-items:center;gap:8px;}
   .rule-select{
     background:var(--surface);border:1px solid var(--border);color:var(--text);
-    border-radius:8px;padding:6px 8px;font-family:'Inter',sans-serif;font-size:12.5px;cursor:pointer;
+    border-radius:8px;padding:6px 8px;font-family:'Manrope',sans-serif;font-size:12.5px;cursor:pointer;
   }
   .rule-card-head .del{
     margin-left:auto;background:none;border:none;color:var(--muted-2);cursor:pointer;font-size:14px;padding:4px 6px;
@@ -2131,7 +2131,7 @@
   }
   .rule-text-input{
     width:100%;background:var(--card-bg-2);border:1px solid var(--border);border-radius:8px;
-    color:var(--text);padding:8px 10px;font-family:'Inter',sans-serif;font-size:13px;
+    color:var(--text);padding:8px 10px;font-family:'Manrope',sans-serif;font-size:13px;
   }
 
   .toast{
@@ -2163,7 +2163,7 @@
     position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
     text-align:center;
   }
-  .donut-center .big{font-family:'Inter',sans-serif;font-weight:800;font-size:26px;line-height:1;}
+  .donut-center .big{font-family:'Manrope',sans-serif;font-weight:800;font-size:26px;line-height:1;}
   .donut-center .small{font-size:10.5px;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-top:4px;text-transform:uppercase;letter-spacing:.4px;}
   .stats-bars{flex:1;min-width:220px;display:flex;flex-direction:column;gap:10px;}
   .stats-bar-row{display:flex;align-items:center;gap:10px;font-size:12.5px;}
@@ -2188,7 +2188,7 @@
   .add-client-row{display:flex;gap:8px;margin-bottom:16px;}
   .add-client-row input{
     flex:1;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;
-    color:var(--text);padding:9px 10px;font-size:13px;font-family:'Inter',sans-serif;
+    color:var(--text);padding:9px 10px;font-size:13px;font-family:'Manrope',sans-serif;
   }
   .clients-empty{color:var(--muted-2);font-size:12.5px;text-align:center;padding:20px 0;}
 
@@ -2215,12 +2215,12 @@
   }
   .gen-cadence-count{
     background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);
-    padding:6px 8px;width:54px;font-size:13px;font-family:'Inter',sans-serif;text-transform:none;
+    padding:6px 8px;width:54px;font-size:13px;font-family:'Manrope',sans-serif;text-transform:none;
   }
   .weekday-toggle{display:flex;gap:6px;flex-wrap:wrap;}
   .weekday-opt{
     width:30px;height:30px;border-radius:8px;background:var(--surface);border:1px solid var(--border);
-    color:var(--muted);font-size:12px;cursor:pointer;font-family:'Inter',sans-serif;
+    color:var(--muted);font-size:12px;cursor:pointer;font-family:'Manrope',sans-serif;
     transition:background .15s var(--ease-out), border-color .15s var(--ease-out),
                color .15s var(--ease-out), transform 120ms var(--ease-out);
   }
@@ -2294,6 +2294,202 @@
       scroll-behavior:auto !important;
     }
   }
+
+  /* =====================================================================
+     TEMA KLIX · Klix Kobrakool
+     ---------------------------------------------------------------------
+     Va al final para pisar los valores de arriba sin tocar cada regla. Sale del manual
+     de klix contenido (paleta, tipografías, isotipo K) aplicado con criterio de pantalla
+     de trabajo, no de pieza para redes:
+       - Fondo Noche y superficies planas que se separan por un escalón de tono y una
+         línea de 1px. Sin vidrio esmerilado ni sombras en lo que está quieto: la sombra
+         queda para lo que flota (menús, modales).
+       - Un solo color de acción, el Verde Señal: el botón principal, lo activo y lo que
+         se publica solo. El cian marca el foco del teclado. El rosa no se usa en la
+         interfaz: vive en el degradado de marca.
+       - El degradado de marca aparece una vez, en el filo de la barra de arriba. Repetido
+         en cada botón deja de ser marca y pasa a ser decoración.
+       - Sora en títulos, Manrope en el texto, IBM Plex Mono en las etiquetas chicas.
+     ===================================================================== */
+  :root{
+    --bg-a:#06080A;
+    --surface:#0D1114;
+    --surface-2:#141A1E;
+    --surface-3:#1B2328;
+    --border:#1F282E;
+    --linea-fuerte:#2C373E;
+    --text:#FFFFFF;
+    --muted:#BCBDB5;     /* Niebla */
+    --muted-2:#8B8D86;   /* Niebla un escalón abajo: 6:1 sobre Noche, se sigue leyendo */
+    --accent:#00FF7A;    /* Verde Señal */
+    --accent-2:#00FFE0;  /* Cian Pulso */
+    --accent-hover:#5CFFA6;
+    --accent-soft:rgba(0,255,122,.14);
+    --glow:rgba(0,255,122,.30);
+    --ok:#00FF7A;
+    --danger:#FF5C7A;
+    --radius:16px;
+    --card-bg:#0D1114;
+    --card-bg-2:#0A0D10;
+    --ai-bg:#0A1513;
+    --ai-border:rgba(0,255,224,.26);
+    --tooltip-bg:#1B2328;
+    --glass-blur:none;
+    --glass-blur-sm:none;
+    --sh-1:none;
+    --sh-2:none;
+    --r-2:8px;
+    --r-3:14px;
+    --r-4:18px;
+    /* Los tintes de los botones se apagan: el color queda para la acción y los datos. */
+    --t-azul:188,189,181;
+    --t-violeta:188,189,181;
+    --t-cian:188,189,181;
+    --t-verde:0,255,122;
+    --klix-grad:linear-gradient(120deg,#00FFE0 0%,#00FF7A 38%,#BCBDB5 66%,#FF4FE0 100%);
+    --f-titulo:'Sora',sans-serif;
+    --f-texto:'Manrope',sans-serif;
+    --f-mono:'IBM Plex Mono',monospace;
+  }
+
+  body{
+    /* Noche plana, con un rastro muy tenue de la nebulosa de marca arriba (cian a la
+       izquierda, rosa a la derecha). A esta intensidad se percibe como luz, no como dibujo. */
+    background:
+      radial-gradient(900px 380px at -120px -160px, rgba(0,255,224,.07) 0%, rgba(0,255,224,0) 70%),
+      radial-gradient(900px 380px at calc(100% + 120px) -160px, rgba(255,79,224,.06) 0%, rgba(255,79,224,0) 70%),
+      var(--bg-a);
+    background-repeat:no-repeat;
+    font-family:var(--f-texto);
+  }
+  ::selection{background:rgba(0,255,224,.28);}
+
+  /* Títulos en Sora, con el tracking negativo que pide una letra de display. */
+  h1, h2, h3, .brand h1, .month-label, .panel-head h2, .sheet-head h2, .display, .sem-dia,
+  .kit-seccion-head h3{
+    font-family:var(--f-titulo);
+    letter-spacing:-0.02em;
+  }
+  .mono, .field-label, .tag .k, .item-resumen, .sem-hora, .pub-progreso{font-family:var(--f-mono);}
+
+  /* ---------- barra de la marca del producto ---------- */
+  .klix-barra{
+    display:flex;align-items:center;gap:10px;
+    padding:0 2px 12px;
+  }
+  .klix-barra img{width:24px;height:24px;display:block;flex:none;}
+  .klix-nombre{font-family:var(--f-titulo);font-weight:700;font-size:15px;letter-spacing:-0.02em;color:var(--text);}
+  .klix-nombre b{color:var(--accent);font-weight:700;}
+  .klix-hud{
+    margin-left:auto;font-family:var(--f-mono);font-size:11px;color:var(--muted-2);
+    white-space:nowrap;
+  }
+  @media (max-width:560px){ .klix-hud{display:none;} }
+
+  /* ---------- superficies planas ---------- */
+  header.top{
+    background:var(--surface);border:1px solid var(--border);
+    backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;
+    overflow:visible;
+  }
+  /* El filo de marca: el único lugar donde aparece el degradado klix. */
+  header.top::before{
+    content:'';position:absolute;left:18px;right:18px;top:-1px;height:2px;border-radius:2px;
+    background:var(--klix-grad);pointer-events:none;
+  }
+  .panel, .modal, .modal-back .modal, .kit-dashboard, .cell, .item-card, .ai-box,
+  .pub-box, .emoji-picker-popup{
+    backdrop-filter:none;-webkit-backdrop-filter:none;
+  }
+  .cell{border-color:var(--border);}
+
+  /* ---------- botones ---------- */
+  /* Neutros por defecto: superficie, línea de 1px y texto claro. El color es del primario. */
+  .btn{
+    background:var(--surface-2);border-color:var(--border);color:var(--text);
+    box-shadow:none;
+    transition:background-color .15s ease, border-color .15s ease, color .15s ease,
+               transform 160ms var(--ease-out);
+  }
+  .btn:hover{background:var(--surface-3);border-color:var(--linea-fuerte);}
+  .btn i:not(.fa-lg){color:var(--muted);}
+  .btn:hover i:not(.fa-lg){color:var(--text);}
+  .btn.primary, .ai-generate-btn{
+    background:var(--accent);border-color:transparent;color:#06080A;font-weight:700;box-shadow:none;
+  }
+  .btn.primary:hover, .ai-generate-btn:hover{background:var(--accent-hover);border-color:transparent;filter:none;}
+  .btn.primary i, .ai-generate-btn i{color:#06080A !important;}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--muted);}
+  .btn.ghost:hover{background:var(--surface-2);border-color:transparent;color:var(--text);}
+  .btn.ghost i{color:var(--muted);opacity:1;}
+  .btn.peligro{color:#FF8FA3;}
+  .btn.peligro i{color:#FF8FA3 !important;}
+  .btn:active{transform:scale(.97);}
+  /* En pantallas táctiles el hover queda "pegado" después del toque. */
+  @media (hover:none){
+    .btn:hover{background:var(--surface-2);border-color:var(--border);}
+    .btn.ghost:hover{background:transparent;}
+    .btn.primary:hover, .ai-generate-btn:hover{background:var(--accent);}
+  }
+
+  /* Foco del teclado en Cian Pulso: se ve sobre cualquier superficie. */
+  .btn:focus-visible, button:focus-visible, a:focus-visible, select:focus-visible,
+  input:focus-visible, textarea:focus-visible, [tabindex]:focus-visible{
+    outline:2px solid var(--accent-2);outline-offset:2px;
+  }
+
+  /* ---------- selecciones activas: verde plano con texto Noche ---------- */
+  .kind-opt.active, .view-opt.active, .weekday-opt.active, .ik-tab.active{
+    background:var(--accent);border-color:transparent;color:#06080A;font-weight:700;
+  }
+  .kind-opt:hover:not(.active), .view-opt:hover:not(.active), .weekday-opt:hover:not(.active){border-color:var(--linea-fuerte);}
+
+  /* El día de hoy: pastilla verde plana, sin brillo. */
+  .cell.today .daynum{background:var(--accent);color:#06080A;font-weight:700;box-shadow:none;}
+  .cell.today{border-color:rgba(0,255,122,.45);}
+
+  /* Barra de carga: el degradado de marca entra acá porque es movimiento de marca. */
+  .loading-progress{background:var(--klix-grad);box-shadow:none;}
+
+  /* ---------- campos ---------- */
+  input[type=text], input[type=url], input[type=search], input[type=number], input[type=date],
+  textarea, select, .kit-input, .kit-textarea, .pub-colab, .rule-text-input, .copy-textarea{
+    border-color:var(--border);
+  }
+  input:focus, textarea:focus, select:focus, .kit-input:focus, .kit-textarea:focus{border-color:var(--accent-2);}
+
+  /* ---------- publicación automática ---------- */
+  .pub-box.activa{border-color:rgba(0,255,122,.45);background:rgba(0,255,122,.06);}
+  .pub-aviso.ok{color:var(--accent);}
+  .pub-marca-cal{background:#00C860;color:#06080A;box-shadow:none;}
+  .pub-marca-cal.proc{background:#E0B341;}
+  .pub-marca-cal.ok{background:var(--accent);}
+  .pub-marca-cal.error{background:var(--danger);color:#fff;}
+  .pub-link{color:var(--accent-2);}
+
+  /* ---------- calendario ---------- */
+  /* Celdas planas. El color por día de la semana competía con el de los ángulos, que es
+     el dato que importa en la grilla; el fin de semana se distingue con un escalón de tono. */
+  .cell{background:var(--surface);border-color:var(--border);box-shadow:none;border-radius:12px;}
+  .cell.finde{background:#0A0D10;}
+  /* Sin levantarse al pasar el mouse: un día se toca decenas de veces por sesión, y
+     alcanza con que el borde responda. */
+  .cell:hover{border-color:var(--linea-fuerte);box-shadow:none;transform:none;}
+  .cell.empty, .cell.empty:hover{background:none;border-color:transparent;}
+  .cell:focus-visible{outline-color:var(--accent-2);}
+  .cell.today{box-shadow:none;}
+  .cell.drop-target{border-color:var(--accent);background:var(--accent-soft);box-shadow:none;}
+  .weekdays div, .weekdays div[class*="dia-"]{color:var(--muted-2);}
+
+  /* ---------- texto con jerarquía clara ---------- */
+  .hint, .kit-nota{color:var(--muted);}
+  .avatar-placeholder{font-size:16px;color:var(--muted-2);}
+  .avatar-edit-btn{font-size:10px;}
+
+  @media (prefers-reduced-motion: reduce){
+    .btn, .kind-opt{transition:background-color .15s ease, border-color .15s ease, color .15s ease;}
+    .btn:active, .kind-opt:active{transform:none;}
+  }
 </style>
 </head>
 <body>
@@ -2305,17 +2501,24 @@
 </div>
 
 <div class="app">
+  <!-- La marca del producto, arriba de todo: el encabezado de abajo es el de la marca
+       que se está mirando (su foto y su nombre), y sin esto la app no tenía nombre propio. -->
+  <div class="klix-barra">
+    <img src="/klix-isotipo-96.png" alt="" width="24" height="24" />
+    <span class="klix-nombre">Klix <b>Kobrakool</b></span>
+    <span class="klix-hud">/// calendario de contenido</span>
+  </div>
   <header class="top">
     <div class="brand">
       <div class="avatar-wrap">
         <img id="clientAvatar" class="avatar-img" alt="" style="display:none;" />
-        <div class="avatar-placeholder" id="avatarPlaceholder">👤</div>
-        <button type="button" class="avatar-edit-btn" id="avatarBtn" title="Cambiar foto de perfil del cliente">📷</button>
+        <div class="avatar-placeholder" id="avatarPlaceholder"><i class="fa-regular fa-user"></i></div>
+        <button type="button" class="avatar-edit-btn" id="avatarBtn" title="Cambiar foto de perfil del cliente"><i class="fa-solid fa-camera"></i></button>
         <input type="file" id="avatarFileInput" accept="image/*" style="display:none;" />
       </div>
       <div>
         <div style="display:flex;align-items:center;gap:8px;">
-          <h1 id="brandTitle">Calendario de contenido</h1>
+          <h1 id="brandTitle">Klix Kobrakool</h1>
           <button class="btn ghost icon-only admin-only" id="editTitleBtn" title="Editar título"><i class="fa-solid fa-pen"></i><span class="label">Editar</span></button>
           <!-- El panel de links se arma por JS al abrirlo, para no ocupar lugar en el encabezado. -->
           <div class="links-wrap">
@@ -2376,7 +2579,7 @@
             <option value="">Todo el contenido</option>
             <option value="reel">Solo reels</option>
             <option value="carrusel">Solo carruseles</option>
-            <option value="imagen">Solo imágenes</option>
+            <option value="imagen">Solo posts</option>
             <option value="story">Solo stories</option>
           </select>
           <select id="angleFilterSelect" title="Mostrar solo los días que tengan contenido de un ángulo">
@@ -2402,7 +2605,7 @@
       <div class="dashboard-panels">
         <div class="notas-mes-box" id="notasMesBox">
           <div class="notas-mes-head">
-            <label class="field-label" for="monthNotesText" id="monthNotesTitle" style="margin-bottom:0;">📝 Notas del mes</label>
+            <label class="field-label" for="monthNotesText" id="monthNotesTitle" style="margin-bottom:0;">Notas del mes</label>
             <span class="hint" id="monthNotesStatus" style="margin:0;"></span>
           </div>
           <textarea id="monthNotesText" title="Observaciones generales del mes: la campaña que corre, lo que hay que tener en cuenta, lo que quedó pendiente"
@@ -2415,7 +2618,7 @@
              en buena calidad pesa cientos de veces más que el resto de los datos juntos. -->
         <div class="kit-dashboard" id="kitDashboard">
           <div class="kit-dashboard-head">
-            <h3 id="kitTitulo">🎨 Kit de marca</h3>
+            <h3 id="kitTitulo">Kit de marca</h3>
             <span class="hint" id="kitEstado" style="margin:0;"></span>
           </div>
 
@@ -2499,7 +2702,7 @@
              copiando y pegando con Ctrl+V, sin depender de ninguna cuenta externa. -->
         <div class="ideas-dashboard" id="ideasDashboard">
           <div class="ideas-dashboard-head">
-            <h3>💡 Ideas guardadas</h3>
+            <h3>Ideas guardadas</h3>
             <!-- El formulario de alta arranca plegado: la lista de ideas es lo que se
                  viene a mirar, y tener siempre desplegado un textarea vacío con sus
                  controles se comía media caja sin que nadie lo pidiera. -->
@@ -2517,7 +2720,7 @@
                 <option value="">Cualquier tipo</option>
                 <option value="reel">Reel</option>
                 <option value="carrusel">Carrusel</option>
-                <option value="imagen">Imagen</option>
+                <option value="imagen">Post</option>
                 <option value="story">Story</option>
               </select>
               <div class="angle-picker" id="newIdeaAnglePicker" style="flex:1;"></div>
@@ -2531,7 +2734,7 @@
               <button type="button" class="ik-tab active" data-kind="">Todo</button>
               <button type="button" class="ik-tab" data-kind="reel">Reels</button>
               <button type="button" class="ik-tab" data-kind="carrusel">Carruseles</button>
-              <button type="button" class="ik-tab" data-kind="imagen">Imágenes</button>
+              <button type="button" class="ik-tab" data-kind="imagen">Posts</button>
               <button type="button" class="ik-tab" data-kind="story">Stories</button>
             </div>
             <select id="ideaFilterSelect" title="Filtrar por ángulo"><option value="">Todos los ángulos</option></select>
@@ -2630,7 +2833,7 @@
         <div style="display:flex;gap:6px;">
           <button type="button" class="btn ghost small admin-only" id="addReelBtn" title="Agregar un reel a este día">+ Reel</button>
           <button type="button" class="btn ghost small admin-only" id="addCarruselBtn" title="Agregar un carrusel a este día">+ Carrusel</button>
-          <button type="button" class="btn ghost small admin-only" id="addImagenBtn" title="Agregar un posteo de una sola imagen a este día">+ Imagen</button>
+          <button type="button" class="btn ghost small admin-only" id="addImagenBtn" title="Agregar un post de una sola imagen a este día">+ Post</button>
         </div>
       </div>
       <div id="feedContent">
@@ -2715,7 +2918,7 @@
     <h2>Vaciar contenido</h2>
     <p class="hint">Borra todo el Feed y las Stories del rango que elijas. Te lo confirmamos antes porque no se puede deshacer fácilmente.</p>
     <label class="field-label">Rango a vaciar</label>
-    <select id="clearRangeSelect" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:'Inter',sans-serif;font-size:13px;margin-bottom:6px;"></select>
+    <select id="clearRangeSelect" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 12px;font-family:'Manrope',sans-serif;font-size:13px;margin-bottom:6px;"></select>
     <div class="modal-close-row">
       <button class="btn ghost" id="closeClearModal" title="Cerrar sin borrar nada">Cancelar</button>
       <button class="btn primary" id="runClearBtn" style="background:linear-gradient(135deg,var(--danger),#a9515b);" title="Vaciar el rango elegido"><i class="fa-solid fa-trash"></i>Vaciar</button>
@@ -2848,7 +3051,7 @@
     <select id="ideaToCalKind" class="idea-kind-select" style="width:100%;margin-bottom:var(--s-3);">
       <option value="reel">Reel</option>
       <option value="carrusel">Carrusel</option>
-      <option value="imagen">Imagen</option>
+      <option value="imagen">Post</option>
       <option value="story">Story</option>
     </select>
     <div style="display:flex;gap:var(--s-3);">
@@ -2875,9 +3078,9 @@
     <h2>Buscar posts</h2>
     <p class="hint">Buscá por palabra clave y/o ángulo en los meses que elijas — no solo el que estás viendo.</p>
     <label class="field-label">Palabra clave</label>
-    <input type="text" id="searchKeywordInput" placeholder="Ej: promoción, testimonio, nombre de producto..." style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13px;font-family:'Inter',sans-serif;margin-bottom:14px;" />
+    <input type="text" id="searchKeywordInput" placeholder="Ej: promoción, testimonio, nombre de producto..." style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13px;font-family:'Manrope',sans-serif;margin-bottom:14px;" />
     <label class="field-label">Ángulo</label>
-    <select id="searchAngleSelect" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13px;font-family:'Inter',sans-serif;margin-bottom:14px;">
+    <select id="searchAngleSelect" style="width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13px;font-family:'Manrope',sans-serif;margin-bottom:14px;">
       <option value="">Todos los ángulos</option>
     </select>
     <div class="block-title-row" style="margin-bottom:8px;">
@@ -3402,8 +3605,7 @@
   // como carrusel, pero Instagram pide entre 2 y 10 archivos para publicar un carrusel, así
   // que el programador necesita saber de entrada cuál de los dos es.
   // Lo que no se reconoce cae en reel, igual que hacía el código antes de que hubiera tres.
-  const KINDS_FEED = { reel:'Reel', carrusel:'Carrusel', imagen:'Imagen' };
-  const ICONOS_KIND = { reel:'🎬', carrusel:'🖼', imagen:'📷', story:'📱' };
+  const KINDS_FEED = { reel:'Reel', carrusel:'Carrusel', imagen:'Post' };
   function kindFeed(k){ return KINDS_FEED[k] ? k : 'reel'; }
   function etiquetaKind(k){ return KINDS_FEED[kindFeed(k)]; }
 
@@ -3589,7 +3791,7 @@
   }
 
   function updateBrandTitle(){
-    const base = tituloPersonalizado.trim() || $('clientName').value.trim() || 'Calendario de contenido';
+    const base = tituloPersonalizado.trim() || $('clientName').value.trim() || 'Klix Kobrakool';
     $('brandTitle').textContent = IS_READONLY ? `${base} (solo lectura)` : base;
   }
 
@@ -4055,7 +4257,7 @@
   function tieneAngulo(item, id){ return !id || idsAngulos(item).includes(id); }
 
   function etiquetaAngulos(item, sep){
-    return angulosDe(item).map(a => (a.emoji ? a.emoji + ' ' : '') + a.name).join(sep || ' · ');
+    return angulosDe(item).map(a => a.name).join(sep || ' · ');
   }
   // Para la IA y ClickUp: nombres pelados, sin emojis de por medio.
   function nombresAngulos(item){ return angulosDe(item).map(a => a.name).join(' + '); }
@@ -4110,7 +4312,7 @@
       const chip = document.createElement('span');
       chip.className = 'angulo-chip';
       chip.style.background = a.color;
-      chip.textContent = (a.emoji ? a.emoji + ' ' : '') + a.name;
+      chip.textContent = a.name;
       cont.appendChild(chip);
     });
     return cont;
@@ -4802,7 +5004,7 @@
     }
     items.forEach(it=>{
       const tag = document.createElement('div');
-      const kindLabel = it.kind ? ({carrusel:'C', imagen:'I'}[it.kind] || 'R') : 'S';
+      const kindLabel = it.kind ? ({carrusel:'C', imagen:'P'}[it.kind] || 'R') : 'S';
       const hiddenMark = it.hideFromPreview ? ' 🚫' : '';
       // En la celda del mes entra un solo nombre, así que se escribe el del primer ángulo y
       // los demás los cuenta el degradado del fondo. Los nombres completos están en el
@@ -4823,7 +5025,7 @@
       // el ancho es de unos cien píxeles: todo lo que se mete ahí le saca lugar al título,
       // que es lo único que permite reconocer el posteo de un vistazo. La hora, el estado y
       // la revisión del cliente se leen al pasar el mouse, y el resto al abrirlo.
-      const NOMBRE_TIPO = { R:'Reel', C:'Carrusel', I:'Imagen', S:'Story' };
+      const NOMBRE_TIPO = { R:'Reel', C:'Carrusel', P:'Post', S:'Story' };
       const tooltip = [
         (it.time ? it.time + ' · ' : '') + NOMBRE_TIPO[kindLabel],
         it.title || '',
@@ -4843,7 +5045,7 @@
         tag.className = 'tag tag-truncated';
         tag.style.background = degradadoAngulos(listaAngulos);
         tag.title = tooltip;
-        const emoji = a.emoji ? `${escapeHtml(a.emoji)} ` : '';
+        const emoji = ''; // los ángulos se muestran sin emoji
         tag.innerHTML = `${marca}${puntoEstado}<span class="tag-txt">${escapeHtml(titleText)}${emoji}${escapeHtml(a.name)}${hiddenMark}${marcaAprob}</span>`;
       }else{
         tag.className = 'tag tag-empty tag-truncated';
@@ -5507,10 +5709,10 @@
   // para quien escribe son tres formatos del mismo contenido, y el gesto de cambiarlo ya
   // existía entre Reel y Carrusel.
   const TIPOS_POSTEO = [
-    { valor:'reel',     etiqueta:'🎬 Reel' },
-    { valor:'carrusel', etiqueta:'🖼 Carrusel' },
-    { valor:'imagen',   etiqueta:'📷 Imagen' },
-    { valor:'story',    etiqueta:'📱 Story' }
+    { valor:'reel',     etiqueta:'Reel' },
+    { valor:'carrusel', etiqueta:'Carrusel' },
+    { valor:'imagen',   etiqueta:'Post' },
+    { valor:'story',    etiqueta:'Story' }
   ];
 
   function buildSelectorTipo(key, item, esStory){
@@ -5592,17 +5794,18 @@
   }
 
   // ---------- título y ángulo automáticos ----------
-  // Un posteo con copy pero sin título o sin ángulo los recibe de la IA, deducidos del copy.
-  // Nunca pisa lo que ya está cargado, y el ángulo sale solo de los de la marca.
-  // Pasa al generar el copy y al terminar de escribirlo a mano (al salir del campo).
-  const yaAnalizados = new Map(); // id del posteo -> copy que ya se mandó, para no repetir el pedido
-  async function completarTituloYAngulo(key, item, kind){
+  // Un posteo con copy pero sin título o sin ángulo los recibe de la IA, deducidos del copy,
+  // con el botón "Completar título y ángulo" de la tarjeta. Nunca pisa lo que ya está cargado,
+  // y el ángulo sale solo de los de la marca.
+  async function completarTituloYAngulo(key, item, kind, boton){
     if(IS_READONLY) return;
     const pideTitulo = !(item.title || '').trim();
     const pideAngulo = !idsAngulos(item).length && angles.length > 0;
     const texto = (item.text || '').trim();
-    if((!pideTitulo && !pideAngulo) || texto.length < 40 || yaAnalizados.get(item.id) === texto) return;
-    yaAnalizados.set(item.id, texto);
+    if(!pideTitulo && !pideAngulo){ showToast('Este posteo ya tiene título y ángulo'); return; }
+    if(texto.length < 40){ showToast('Escribí primero el copy: la IA saca el título y el ángulo de ahí'); return; }
+    const textoBoton = boton ? boton.innerHTML : '';
+    if(boton){ boton.disabled = true; boton.textContent = 'Completando…'; }
     let j;
     try{
       const res = await fetch('/api/generar-copy', {
@@ -5613,19 +5816,40 @@
           reglas: reglasParaIA() || undefined
         })
       });
-      if(!res.ok){ yaAnalizados.delete(item.id); return; } // la próxima edición lo vuelve a intentar
-      j = await res.json();
-    }catch(e){ yaAnalizados.delete(item.id); return; } // es una ayuda: si falla, el posteo queda como estaba y no se avisa
+      j = await res.json().catch(()=> null);
+      // 504 = Gemini saturado: pasa seguido y se arregla solo. El detalle técnico queda en la
+      // respuesta del servidor; acá alcanza con decir qué hacer.
+      if(res.status === 504){ showToast('La IA está saturada en este momento. Probá de nuevo en un minuto.'); return; }
+      if(!res.ok){ showToast((j && j.error) || 'No se pudo completar. Probá de nuevo.'); return; }
+    }catch(e){
+      showToast('No se pudo completar. Revisá la conexión y probá de nuevo.');
+      return;
+    }finally{
+      if(boton && boton.isConnected){ boton.disabled = false; boton.innerHTML = textoBoton; }
+    }
     // Mientras tanto la persona pudo haberlos cargado a mano: se vuelve a mirar.
     const ponerTitulo = j.titulo && !(item.title || '').trim();
     const ponerAngulo = j.angulo && !idsAngulos(item).length && angleById(j.angulo);
-    if(!ponerTitulo && !ponerAngulo) return;
+    if(!ponerTitulo && !ponerAngulo){
+      showToast(pideAngulo && !j.angulo ? 'Ningún ángulo de la marca encaja con este copy' : 'No hubo nada para completar');
+      return;
+    }
     rearmarConservandoFoco(key, item.id, ()=>{
       if(ponerTitulo) item.title = j.titulo;
       if(ponerAngulo) setAngulos(item, [j.angulo]);
     });
     showToast('Completé ' + [ponerTitulo ? 'el título' : '', ponerAngulo ? 'el ángulo (' + angleById(j.angulo).name + ')' : '']
       .filter(Boolean).join(' y ') + ' a partir del copy');
+  }
+
+  // Botón de la tarjeta: completar el título y el ángulo que falten a partir del copy.
+  function botonCompletar(key, item, kind){
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn ghost small';
+    b.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i>Completar título y ángulo';
+    b.title = 'La IA completa el título y el ángulo que falten, a partir del copy';
+    b.addEventListener('click', ()=> completarTituloYAngulo(key, item, kind(), b));
+    return b;
   }
 
   // Rearmar la tarjeta (para que el selector de ángulos muestre el nuevo) le saca el foco a
@@ -5710,7 +5934,6 @@
         item.text = text;
         scheduleSaveDay(key);
         onGenerated(text);
-        completarTituloYAngulo(key, item, kindForPrompt);
         copyBtn.disabled = !text || !text.trim();
         showToast(text.length > COPY_MAX_LEN
           ? `Copy generado, ${text.length - COPY_MAX_LEN} caracteres por encima del límite`
@@ -6001,7 +6224,7 @@
   }
 
   function renderKit(){
-    $('kitTitulo').textContent = '🎨 Kit de ' + (($('clientName').value || '').trim() || 'marca');
+    $('kitTitulo').textContent = 'Kit de ' + (($('clientName').value || '').trim() || 'marca');
     renderKitArchivos('logo', $('kitLogos'), 'Todavía no subiste ningún logo.');
     renderKitArchivos('grafico', $('kitGraficos'), 'Todavía no subiste elementos gráficos.');
     renderKitColores();
@@ -6481,7 +6704,7 @@
     if(item.text) partes.push('COPY\n' + item.text);
     if(item.script) partes.push('GUION\n' + item.script);
     if(item.clientNote) partes.push('NOTAS\n' + item.clientNote);
-    partes.push('—\nDesde el Calendario de Contenido · ' + dia + '/' + mes + '/' + anio +
+    partes.push('—\nDesde Klix Kobrakool · ' + dia + '/' + mes + '/' + anio +
       (item.time ? ' ' + item.time : ''));
 
     const tarea = {
@@ -7640,7 +7863,7 @@
 
   function createFeedItemCard(key, item){
     if(IS_READONLY){
-      return createReadOnlyItemCard(key, item, { kindLabel: ICONOS_KIND[kindFeed(item.kind)] + ' ' + etiquetaKind(item.kind), hasThumb:true });
+      return createReadOnlyItemCard(key, item, { kindLabel: etiquetaKind(item.kind), hasThumb:true });
     }
     const card = document.createElement('div');
     card.className = 'item-card';
@@ -7776,7 +7999,6 @@
       item.text = textarea.value;
       scheduleSaveDay(key);
     });
-    textarea.addEventListener('change', ()=> completarTituloYAngulo(key, item, kindFeed(item.kind)));
     // El contador va en el mismo renglón que la etiqueta, a la derecha: abajo del campo
     // gastaba un renglón entero para tres cifras, y arriba queda a la vista mientras se
     // escribe sin tener que buscarlo al pie.
@@ -7847,6 +8069,7 @@
     scriptBtn.addEventListener('click', alternarGuion);
     if((item.script || '').trim() || (item.scriptContext || '').trim()) alternarGuion();
     accionesRow.appendChild(scriptBtn); // comparte renglón con el de emoji
+    accionesRow.appendChild(botonCompletar(key, item, ()=> kindFeed(item.kind)));
     cuerpo.appendChild(accionesRow);
     cuerpo.appendChild(scriptContainer); // acá se despliega el textarea del guión al pedirlo
 
@@ -7964,7 +8187,7 @@
 
   function createStoryItemCard(key, item){
     if(IS_READONLY){
-      return createReadOnlyItemCard(key, item, { kindLabel: '📱 Story', hasThumb:false });
+      return createReadOnlyItemCard(key, item, { kindLabel: 'Story', hasThumb:false });
     }
     const card = document.createElement('div');
     card.className = 'item-card';
@@ -8076,7 +8299,6 @@
       item.text = textarea.value;
       scheduleSaveDay(key);
     });
-    textarea.addEventListener('change', ()=> completarTituloYAngulo(key, item, 'story'));
     // El contador comparte renglón con la etiqueta, igual que en los posteos de feed.
     textLabel.appendChild(agregarContador(textarea));
     cuerpo.appendChild(buildAiBox(key, item, 'story', (text)=>{
@@ -8143,6 +8365,7 @@
     scriptBtn.addEventListener('click', alternarGuion);
     if((item.script || '').trim() || (item.scriptContext || '').trim()) alternarGuion();
     accionesRow.appendChild(scriptBtn); // comparte renglón con el de emoji
+    accionesRow.appendChild(botonCompletar(key, item, ()=> 'story'));
     cuerpo.appendChild(accionesRow);
     cuerpo.appendChild(scriptContainer); // acá se despliega el textarea del guión al pedirlo
 
@@ -8289,7 +8512,7 @@
 
         const marcados = seleccionados() || [];
         coinciden.forEach((a, i)=>{
-          const emoji = a.emoji ? `${escapeHtml(a.emoji)} ` : '';
+          const emoji = ''; // los ángulos se muestran sin emoji
           const elegida = marcados.includes(a.id);
           const opt = document.createElement('div');
           opt.className = 'angle-option' + (elegida ? ' elegida' : '') + (buscado && i === 0 ? ' resaltada' : '');
@@ -8335,7 +8558,7 @@
   // donde cada regla asigna un ángulo y elegir varios no querría decir nada.
   function buildPickerEl(container, currentAngleId, onSelect){
     const current = angleById(currentAngleId);
-    const currentEmoji = current && current.emoji ? `${escapeHtml(current.emoji)} ` : '';
+    const currentEmoji = '';
     container.innerHTML = `
       <button type="button" class="angle-trigger">
         ${current ? `<span class="swatch" style="background:${current.color}"></span>${currentEmoji}${escapeHtml(current.name)}` : `<span class="swatch" style="background:transparent;border:1px dashed var(--muted-2)"></span><span style="color:var(--muted-2)">Elegir ángulo…</span>`}
@@ -8370,7 +8593,7 @@
         return;
       }
       trigger.innerHTML = '<span class="angle-trigger-chips">' + elegidos.map(a=>
-        `<span class="angulo-chip" style="background:${a.color}">${a.emoji ? escapeHtml(a.emoji) + ' ' : ''}${escapeHtml(a.name)}</span>`
+        `<span class="angulo-chip" style="background:${a.color}">${escapeHtml(a.name)}</span>`
       ).join('') + '</span>';
     };
     pintarDisparador();
@@ -8582,7 +8805,7 @@
   }
 
   $('editTitleBtn').addEventListener('click', ()=>{
-    const actual = tituloPersonalizado || $('clientName').value.trim() || 'Calendario de contenido';
+    const actual = tituloPersonalizado || $('clientName').value.trim() || 'Klix Kobrakool';
     const nuevo = prompt('Editar título del calendario:', actual);
     if(nuevo === null) return;
     // Vaciarlo lo devuelve al nombre de la marca, en vez de dejar el encabezado en blanco.
@@ -8629,7 +8852,7 @@
       row.className = 'angle-row';
       row.innerHTML = `
         <input type="color" value="${a.color}" aria-label="Color del ángulo" />
-        <div style="position:relative;display:inline-block;">
+        <div style="position:relative;display:none;">
           <input type="text" value="${escapeHtml(a.emoji || '📌')}" style="width:40px;text-align:center;cursor:pointer;" aria-label="Emoji del ángulo" placeholder="Emoji" />
           <button type="button" style="background:none;border:none;cursor:pointer;padding:0;margin-left:2px;font-size:12px;" title="Selector de emoji">▼</button>
         </div>
@@ -9192,7 +9415,7 @@
     if(c.accion === 'agregar'){
       const tipo = document.createElement('select');
       tipo.className = 'cambio-input';
-      tipo.innerHTML = '<option value="reel">Reel</option><option value="carrusel">Carrusel</option><option value="imagen">Imagen</option><option value="story">Story</option>';
+      tipo.innerHTML = '<option value="reel">Reel</option><option value="carrusel">Carrusel</option><option value="imagen">Post</option><option value="story">Story</option>';
       tipo.value = c.lista === 'stories' ? 'story' : kindFeed(c.kind);
       tipo.addEventListener('change', ()=>{
         // La lista y el kind son dos campos que tienen que moverse juntos: una story no
@@ -9222,7 +9445,7 @@
     const angulo = document.createElement('select');
     angulo.className = 'cambio-input';
     angulo.innerHTML = '<option value="">Sin ángulo</option>' +
-      angles.map(a=>`<option value="${escapeHtml(a.name)}">${escapeHtml((a.emoji ? a.emoji + ' ' : '') + a.name)}</option>`).join('');
+      angles.map(a=>`<option value="${escapeHtml(a.name)}">${escapeHtml(a.name)}</option>`).join('');
     // El agente devuelve el ángulo por nombre; si propuso uno que no existe queda en vacío
     // y se elige a mano, que es mejor que aplicar un ángulo inventado.
     angulo.value = angles.some(a => a.name === c.angulo) ? c.angulo : '';
@@ -9395,7 +9618,7 @@
   // Se cargan junto con el mes, porque ahora están siempre a la vista debajo del calendario.
   async function loadNotasMes(){
     const campo = $('monthNotesText');
-    $('monthNotesTitle').textContent = `📝 Notas de ${MESES[viewMonth]} ${viewYear}`;
+    $('monthNotesTitle').textContent = `Notas de ${MESES[viewMonth]} ${viewYear}`;
     campo.value = '';
     $('monthNotesStatus').textContent = '';
     try{
@@ -10096,7 +10319,7 @@
       <option value="">Sin tipo</option>
       <option value="reel">Reel</option>
       <option value="carrusel">Carrusel</option>
-      <option value="imagen">Imagen</option>
+      <option value="imagen">Post</option>
       <option value="story">Story</option>
     `;
     kindSel.value = idea.kind || '';
@@ -10193,7 +10416,7 @@
       <option value="">Cualquier tipo</option>
       <option value="reel">Reel</option>
       <option value="carrusel">Carrusel</option>
-      <option value="imagen">Imagen</option>
+      <option value="imagen">Post</option>
       <option value="story">Story</option>
     `;
     kindSelect.value = idea.kind || '';
@@ -10488,12 +10711,12 @@
           const d = Number(dayKeyStr.split('-')[2]);
           (entry.feed||[]).forEach(it=>{
             if(matchesSearch(it, keyword, angleFilterVal)){
-              results.push({key: dayKeyStr, year, month, d, kind: ICONOS_KIND[kindFeed(it.kind)] + ' ' + etiquetaKind(it.kind), angles: idsAngulos(it), text: it.text||it.context||''});
+              results.push({key: dayKeyStr, year, month, d, kind: etiquetaKind(it.kind), angles: idsAngulos(it), text: it.text||it.context||''});
             }
           });
           (entry.stories||[]).forEach(it=>{
             if(matchesSearch(it, keyword, angleFilterVal)){
-              results.push({key: dayKeyStr, year, month, d, kind: '📱 Story', angles: idsAngulos(it), text: it.text||it.context||''});
+              results.push({key: dayKeyStr, year, month, d, kind: 'Story', angles: idsAngulos(it), text: it.text||it.context||''});
             }
           });
         });
@@ -10585,7 +10808,7 @@
     recurringRules.forEach(rule => wrap.appendChild(buildRuleCard(rule)));
   }
 
-  const RULE_KIND_LABELS = { reel: '🎬 Reel', carrusel: '🖼 Carrusel', story: '📱 Story' };
+  const RULE_KIND_LABELS = { reel: 'Reel', carrusel: 'Carrusel', story: 'Story' };
 
   function buildRuleCard(rule){
     const card = document.createElement('div');
@@ -11315,11 +11538,11 @@
   function pantallaSinAcceso(mensaje, huboIntento){
     document.body.innerHTML =
       '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;">' +
-      '<div style="width:100%;max-width:440px;text-align:center;background:rgba(255,255,255,.055);' +
-      'border:1px solid rgba(255,255,255,.16);border-radius:22px;padding:30px 24px;backdrop-filter:blur(22px);">' +
-      '<div style="font-size:34px;margin-bottom:14px;">' + (huboIntento ? '🔒' : '📅') + '</div>' +
-      '<h1 style="font-family:Inter,sans-serif;font-size:19px;margin:0 0 10px;">' +
-      (huboIntento ? 'Ese acceso ya no funciona' : 'Calendario de Contenido') + '</h1>' +
+      '<div style="width:100%;max-width:440px;text-align:center;background:#0D1114;' +
+      'border:1px solid #1F282E;border-radius:16px;padding:30px 24px;">' +
+      '<img src="/klix-isotipo-96.png" alt="" width="56" height="56" style="display:block;margin:0 auto 14px;" />' +
+      '<h1 style="font-family:Sora,sans-serif;font-size:19px;margin:0 0 10px;">' +
+      (huboIntento ? 'Ese acceso ya no funciona' : 'Klix Kobrakool') + '</h1>' +
       '<p style="color:#9a95ab;font-size:13.5px;line-height:1.6;margin:0 0 18px;">' + mensaje + '</p>' +
       // Salida de emergencia: pegar el link acá evita quedar trabado en esta pantalla, que
       // es lo que pasaba si el navegador no tenía el link guardado.
@@ -11328,8 +11551,8 @@
       'style="width:100%;background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.16);border-radius:10px;' +
       'color:#f4f2fb;padding:13px 12px;font-size:22px;letter-spacing:6px;text-align:center;' +
       "font-family:'IBM Plex Mono',monospace;margin-bottom:10px;\" />" +
-      '<button id="entrarPin" style="width:100%;background:linear-gradient(135deg,#4f8ef7,#8b5cf6);border:none;' +
-      'border-radius:10px;color:#fff;padding:13px;font-size:15px;font-weight:600;cursor:pointer;">Entrar</button>' +
+      '<button id="entrarPin" style="width:100%;background:#00FF7A;border:none;' +
+      'border-radius:8px;color:#06080A;padding:13px;font-size:15px;font-weight:700;cursor:pointer;">Entrar</button>' +
       '<p id="errorPin" style="color:#f2617a;font-size:12.5px;margin:10px 0 0;min-height:18px;line-height:1.45;"></p>' +
       '<div id="zonaRecordado"></div>' +
       '<details style="margin-top:14px;text-align:left;">' +

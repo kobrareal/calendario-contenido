@@ -62,7 +62,7 @@ function problema(item, esStory) {
   if (esStory) return media.length === 1 ? '' : 'Una story lleva exactamente un archivo.';
   const kind = ['carrusel', 'imagen'].includes(item.kind) ? item.kind : 'reel';
   if (kind === 'reel' && (media.length !== 1 || videos !== 1)) return 'Un reel lleva exactamente un video.';
-  if (kind === 'imagen' && (media.length !== 1 || videos !== 0)) return 'Un posteo de imagen lleva exactamente una imagen.';
+  if (kind === 'imagen' && (media.length !== 1 || videos !== 0)) return 'Un post lleva exactamente una imagen.';
   if (kind === 'carrusel' && (media.length < 2 || media.length > 10)) return 'Un carrusel lleva entre 2 y 10 archivos.';
   if ((item.colaboradores || []).length > 3) return 'Instagram admite hasta 3 colaboradores.';
   return '';
