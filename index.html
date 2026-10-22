@@ -7244,7 +7244,7 @@
         aviso.appendChild(otra);
       }else if(pub.estado === 'bloqueado' || pub.error){
         aviso.classList.add('falta');
-        aviso.textContent = '⏳ ' + (pub.error || 'Meta está bloqueando el acceso de la app. Se reintenta cada 5 minutos.');
+        aviso.textContent = '⏳ ' + (pub.error || 'Meta está bloqueando el acceso de la app. Se reintenta cada 30 minutos.');
       }else{
         aviso.textContent = '⏳ Publicando: Instagram está procesando el archivo.';
       }

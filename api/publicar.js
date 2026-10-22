@@ -41,8 +41,11 @@ const RENOVAR_ANTES_MS = 15 * 24 * 3600 * 1000;
 // de desarrollador dueña tiene una verificación pendiente. Va y viene, así que no se da el
 // posteo por perdido: queda "bloqueado" y se reintenta en cada vuelta, dentro de la ventana.
 const esBloqueoDeMeta = (e) => e && e.codigo === 200 && /blocked/i.test(e.message || '');
-const AVISO_BLOQUEO = 'Meta está bloqueando el acceso de la app ("API access blocked"). Se reintenta cada 5 minutos. ' +
-  'Para destrabarlo hay que confirmar la cuenta de desarrollador en developers.facebook.com.';
+const AVISO_BLOQUEO = 'Meta está bloqueando el acceso de la app ("API access blocked"). Se reintenta cada 30 minutos.';
+// Mientras Meta bloquea, insistir cada 5 minutos es justo el patrón que sus sistemas marcan
+// como abuso. Ante un bloqueo, la marca entera se pausa este tiempo: una sola prueba por
+// pausa, y ningún otro pedido a Meta hasta que pase.
+const PAUSA_BLOQUEO_MS = 30 * 60 * 1000;
 
 const diaLocal = (ms) => new Date(ms + DESFASE_MS).toISOString().slice(0, 10);
 function momento(dia, hora) {
@@ -166,6 +169,11 @@ module.exports = async (req, res) => {
       } catch (e) { anotar(marca, '-', 'no se pudo renovar el token: ' + e.message); }
     }
 
+    if (conexion.pausaHasta && conexion.pausaHasta > Date.now()) {
+      anotar(marca, '-', 'en pausa por bloqueo de Meta hasta ' + new Date(conexion.pausaHasta).toISOString());
+      continue;
+    }
+
     const pref = prefijoDatos(marca);
     let datos;
     try { datos = await leerClaves(admin, dias.map(d => pref + d)); } catch (e) { anotar(marca, '-', e.message); continue; }
@@ -260,8 +268,11 @@ module.exports = async (req, res) => {
             reg.error = AVISO_BLOQUEO;
           }
           await guardar().catch(() => {});
-          anotar(marca, c.id, 'bloqueado por Meta; se reintenta en la próxima vuelta');
-          continue;
+          // Pausa para toda la marca: no se prueba con el resto de sus posteos.
+          conexion.pausaHasta = Date.now() + PAUSA_BLOQUEO_MS;
+          await guardarJson(claveConexion(marca), conexion).catch(() => {});
+          anotar(marca, c.id, 'bloqueado por Meta; la marca queda en pausa 30 minutos');
+          break;
         }
         const msg = e.codigo === 190
           ? 'La conexión con Instagram venció o se revocó. Volvé a conectar la cuenta.'
