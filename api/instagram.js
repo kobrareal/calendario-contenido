@@ -6,8 +6,8 @@
 
 const { resolverToken } = require('../lib/acceso');
 const {
-  APP_ID, APP_SECRET, PERMISOS, REDIRECT,
-  marcaDe, claveConexion, claveRegistro, leerJson, guardarJson, borrarClave, firmar
+  APP_ID, APP_SECRET, PERMISOS, REDIRECT, GRAPH,
+  marcaDe, claveConexion, claveRegistro, leerJson, guardarJson, borrarClave, firmar, graph
 } = require('../lib/instagram');
 
 module.exports = async (req, res) => {
@@ -59,6 +59,28 @@ module.exports = async (req, res) => {
         state
       });
       return res.status(200).json({ url });
+    }
+
+    // Diagnóstico de la conexión: le pregunta a Instagram, con el token guardado, quién es la
+    // cuenta, qué permisos tiene y cuánto le queda de cupo para publicar. Devuelve los
+    // errores de Meta completos (código, subcódigo, tipo) y nunca el token.
+    if (cuerpo.accion === 'diagnostico') {
+      const conexion = await leerJson(claveConexion(marca), null);
+      if (!conexion || !conexion.token) return res.status(200).json({ conectado: false });
+      const probar = async (nombre, fn) => {
+        try { return { prueba: nombre, ok: true, respuesta: await fn() }; }
+        catch (e) { return { prueba: nombre, ok: false, error: e.detalle || e.message }; }
+      };
+      const t = conexion.token;
+      const resultados = [
+        await probar('cuenta', () => graph(GRAPH + '/me', { params: { fields: 'user_id,username,account_type' }, token: t })),
+        await probar('cuenta por id', () => graph(GRAPH + '/' + conexion.cuentaId, { params: { fields: 'username' }, token: t })),
+        await probar('cupo de publicación', () => graph(GRAPH + '/' + conexion.cuentaId + '/content_publishing_limit', { params: { fields: 'config,quota_usage' }, token: t }))
+      ];
+      return res.status(200).json({
+        conectado: true, usuario: conexion.usuario, cuentaId: conexion.cuentaId,
+        conectadoEl: conexion.conectado, vence: new Date(conexion.vence).toISOString(), resultados
+      });
     }
 
     if (cuerpo.accion === 'desconectar') {
