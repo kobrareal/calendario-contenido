@@ -7242,6 +7242,9 @@
           catch(e){ showToast(e.message); }
         });
         aviso.appendChild(otra);
+      }else if(pub.estado === 'bloqueado' || pub.error){
+        aviso.classList.add('falta');
+        aviso.textContent = '⏳ ' + (pub.error || 'Meta está bloqueando el acceso de la app. Se reintenta cada 5 minutos.');
       }else{
         aviso.textContent = '⏳ Publicando: Instagram está procesando el archivo.';
       }
@@ -7255,7 +7258,8 @@
       else if(caja.dataset.montada){ refrescosIG.delete(pintarAviso); return; }
       pintarCuenta();
       const pub = (estadoIG.publicaciones || {})[idRegistro];
-      const cerrado = !!pub && pub.estado !== 'error';
+      // Bloqueado por Meta todavía no creó nada en Instagram: se puede seguir editando.
+      const cerrado = !!pub && pub.estado !== 'error' && pub.estado !== 'bloqueado';
       interruptor.disabled = cerrado;
       filaBotones.style.display = cerrado ? 'none' : '';
       galeria.querySelectorAll('.pub-acciones').forEach(a => { a.style.display = cerrado ? 'none' : ''; });

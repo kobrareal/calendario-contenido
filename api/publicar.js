@@ -37,6 +37,13 @@ const PRESUPUESTO_MS = 20 * 1000;
 // Se renueva el token cuando le quedan menos de estos días (dura 60).
 const RENOVAR_ANTES_MS = 15 * 24 * 3600 * 1000;
 
+// "API access blocked" (código 200): Meta corta a la app entera, en general porque la cuenta
+// de desarrollador dueña tiene una verificación pendiente. Va y viene, así que no se da el
+// posteo por perdido: queda "bloqueado" y se reintenta en cada vuelta, dentro de la ventana.
+const esBloqueoDeMeta = (e) => e && e.codigo === 200 && /blocked/i.test(e.message || '');
+const AVISO_BLOQUEO = 'Meta está bloqueando el acceso de la app ("API access blocked"). Se reintenta cada 5 minutos. ' +
+  'Para destrabarlo hay que confirmar la cuenta de desarrollador en developers.facebook.com.';
+
 const diaLocal = (ms) => new Date(ms + DESFASE_MS).toISOString().slice(0, 10);
 function momento(dia, hora) {
   const [y, m, d] = dia.split('-').map(Number);
@@ -184,8 +191,12 @@ module.exports = async (req, res) => {
 
     for (const c of candidatos) {
       if (Date.now() - arranque > PRESUPUESTO_MS) break;
-      const previo = registro[c.id];
+      let previo = registro[c.id];
       if (previo && ['publicado', 'error'].includes(previo.estado)) continue;
+      // Un bloqueo de Meta sin nada creado en Instagram: se arranca de cero, como si no
+      // se hubiera intentado. Si vence la ventana, el error dice que fue por el bloqueo.
+      const veniaBloqueado = !!(previo && (previo.estado === 'bloqueado' || previo.bloqueado));
+      if (previo && previo.estado === 'bloqueado') previo = null;
 
       // Quedó cortado justo al publicar: no se sabe si salió. Reintentar podría duplicarlo,
       // así que se avisa y se deja que una persona lo mire.
@@ -198,7 +209,9 @@ module.exports = async (req, res) => {
         let reg = previo;
         if (!reg) {
           if (ahora - c.cuando > VENTANA_MS) {
-            registro[c.id] = { estado: 'error', error: 'Pasaron más de 6 horas de la hora programada sin poder publicarse.', at: new Date().toISOString() };
+            registro[c.id] = { estado: 'error', at: new Date().toISOString(), error: veniaBloqueado
+              ? 'Meta bloqueó el acceso de la app ("API access blocked") durante más de 6 horas. Confirmá la cuenta de desarrollador en developers.facebook.com, cambiale el horario y tocá Reintentar.'
+              : 'Pasaron más de 6 horas de la hora programada sin poder publicarse.' };
             await guardar(); anotar(marca, c.id, 'vencido'); continue;
           }
           const mal = problema(c.item, c.esStory);
@@ -234,6 +247,22 @@ module.exports = async (req, res) => {
         const borrados = await borrarArchivos([].concat(c.item.media || [], c.item.portada || []));
         if (borrados.error) anotar(marca, c.id, 'no se pudieron borrar los archivos: ' + borrados.error);
       } catch (e) {
+        if (esBloqueoDeMeta(e)) {
+          const reg = registro[c.id];
+          if (!reg) {
+            // No se llegó a crear nada en Instagram: queda a la espera y se vuelve a empezar.
+            registro[c.id] = { estado: 'bloqueado', error: AVISO_BLOQUEO, at: new Date().toISOString() };
+          } else {
+            // Ya había contenedores creados. Si el corte fue justo al publicar, la respuesta de
+            // Meta fue un error, así que no salió: se vuelve a "procesando" para reintentar.
+            reg.estado = 'procesando';
+            reg.bloqueado = new Date().toISOString();
+            reg.error = AVISO_BLOQUEO;
+          }
+          await guardar().catch(() => {});
+          anotar(marca, c.id, 'bloqueado por Meta; se reintenta en la próxima vuelta');
+          continue;
+        }
         const msg = e.codigo === 190
           ? 'La conexión con Instagram venció o se revocó. Volvé a conectar la cuenta.'
           : e.message;
