@@ -47,6 +47,12 @@ const AVISO_BLOQUEO = 'Meta está bloqueando el acceso de la app ("API access bl
 // pausa, y ningún otro pedido a Meta hasta que pase.
 const PAUSA_BLOQUEO_MS = 30 * 60 * 1000;
 
+// "You reached maximum number of posts..." (código 9): Instagram limita lo que una cuenta
+// crea por API en 24 horas. Se espera y se retoma; el registro conserva lo ya creado.
+const esLimiteDeInstagram = (e) => e && (e.codigo === 9 || /maximum number of posts/i.test(e.message || ''));
+const AVISO_LIMITE = 'Instagram limitó por un rato lo que esta cuenta puede preparar por API. Se reintenta solo en unas horas, retomando lo ya cargado.';
+const PAUSA_LIMITE_MS = 2 * 60 * 60 * 1000;
+
 const diaLocal = (ms) => new Date(ms + DESFASE_MS).toISOString().slice(0, 10);
 function momento(dia, hora) {
   const [y, m, d] = dia.split('-').map(Number);
@@ -79,7 +85,38 @@ async function estadoContenedor(id, token) {
 }
 
 // Arranca la publicación: crea el contenedor (o los hijos, si es carrusel).
-async function empezar(item, esStory, cuenta, token) {
+// Crea en Instagram lo que falte del registro, guardando cada contenedor apenas existe.
+//
+// Antes se creaban todos y recién al final se guardaba el registro: si Meta cortaba a la
+// mitad (un bloqueo, un timeout), los contenedores ya creados se perdían y el próximo intento
+// los volvía a crear desde cero. Con un carrusel de 9 fotos y reintentos cada pocos minutos
+// eso acumuló cientos de contenedores, e Instagram frenó la cuenta con "You reached maximum
+// number of posts" aunque publicaciones reales hubo dos. Ahora un intento retoma donde
+// quedó el anterior.
+async function crearPendientes(reg, item, esStory, cuenta, token, guardar) {
+  if (reg.contenedor || reg.hijosListos) return;
+  const armado = empezar(item, esStory);
+  if (armado.unico) {
+    reg.contenedor = await crearContenedor(cuenta, token, armado.unico);
+    reg.desde = Date.now(); // el reloj de procesamiento corre desde que existe el contenedor
+    await guardar();
+    return;
+  }
+  reg.hijos = Array.isArray(reg.hijos) ? reg.hijos : [];
+  reg.caption = armado.caption;
+  reg.colaboradores = armado.colaboradores;
+  for (let i = reg.hijos.length; i < armado.hijos.length; i++) {
+    reg.hijos.push(await crearContenedor(cuenta, token, armado.hijos[i]));
+    await guardar();
+  }
+  reg.hijosListos = true;
+  reg.desde = Date.now();
+  await guardar();
+}
+
+// Qué hay que crear para este posteo: un contenedor único, o los hijos de un carrusel.
+// No llama a Instagram; eso lo hace crearPendientes.
+function empezar(item, esStory) {
   const media = item.media;
   const caption = esStory ? undefined : (item.text || '');
   // Colaboradores: van en el contenedor que se publica (en un carrusel, el padre, no cada
@@ -90,31 +127,28 @@ async function empezar(item, esStory, cuenta, token) {
     m.tipo === 'video' ? { video_url: m.url } : { image_url: m.url }, extra);
 
   if (esStory) {
-    return { contenedor: await crearContenedor(cuenta, token, archivo(media[0], { media_type: 'STORIES' })) };
+    return { unico: archivo(media[0], { media_type: 'STORIES' }) };
   }
   const kind = ['carrusel', 'imagen'].includes(item.kind) ? item.kind : 'reel';
   if (kind === 'imagen') {
-    return { contenedor: await crearContenedor(cuenta, token, conColab({ image_url: media[0].url, caption })) };
+    return { unico: conColab({ image_url: media[0].url, caption }) };
   }
   if (kind === 'reel') {
     const reel = conColab({ media_type: 'REELS', video_url: media[0].url, caption });
     // La portada es la miniatura con la que el reel aparece en el feed; sin ella, Instagram
     // toma el primer cuadro del video.
     if (item.portada && item.portada.url) reel.cover_url = item.portada.url;
-    return { contenedor: await crearContenedor(cuenta, token, reel) };
+    return { unico: reel };
   }
-  const hijos = [];
-  for (const m of media) {
-    hijos.push(await crearContenedor(cuenta, token,
-      archivo(m, m.tipo === 'video' ? { media_type: 'VIDEO', is_carousel_item: 'true' } : { is_carousel_item: 'true' })));
-  }
+  const hijos = media.map(m =>
+    archivo(m, m.tipo === 'video' ? { media_type: 'VIDEO', is_carousel_item: 'true' } : { is_carousel_item: 'true' }));
   return { hijos, caption, colaboradores: colab };
 }
 
 // Avanza un registro "procesando" todo lo que se pueda en esta vuelta. Devuelve el registro
 // actualizado; si no cambió nada, Instagram sigue procesando.
 async function avanzar(reg, cuenta, token) {
-  if (reg.hijos && !reg.contenedor) {
+  if (reg.hijosListos && !reg.contenedor) {
     for (const h of reg.hijos) {
       const e = await estadoContenedor(h, token);
       if (e.codigo === 'ERROR' || e.codigo === 'EXPIRED') throw new Error('Instagram rechazó un archivo del carrusel. ' + e.detalle);
@@ -227,11 +261,19 @@ module.exports = async (req, res) => {
             registro[c.id] = { estado: 'error', error: mal, at: new Date().toISOString() };
             await guardar(); anotar(marca, c.id, mal); continue;
           }
-          reg = Object.assign({ estado: 'procesando', desde: Date.now(), at: new Date().toISOString() },
-            await empezar(c.item, c.esStory, conexion.cuentaId, conexion.token));
+          reg = { estado: 'procesando', desde: Date.now(), at: new Date().toISOString() };
           registro[c.id] = reg;
           await guardar();
         }
+
+        // Lo que quedó a medio crear en un intento anterior se retoma, pero no fuera de
+        // la ventana: un carrusel de las 21 no sale a la madrugada.
+        if (!reg.contenedor && !reg.hijosListos && ahora - c.cuando > VENTANA_MS) {
+          registro[c.id] = Object.assign(reg, { estado: 'error', at: new Date().toISOString(),
+            error: 'Pasaron más de 6 horas de la hora programada sin poder terminar de prepararlo en Instagram. Cambiale el horario y tocá Reintentar.' });
+          await guardar(); anotar(marca, c.id, 'vencido a medio crear'); continue;
+        }
+        await crearPendientes(reg, c.item, c.esStory, conexion.cuentaId, conexion.token, guardar);
 
         if (Date.now() - reg.desde > MAX_PROCESO_MS) throw new Error('Instagram tardó más de una hora en procesar el archivo.');
         await avanzar(reg, conexion.cuentaId, conexion.token);
@@ -255,6 +297,15 @@ module.exports = async (req, res) => {
         const borrados = await borrarArchivos([].concat(c.item.media || [], c.item.portada || []));
         if (borrados.error) anotar(marca, c.id, 'no se pudieron borrar los archivos: ' + borrados.error);
       } catch (e) {
+        if (esLimiteDeInstagram(e)) {
+          const reg = registro[c.id];
+          if (reg) { reg.estado = 'procesando'; reg.error = AVISO_LIMITE; }
+          await guardar().catch(() => {});
+          conexion.pausaHasta = Date.now() + PAUSA_LIMITE_MS;
+          await guardarJson(claveConexion(marca), conexion).catch(() => {});
+          anotar(marca, c.id, 'límite de Instagram; la marca queda en pausa 2 horas');
+          break;
+        }
         if (esBloqueoDeMeta(e)) {
           const reg = registro[c.id];
           if (!reg) {
