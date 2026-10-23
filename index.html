@@ -5920,16 +5920,26 @@
   }
 
   // ---------- título y ángulo automáticos ----------
-  // Un posteo con copy pero sin título o sin ángulo los recibe de la IA, deducidos del copy,
-  // con el botón "Completar título y ángulo" de la tarjeta. Nunca pisa lo que ya está cargado,
-  // y el ángulo sale solo de los de la marca.
-  async function completarTituloYAngulo(key, item, kind, boton){
+  // Un posteo con copy pero sin título o sin ángulo los recibe de la IA, deducidos del copy:
+  // solo al generar el copy o al terminar de escribirlo, y cuando se quiera con el botón
+  // "Completar título y ángulo" de la tarjeta. Nunca pisa lo que ya está cargado, y el ángulo
+  // sale solo de los de la marca.
+  // automatico = true cuando lo dispara el copy (al generarlo o al terminar de escribirlo):
+  // ahí no se avisa nada si no hay qué completar, y no se repite el pedido por el mismo
+  // texto. Con el botón (boton != null) se avisa todo.
+  const yaAnalizados = new Map(); // id del posteo -> copy ya mandado en modo automático
+  async function completarTituloYAngulo(key, item, kind, boton, automatico, reintento){
     if(IS_READONLY) return;
     const pideTitulo = !(item.title || '').trim();
     const pideAngulo = !idsAngulos(item).length && angles.length > 0;
     const texto = (item.text || '').trim();
-    if(!pideTitulo && !pideAngulo){ showToast('Este posteo ya tiene título y ángulo'); return; }
-    if(texto.length < 40){ showToast('Escribí primero el copy: la IA saca el título y el ángulo de ahí'); return; }
+    const avisar = (t)=>{ if(!automatico) showToast(t); };
+    if(!pideTitulo && !pideAngulo){ avisar('Este posteo ya tiene título y ángulo'); return; }
+    if(texto.length < 40){ avisar('Escribí primero el copy: la IA saca el título y el ángulo de ahí'); return; }
+    if(automatico){
+      if(yaAnalizados.get(item.id) === texto && !reintento) return;
+      yaAnalizados.set(item.id, texto);
+    }
     const textoBoton = boton ? boton.innerHTML : '';
     if(boton){ boton.disabled = true; boton.textContent = 'Completando…'; }
     let j;
@@ -5945,10 +5955,23 @@
       j = await res.json().catch(()=> null);
       // 504 = Gemini saturado: pasa seguido y se arregla solo. El detalle técnico queda en la
       // respuesta del servidor; acá alcanza con decir qué hacer.
-      if(res.status === 504){ showToast('La IA está saturada en este momento. Probá de nuevo en un minuto.'); return; }
-      if(!res.ok){ showToast((j && j.error) || 'No se pudo completar. Probá de nuevo.'); return; }
+      // Gemini saturado (504) suele durar segundos: se reintenta solo una vez antes de avisar.
+      if(res.status === 504 && !reintento){
+        if(!automatico) showToast('La IA está tardando; lo vuelvo a intentar en unos segundos…');
+        setTimeout(()=> completarTituloYAngulo(key, item, kind, boton, automatico, true), 20000);
+        return;
+      }
+      if(!res.ok){
+        if(automatico) yaAnalizados.delete(item.id); // la próxima edición lo vuelve a intentar
+        if(res.status === 504) showToast(automatico
+          ? 'No pude completar el título y el ángulo: la IA está saturada. Probá con el botón en un minuto.'
+          : 'La IA está saturada en este momento. Probá de nuevo en un minuto.');
+        else avisar((j && j.error) || 'No se pudo completar. Probá de nuevo.');
+        return;
+      }
     }catch(e){
-      showToast('No se pudo completar. Revisá la conexión y probá de nuevo.');
+      if(automatico) yaAnalizados.delete(item.id);
+      avisar('No se pudo completar. Revisá la conexión y probá de nuevo.');
       return;
     }finally{
       if(boton && boton.isConnected){ boton.disabled = false; boton.innerHTML = textoBoton; }
@@ -5957,7 +5980,7 @@
     const ponerTitulo = j.titulo && !(item.title || '').trim();
     const ponerAngulo = j.angulo && !idsAngulos(item).length && angleById(j.angulo);
     if(!ponerTitulo && !ponerAngulo){
-      showToast(pideAngulo && !j.angulo ? 'Ningún ángulo de la marca encaja con este copy' : 'No hubo nada para completar');
+      avisar(pideAngulo && !j.angulo ? 'Ningún ángulo de la marca encaja con este copy' : 'No hubo nada para completar');
       return;
     }
     rearmarConservandoFoco(key, item.id, ()=>{
@@ -6060,6 +6083,7 @@
         item.text = text;
         scheduleSaveDay(key);
         onGenerated(text);
+        completarTituloYAngulo(key, item, kindForPrompt, null, true);
         copyBtn.disabled = !text || !text.trim();
         showToast(text.length > COPY_MAX_LEN
           ? `Copy generado, ${text.length - COPY_MAX_LEN} caracteres por encima del límite`
@@ -8125,6 +8149,8 @@
       item.text = textarea.value;
       scheduleSaveDay(key);
     });
+    // Al terminar de escribir o pegar el copy (salir del campo), completa título y ángulo.
+    textarea.addEventListener('change', ()=> completarTituloYAngulo(key, item, kindFeed(item.kind), null, true));
     // El contador va en el mismo renglón que la etiqueta, a la derecha: abajo del campo
     // gastaba un renglón entero para tres cifras, y arriba queda a la vista mientras se
     // escribe sin tener que buscarlo al pie.
@@ -8425,6 +8451,7 @@
       item.text = textarea.value;
       scheduleSaveDay(key);
     });
+    textarea.addEventListener('change', ()=> completarTituloYAngulo(key, item, 'story', null, true));
     // El contador comparte renglón con la etiqueta, igual que en los posteos de feed.
     textLabel.appendChild(agregarContador(textarea));
     cuerpo.appendChild(buildAiBox(key, item, 'story', (text)=>{

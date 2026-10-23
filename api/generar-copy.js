@@ -74,7 +74,12 @@ async function tituloYAngulo(cuerpo, apiKey, res) {
     '\nCopy:\n' + texto;
 
   let ultimo = '';
+  // Hasta 13 s por intento, sin pasarse de los 30 s que Vercel le da a la función: con
+  // Gemini cargado, 9 s no alcanzaban y los tres intentos vencían por tiempo.
+  const inicio = Date.now();
   for (const modelo of MODELOS) {
+    const queda = 27000 - (Date.now() - inicio);
+    if (queda < 4000) break;
     try {
       // Sin el razonamiento previo, como en el copy: para un título de cinco palabras no
       // aporta nada y multiplica la demora. Si el modelo no conoce el ajuste, se pide sin él.
@@ -86,7 +91,7 @@ async function tituloYAngulo(cuerpo, apiKey, res) {
           generationConfig: Object.assign({ responseMimeType: 'application/json', temperature: 0.3 },
             sinPensar ? { thinkingConfig: { thinkingBudget: 0 } } : {})
         }),
-        signal: AbortSignal.timeout(9000)
+        signal: AbortSignal.timeout(Math.min(13000, queda))
       }).then(r => r.json());
       let j = await pedir(true);
       if (j.error && (j.error.code === 400 || /thinking|invalid argument/i.test(j.error.message || ''))) j = await pedir(false);
