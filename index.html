@@ -3685,21 +3685,18 @@
   // Items with a time sort chronologically first; items without one keep their
   // relative (creation) order at the end, since they have no slot to place them by.
   function compareByTime(a, b){
-    // Orden manual primero. Apenas se arrastra un posteo dentro de su día, ese día guarda
-    // el orden que le diste (un número por posteo) y deja de reacomodarse solo por horario:
-    // si lo acomodaste a mano, es porque el horario no era el criterio que querías.
-    // Un posteo agregado después no tiene número y va al final, listo para arrastrarlo.
-    const ao = Number.isFinite(a.orden) ? a.orden : null;
-    const bo = Number.isFinite(b.orden) ? b.orden : null;
-    if(ao !== null || bo !== null){
-      if(ao === null) return 1;
-      if(bo === null) return -1;
-      if(ao !== bo) return ao - bo;
-    }
+    // El horario manda siempre: un día se lee en el orden en que va a salir. Antes un
+    // orden hecho a mano le ganaba al horario, y un día quedaba 20:00, 20:30, 17:00.
     const at = a.time || '', bt = b.time || '';
-    if(at && bt) return at < bt ? -1 : (at > bt ? 1 : 0);
+    if(at && bt && at !== bt) return at < bt ? -1 : 1;
     if(at && !bt) return -1;
     if(!at && bt) return 1;
+    // Mismo horario, o los dos sin horario: ahí sí decide el orden manual (arrastrar).
+    const ao = Number.isFinite(a.orden) ? a.orden : null;
+    const bo = Number.isFinite(b.orden) ? b.orden : null;
+    if(ao !== null && bo !== null) return ao - bo;
+    if(ao !== null) return -1;
+    if(bo !== null) return 1;
     return 0;
   }
 
@@ -5415,7 +5412,7 @@
 
     // El botón para volver al orden por horario solo tiene sentido si el día está acomodado
     // a mano; el resto del tiempo sería un botón que no hace nada.
-    $('reordenarPorHora').hidden = !diaAcomodadoAMano(key);
+    $('reordenarPorHora').hidden = true; // el día siempre se ordena por horario (compareByTime)
   }
 
   function diaAcomodadoAMano(key){
