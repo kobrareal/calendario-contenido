@@ -75,7 +75,8 @@ module.exports = async (req, res) => {
       const resultados = [
         await probar('cuenta', () => graph(GRAPH + '/me', { params: { fields: 'user_id,username,account_type' }, token: t })),
         await probar('cuenta por id', () => graph(GRAPH + '/' + conexion.cuentaId, { params: { fields: 'username' }, token: t })),
-        await probar('cupo de publicación', () => graph(GRAPH + '/' + conexion.cuentaId + '/content_publishing_limit', { params: { fields: 'config,quota_usage' }, token: t }))
+        await probar('cupo de publicación', () => graph(GRAPH + '/' + conexion.cuentaId + '/content_publishing_limit', { params: { fields: 'config,quota_usage' }, token: t })),
+        await probar('últimas publicaciones', () => graph(GRAPH + '/' + conexion.cuentaId + '/media', { params: { fields: 'id,media_type,permalink,timestamp,caption', limit: '8' }, token: t }))
       ];
       return res.status(200).json({
         conectado: true, usuario: conexion.usuario, cuentaId: conexion.cuentaId,
@@ -96,6 +97,14 @@ module.exports = async (req, res) => {
       if (!registro[id]) return res.status(200).json({ ok: true });
       if (registro[id].estado !== 'error') {
         return res.status(409).json({ error: 'Solo se puede reintentar un posteo que falló.' });
+      }
+      // Si ya había un contenedor en Instagram, no se borra: el publicador le pregunta si
+      // salió (PUBLISHED) antes de hacer nada. Borrarlo y empezar de cero fue lo que podía
+      // publicar dos veces un posteo que se había cortado justo al publicar.
+      if (registro[id].contenedor) {
+        registro[id] = Object.assign(registro[id], { estado: 'procesando', error: '', desde: Date.now() });
+        await guardarJson(claveRegistro(marca), registro);
+        return res.status(200).json({ ok: true });
       }
       delete registro[id];
       await guardarJson(claveRegistro(marca), registro);

@@ -34,6 +34,9 @@ const VENTANA_MS = 6 * 3600 * 1000;
 const MAX_PROCESO_MS = 60 * 60 * 1000;
 // Se deja de empezar trabajo nuevo pasado este tiempo, para cerrar antes de los 30 s de Vercel.
 const PRESUPUESTO_MS = 20 * 1000;
+// Publicar solo si pasó menos que esto desde el arranque: deja ~25 s de los 60 que tiene la
+// función (vercel.json) para que Instagram confirme un carrusel sin cortarse a la mitad.
+const TIEMPO_PARA_PUBLICAR_MS = 35 * 1000;
 // Se renueva el token cuando le quedan menos de estos días (dura 60).
 const RENOVAR_ANTES_MS = 15 * 24 * 3600 * 1000;
 
@@ -159,6 +162,8 @@ async function avanzar(reg, cuenta, token) {
     reg.contenedor = await crearContenedor(cuenta, token, padre);
   }
   const e = await estadoContenedor(reg.contenedor, token);
+  // PUBLISHED: ya salió. Pasa cuando una vuelta anterior publicó y se cortó antes de anotarlo.
+  if (e.codigo === 'PUBLISHED') return Object.assign(reg, { listo: true, yaPublicado: true });
   if (e.codigo === 'ERROR' || e.codigo === 'EXPIRED') throw new Error('Instagram no pudo procesar el archivo. ' + e.detalle);
   if (e.codigo !== 'FINISHED') return reg;
   return Object.assign(reg, { listo: true });
@@ -240,11 +245,15 @@ module.exports = async (req, res) => {
       const veniaBloqueado = !!(previo && (previo.estado === 'bloqueado' || previo.bloqueado));
       if (previo && previo.estado === 'bloqueado') previo = null;
 
-      // Quedó cortado justo al publicar: no se sabe si salió. Reintentar podría duplicarlo,
-      // así que se avisa y se deja que una persona lo mire.
+      // Quedó cortado justo al publicar. Antes se marcaba error para no duplicar; ahora se le
+      // pregunta a Instagram por el contenedor (avanzar): si dice PUBLISHED se anota como
+      // publicado, y si dice FINISHED es que no salió y se publica. Nunca se crea otro.
       if (previo && previo.estado === 'publicando') {
-        registro[c.id] = Object.assign(previo, { estado: 'error', error: 'Se cortó mientras se publicaba. Revisá en Instagram si salió.' });
-        await guardar(); anotar(marca, c.id, 'cortado al publicar'); continue;
+        if (!previo.contenedor) {
+          registro[c.id] = Object.assign(previo, { estado: 'error', error: 'Se cortó mientras se publicaba. Revisá en Instagram si salió.' });
+          await guardar(); anotar(marca, c.id, 'cortado al publicar, sin contenedor'); continue;
+        }
+        previo.estado = 'procesando';
       }
 
       try {
@@ -279,17 +288,34 @@ module.exports = async (req, res) => {
         await avanzar(reg, conexion.cuentaId, conexion.token);
         if (!reg.listo) { await guardar(); anotar(marca, c.id, 'procesando'); continue; }
 
-        // Se marca ANTES de publicar: si la función se corta en el medio, la próxima vuelta
-        // lo ve y no lo publica de nuevo.
-        reg.estado = 'publicando';
-        await guardar();
-        const publicado = await graph(`/${conexion.cuentaId}/media_publish`, {
-          metodo: 'POST', params: { creation_id: reg.contenedor }, token: conexion.token
-        });
-        let permalink = '';
-        try { permalink = (await graph(`/${publicado.id}`, { params: { fields: 'permalink' }, token: conexion.token })).permalink || ''; }
-        catch (e) { /* las stories no siempre lo traen; el posteo salió igual */ }
-        registro[c.id] = { estado: 'publicado', mediaId: publicado.id, permalink, at: new Date().toISOString() };
+        let mediaId = '', permalink = '';
+        if (reg.yaPublicado) {
+          // Salió en una vuelta anterior que se cortó antes de anotarlo: se busca entre lo
+          // último publicado de la cuenta para tener el link.
+          try {
+            const recientes = await graph(`/${conexion.cuentaId}/media`, { params: { fields: 'id,permalink,timestamp', limit: '5' }, token: conexion.token });
+            const desde = Date.parse(reg.at || 0) - 60000;
+            const suyo = (recientes.data || []).find(m => Date.parse(m.timestamp) >= desde);
+            if (suyo) { mediaId = suyo.id; permalink = suyo.permalink || ''; }
+          } catch (e) { /* sin link: igual queda como publicado */ }
+        } else {
+          // Publicar puede tardar varios segundos (un carrusel, sobre todo). Si no queda tiempo
+          // en esta vuelta, se deja para la próxima en vez de arriesgarse a cortar a la mitad.
+          if (Date.now() - arranque > TIEMPO_PARA_PUBLICAR_MS) {
+            await guardar(); anotar(marca, c.id, 'listo; se publica en la próxima vuelta'); continue;
+          }
+          // Se marca ANTES de publicar: si la función se corta en el medio, la próxima vuelta
+          // lo ve y le pregunta a Instagram si salió.
+          reg.estado = 'publicando';
+          await guardar();
+          const publicado = await graph(`/${conexion.cuentaId}/media_publish`, {
+            metodo: 'POST', params: { creation_id: reg.contenedor }, token: conexion.token
+          });
+          mediaId = publicado.id;
+          try { permalink = (await graph(`/${publicado.id}`, { params: { fields: 'permalink' }, token: conexion.token })).permalink || ''; }
+          catch (e) { /* las stories no siempre lo traen; el posteo salió igual */ }
+        }
+        registro[c.id] = { estado: 'publicado', mediaId, permalink, at: new Date().toISOString() };
         await guardar();
         anotar(marca, c.id, 'publicado');
         // Instagram ya tiene su copia: los archivos se borran para no llenar el almacenamiento.

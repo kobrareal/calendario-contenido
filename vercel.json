@@ -1,12 +1,21 @@
 {
   "functions": {
     "api/*.js": {
-      "maxDuration": 30
+      "maxDuration": 60
     }
   },
   "rewrites": [
-    { "source": "/wayfarer/privacidad", "destination": "/privacidad.html" },
-    { "source": "/privacidad", "destination": "/privacidad.html" },
-    { "source": "/:token", "destination": "/index.html" }
+    {
+      "source": "/wayfarer/privacidad",
+      "destination": "/privacidad.html"
+    },
+    {
+      "source": "/privacidad",
+      "destination": "/privacidad.html"
+    },
+    {
+      "source": "/:token",
+      "destination": "/index.html"
+    }
   ]
 }
