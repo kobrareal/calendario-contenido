@@ -11928,6 +11928,10 @@
     loadNotificaciones().then(actualizarCampanita).catch(()=>{});
     loadPapelera().catch(()=>{});
     cargarEstadoIG(); // marca en el calendario qué se publicó, qué falló y qué se está publicando
+    // Y se mantiene al día con la app abierta: el publicador corre cada 5 minutos, y sin esto
+    // un posteo que pasó de error a publicado seguía en rojo hasta recargar la página.
+    setInterval(()=>{ if(!document.hidden) cargarEstadoIG(true); }, 2 * 60 * 1000);
+    document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) cargarEstadoIG(); });
     // El kit se pinta con lo que ya vino en el arranque —nombres y colores— y las imágenes
     // llegan después. Un logo en buena calidad pesa cientos de veces más que el resto de los
     // datos juntos, y esperarlas para mostrar el calendario sería pagar ese peso siempre.
