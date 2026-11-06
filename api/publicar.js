@@ -137,7 +137,14 @@ function empezar(item, esStory) {
     return { unico: conColab({ image_url: media[0].url, caption }) };
   }
   if (kind === 'reel') {
-    const reel = conColab({ media_type: 'REELS', video_url: media[0].url, caption });
+    const prueba = item.prueba && item.prueba.activo;
+    // Un reel de prueba no admite colaboradores: se manda sin ellos.
+    const reel = prueba
+      ? { media_type: 'REELS', video_url: media[0].url, caption }
+      : conColab({ media_type: 'REELS', video_url: media[0].url, caption });
+    // Reel de prueba: Instagram lo muestra primero solo a quien no sigue la cuenta.
+    // MANUAL = se pasa a seguidores desde la app; SS_PERFORMANCE = pasa solo si le va bien.
+    if (prueba) reel.trial_params = JSON.stringify({ graduation_strategy: item.prueba.graduacion === 'MANUAL' ? 'MANUAL' : 'SS_PERFORMANCE' });
     // La portada es la miniatura con la que el reel aparece en el feed; sin ella, Instagram
     // toma el primer cuadro del video.
     if (item.portada && item.portada.url) reel.cover_url = item.portada.url;

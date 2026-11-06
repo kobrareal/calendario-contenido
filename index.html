@@ -1921,6 +1921,9 @@
   }
   .pub-colab:focus{outline:none;border-color:var(--accent);}
   .pub-colab:disabled{opacity:.6;}
+  .pub-prueba{flex-wrap:wrap;}
+  .pub-prueba-check{display:flex;align-items:center;gap:6px;width:auto;cursor:pointer;color:var(--text);flex:none;}
+  .pub-prueba select{flex:1;min-width:180px;}
   .pub-aviso{font-size:var(--t-xs);line-height:var(--lh-xs);color:var(--muted);}
   .pub-aviso.falta{color:#f0b849;}
   .pub-aviso.ok{color:var(--ok);}
@@ -3775,7 +3778,10 @@
         // Portada del reel (la miniatura con la que aparece en el feed) y cuentas invitadas
         // como colaboradoras. Las stories no admiten ninguna de las dos.
         portada: (it.portada && typeof it.portada.url === 'string') ? { url: it.portada.url, ruta: it.portada.ruta || '' } : null,
-        colaboradores: normalizarColaboradores(it.colaboradores)
+        colaboradores: normalizarColaboradores(it.colaboradores),
+        // Reel de prueba: sale primero solo a quien no sigue la cuenta. graduacion dice cómo
+        // pasa después a los seguidores: 'SS_PERFORMANCE' (solo si le va bien) o 'MANUAL'.
+        prueba: (it.prueba && it.prueba.activo) ? { activo: true, graduacion: it.prueba.graduacion === 'MANUAL' ? 'MANUAL' : 'SS_PERFORMANCE' } : null
       };
       });
     }else if(feed && (feed.angle || feed.text || feed.thumb)){
@@ -3813,7 +3819,10 @@
         // Portada del reel (la miniatura con la que aparece en el feed) y cuentas invitadas
         // como colaboradoras. Las stories no admiten ninguna de las dos.
         portada: (it.portada && typeof it.portada.url === 'string') ? { url: it.portada.url, ruta: it.portada.ruta || '' } : null,
-        colaboradores: normalizarColaboradores(it.colaboradores)
+        colaboradores: normalizarColaboradores(it.colaboradores),
+        // Reel de prueba: sale primero solo a quien no sigue la cuenta. graduacion dice cómo
+        // pasa después a los seguidores: 'SS_PERFORMANCE' (solo si le va bien) o 'MANUAL'.
+        prueba: (it.prueba && it.prueba.activo) ? { activo: true, graduacion: it.prueba.graduacion === 'MANUAL' ? 'MANUAL' : 'SS_PERFORMANCE' } : null
       };
       });
     }else if(stories && (stories.angle || stories.text)){
@@ -7278,6 +7287,9 @@
         : `recortar ${fuera.length} imágenes: el feed acepta de 4:5 (vertical) a 1.91:1 (horizontal)`);
 
       const colab = item.colaboradores || [];
+      if(kindFeed(item.kind) === 'reel' && item.prueba && item.prueba.activo && colab.length){
+        faltan.push('sacar los colaboradores: un reel de prueba no los admite');
+      }
       if(colab.length > PUB_MAX_COLABORADORES) faltan.push(`dejar ${PUB_MAX_COLABORADORES} colaboradores como máximo`);
       const malos = colab.filter(u => !USUARIO_IG.test(u));
       if(malos.length) faltan.push('corregir el usuario de colaborador "' + malos[0] + '"');
@@ -7627,6 +7639,7 @@
     const extras = document.createElement('div');
     extras.className = 'pub-extras';
     let portadaFila = null, portadaVista = null, portadaQuitar = null, portadaBtn = null, colabInput = null;
+    let pruebaChk = null, pruebaSel = null;
     if(!esStory){
       if(kindFeed(item.kind) === 'reel'){
         portadaFila = document.createElement('div');
@@ -7677,6 +7690,36 @@
           item.portada = null;
           guardar();
         });
+      }
+
+      // Reel de prueba: Instagram lo muestra primero solo a quien no sigue la cuenta.
+      if(kindFeed(item.kind) === 'reel'){
+        const pruebaFila = document.createElement('div');
+        pruebaFila.className = 'pub-fila pub-prueba';
+        const etiqueta = document.createElement('label');
+        etiqueta.className = 'pub-prueba-check';
+        etiqueta.title = 'Instagram lo muestra primero solo a quienes no siguen la cuenta. No admite colaboradores.';
+        pruebaChk = document.createElement('input');
+        pruebaChk.type = 'checkbox';
+        pruebaChk.checked = !!(item.prueba && item.prueba.activo);
+        etiqueta.append(pruebaChk, ' Reel de prueba');
+        pruebaSel = document.createElement('select');
+        pruebaSel.className = 'pub-colab';
+        pruebaSel.title = 'Cómo pasa después a tus seguidores';
+        pruebaSel.innerHTML = '<option value="SS_PERFORMANCE">Pasa a seguidores si le va bien</option>' +
+                              '<option value="MANUAL">Lo paso yo desde Instagram</option>';
+        pruebaSel.value = (item.prueba && item.prueba.graduacion) || 'SS_PERFORMANCE';
+        pruebaSel.style.display = pruebaChk.checked ? '' : 'none';
+        const aplicar = ()=>{
+          pushUndo(key);
+          item.prueba = pruebaChk.checked ? { activo: true, graduacion: pruebaSel.value } : null;
+          pruebaSel.style.display = pruebaChk.checked ? '' : 'none';
+          guardar();
+        };
+        pruebaChk.addEventListener('change', aplicar);
+        pruebaSel.addEventListener('change', aplicar);
+        pruebaFila.append(etiqueta, pruebaSel);
+        extras.appendChild(pruebaFila);
       }
 
       const colabFila = document.createElement('label');
@@ -7809,6 +7852,7 @@
         portadaQuitar.style.display = hay && !cerrado ? '' : 'none';
       }
       if(colabInput) colabInput.disabled = cerrado;
+      if(pruebaChk){ pruebaChk.disabled = cerrado; pruebaSel.disabled = cerrado; }
       const faltan = problemasPublicacion(key, item, esStory);
       if(item.programar && estadoIG.cargado && !estadoIG.conectado && !estadoIG.noConfigurado && !estadoIG.error){
         faltan.unshift('conectar la cuenta de Instagram');
@@ -7826,7 +7870,12 @@
       }else{
         aviso.classList.add('ok');
         const [y, m, d] = key.split('-');
-        aviso.textContent = `Se publica solo el ${d}/${m} a las ${item.time}.` +
+        aviso.textContent = `Se publica solo el ${d}/${m} a las ${item.time}` +
+          (!esStory && kindFeed(item.kind) === 'reel' && item.prueba && item.prueba.activo
+            ? (item.prueba.graduacion === 'MANUAL'
+                ? ', como reel de prueba (solo a no seguidores; lo pasás vos desde Instagram).'
+                : ', como reel de prueba (primero a no seguidores; pasa a seguidores si le va bien).')
+            : '.') +
           (esStory ? ' Las stories se publican sin texto: Instagram no deja agregarlo por API.' : '');
       }
     };
