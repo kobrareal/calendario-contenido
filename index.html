@@ -1829,6 +1829,21 @@
     --t-rojo:242,97,122;
   }
 
+  /* ---------- miniatura flotante de los chips del calendario ---------- */
+  .chip-previa{
+    position:fixed;left:0;top:0;z-index:1500;pointer-events:none;
+    width:180px;border-radius:12px;overflow:hidden;
+    background:#0B1013;border:1px solid rgba(0,255,224,.35);
+    box-shadow:0 18px 40px rgba(0,0,0,.6), 0 0 24px rgba(0,255,170,.15);
+    opacity:0;transition:opacity 120ms ease;
+  }
+  .chip-previa.visible{opacity:1;}
+  .chip-previa img, .chip-previa video{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;background:#111;}
+  .chip-previa-pie{
+    padding:7px 10px;font-size:11.5px;line-height:1.35;color:#fff;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+
   /* ---------- vista previa estilo Instagram ---------- */
   .vp-fondo{
     position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.78);
@@ -4789,6 +4804,7 @@
     items.forEach(it=>{
       const fila = document.createElement('div');
       fila.className = 'sem-item';
+      previaAlPasar(fila, it);
 
       const arriba = document.createElement('div');
       arriba.className = 'sem-item-top';
@@ -5194,6 +5210,7 @@
         tag.classList.add('tag-clickable');
         clickSinArrastre(tag, ()=> abrirPosteo(key, it.id));
       }
+      previaAlPasar(tag, it, [it.time, NOMBRE_TIPO[kindLabel], it.title].filter(Boolean).join(' · '));
       if(key && listName && !IS_READONLY){
         // Arrastrarlo a otro día lo muda de fecha; arrastrarlo sobre otro posteo del mismo
         // día lo acomoda arriba o abajo de ese.
@@ -5201,6 +5218,63 @@
         hacerReordenable(tag, key, listName, it.id);
       }
       container.appendChild(tag);
+    });
+  }
+
+  // ---------- miniatura al pasar el mouse por un chip ----------
+  // Una sola tarjeta flotante para toda la página, que sigue al mouse. La imagen sale, en
+  // este orden, de: la miniatura del posteo, la primera imagen subida para publicar, la
+  // portada del reel o el primer cuadro del video. Sin ninguna, queda el tooltip de texto.
+  // Solo con mouse: en pantallas táctiles no hay "pasar por encima".
+  let chipPrevia = null;
+  function imagenDelPosteo(it){
+    if(it.thumb) return { tipo:'imagen', url: it.thumb };
+    const media = Array.isArray(it.media) ? it.media : [];
+    const img = media.find(m => m.tipo === 'imagen' && m.url);
+    if(img) return { tipo:'imagen', url: img.url };
+    if(it.portada && it.portada.url) return { tipo:'imagen', url: it.portada.url };
+    const vid = media.find(m => m.tipo === 'video' && m.url);
+    if(vid) return { tipo:'video', url: vid.url };
+    return null;
+  }
+  function previaAlPasar(el, it, rotulo){
+    if(!window.matchMedia || !matchMedia('(hover:hover) and (pointer:fine)').matches) return;
+    const mover = (e)=>{
+      if(!chipPrevia) return;
+      const ancho = chipPrevia.offsetWidth, alto = chipPrevia.offsetHeight;
+      // A la derecha y abajo del puntero; si no entra, del otro lado.
+      let x = e.clientX + 18, y = e.clientY + 18;
+      if(x + ancho > innerWidth - 8) x = e.clientX - ancho - 18;
+      if(y + alto > innerHeight - 8) y = innerHeight - alto - 8;
+      chipPrevia.style.transform = `translate(${Math.max(8, x)}px, ${Math.max(8, y)}px)`;
+    };
+    el.addEventListener('mouseenter', (e)=>{
+      const img = imagenDelPosteo(it);
+      if(!img) return;
+      // Mientras se ve la tarjeta, el tooltip de texto del navegador no: serían dos a la vez.
+      if(el.title){ el.dataset.titulo = el.title; el.removeAttribute('title'); }
+      if(!chipPrevia){
+        chipPrevia = document.createElement('div');
+        chipPrevia.className = 'chip-previa';
+        document.body.appendChild(chipPrevia);
+      }
+      chipPrevia.innerHTML = '';
+      const media = document.createElement(img.tipo === 'video' ? 'video' : 'img');
+      if(img.tipo === 'video'){ media.muted = true; media.preload = 'metadata'; media.src = img.url + '#t=0.1'; }
+      else { media.src = img.url; media.alt = ''; }
+      media.addEventListener('error', ()=> chipPrevia && chipPrevia.classList.remove('visible'));
+      const pie = document.createElement('div');
+      pie.className = 'chip-previa-pie';
+      pie.textContent = rotulo || [it.time, it.title].filter(Boolean).join(' · ');
+      chipPrevia.append(media);
+      if(pie.textContent) chipPrevia.append(pie);
+      mover(e);
+      chipPrevia.classList.add('visible');
+    });
+    el.addEventListener('mousemove', mover);
+    el.addEventListener('mouseleave', ()=>{
+      if(el.dataset.titulo){ el.title = el.dataset.titulo; delete el.dataset.titulo; }
+      if(chipPrevia) chipPrevia.classList.remove('visible');
     });
   }
 
