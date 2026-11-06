@@ -7354,8 +7354,7 @@
         if(media.length > 10) faltan.push('sacar archivos: un carrusel lleva hasta 10');
       }
       // Instagram rechaza imágenes de feed más altas que 4:5 o más anchas que 1.91:1.
-      const fuera = media.filter(m => m.tipo === 'imagen' && m.ancho && m.alto &&
-        (m.ancho / m.alto < 0.8 - 0.01 || m.ancho / m.alto > 1.91 + 0.01));
+      const fuera = media.filter(fueraDelFeed);
       if(fuera.length) faltan.push(fuera.length === 1
         ? 'recortar una imagen: el feed acepta de 4:5 (vertical) a 1.91:1 (horizontal)'
         : `recortar ${fuera.length} imágenes: el feed acepta de 4:5 (vertical) a 1.91:1 (horizontal)`);
@@ -7392,14 +7391,27 @@
 
   // Toda imagen pasa a JPEG: es el único formato de imagen que acepta la API de Instagram,
   // y así un PNG o una captura de pantalla funcionan igual sin que nadie tenga que convertirla.
-  function imagenAJpeg(file){
+  // Proporciones que acepta Instagram para una imagen del feed: de 4:5 (vertical) a 1.91:1.
+  const FEED_PROP_MIN = 4 / 5, FEED_PROP_MAX = 1.91;
+
+  // recortarAlFeed: si la imagen se pasa del rango, se recorta desde el centro hasta el
+  // límite más cercano (una vertical 9:16 queda 4:5, una panorámica queda 1.91:1). Así no
+  // hay que volver al editor por una foto que Instagram iba a rechazar.
+  function imagenAJpeg(file, recortarAlFeed){
     return new Promise((resolve, reject)=>{
       const url = URL.createObjectURL(file);
       const img = new Image();
       img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error('No se pudo leer la imagen')); };
       img.onload = ()=>{
         URL.revokeObjectURL(url);
-        let w = img.naturalWidth, h = img.naturalHeight;
+        // Recorte de origen (sx, sy, sw, sh), centrado.
+        let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight, recortada = false;
+        if(recortarAlFeed){
+          const prop = sw / sh;
+          if(prop < FEED_PROP_MIN){ const alto = Math.round(sw / FEED_PROP_MIN); sy = Math.round((sh - alto) / 2); sh = alto; recortada = true; }
+          else if(prop > FEED_PROP_MAX){ const ancho = Math.round(sh * FEED_PROP_MAX); sx = Math.round((sw - ancho) / 2); sw = ancho; recortada = true; }
+        }
+        let w = sw, h = sh;
         if(w > PUB_MAX_LADO){ h = Math.round(h * PUB_MAX_LADO / w); w = PUB_MAX_LADO; }
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
@@ -7407,19 +7419,21 @@
         // Fondo blanco: un PNG con transparencia pasado a JPEG quedaría con fondo negro.
         ctx.fillStyle = '#fff';
         ctx.fillRect(0, 0, w, h);
-        ctx.drawImage(img, 0, 0, w, h);
-        canvas.toBlob(b => b ? resolve({ blob:b, ancho:w, alto:h }) : reject(new Error('No se pudo convertir la imagen')),
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+        canvas.toBlob(b => b ? resolve({ blob:b, ancho:w, alto:h, recortada }) : reject(new Error('No se pudo convertir la imagen')),
           'image/jpeg', 0.92);
       };
       img.src = url;
     });
   }
+  const fueraDelFeed = (m)=> m && m.tipo === 'imagen' && m.ancho && m.alto &&
+    (m.ancho / m.alto < FEED_PROP_MIN - 0.01 || m.ancho / m.alto > FEED_PROP_MAX + 0.01);
 
   // Sube un archivo y devuelve la entrada para item.media. alProgreso recibe 0..1.
-  async function subirMedio(file, alProgreso){
+  async function subirMedio(file, alProgreso, recortarAlFeed){
     let blob, tipoMime, medidas, tipo;
     if(file.type.startsWith('image/')){
-      const r = await imagenAJpeg(file);
+      const r = await imagenAJpeg(file, recortarAlFeed);
       blob = r.blob; tipoMime = 'image/jpeg'; medidas = r; tipo = 'imagen';
     }else if(file.type === 'video/mp4' || file.type === 'video/quicktime'){
       blob = file; tipoMime = file.type; medidas = await medidasDeVideo(file); tipo = 'video';
@@ -7450,7 +7464,7 @@
         multipart: blob.size > 20 * 1024 * 1024,
         onUploadProgress: e => { if(alProgreso) alProgreso(e.percentage / 100); }
       });
-      return { url: subido.url, ruta: json.ruta, tipo, ancho: medidas.ancho || 0, alto: medidas.alto || 0 };
+      return { url: subido.url, ruta: json.ruta, tipo, ancho: medidas.ancho || 0, alto: medidas.alto || 0, recortada: !!medidas.recortada };
     }
 
     // XMLHttpRequest y no fetch: fetch no informa el avance de una subida, y con un video
@@ -7466,7 +7480,7 @@
       xhr.send(blob);
     });
 
-    return { url: json.url, ruta: json.ruta, tipo, ancho: medidas.ancho || 0, alto: medidas.alto || 0 };
+    return { url: json.url, ruta: json.ruta, tipo, ancho: medidas.ancho || 0, alto: medidas.alto || 0, recortada: !!medidas.recortada };
   }
 
   // ---------- conexión con Instagram ----------
@@ -7834,6 +7848,43 @@
     const progreso = document.createElement('span');
     progreso.className = 'pub-progreso';
     filaBotones.appendChild(subirBtn);
+    // Las imágenes subidas antes del recorte automático pueden estar fuera del rango del
+    // feed: este botón las baja, las recorta y las vuelve a subir, en su mismo lugar.
+    const recortarBtn = document.createElement('button');
+    recortarBtn.type = 'button'; recortarBtn.className = 'btn small';
+    recortarBtn.innerHTML = '<i class="fa-solid fa-crop-simple"></i>Recortar automáticamente';
+    recortarBtn.title = 'Recorta desde el centro las imágenes que Instagram no acepta (más altas que 4:5 o más anchas que 1.91:1)';
+    recortarBtn.addEventListener('click', async ()=>{
+      const media = item.media || [];
+      const indices = media.map((m, i) => fueraDelFeed(m) ? i : -1).filter(i => i >= 0);
+      if(!indices.length) return;
+      recortarBtn.disabled = true;
+      let hechas = 0;
+      try{
+        for(const i of indices){
+          progreso.textContent = `recortando ${hechas + 1}/${indices.length}…`;
+          const res = await fetch(media[i].url, { cache:'no-store' });
+          if(!res.ok) throw new Error('No se pudo leer una de las imágenes (' + res.status + ')');
+          const original = await res.blob();
+          const archivo = new File([original], 'imagen.jpg', { type: original.type || 'image/jpeg' });
+          const nuevo = await subirMedio(archivo, null, true);
+          delete nuevo.recortada;
+          pushUndo(key);
+          media[i] = nuevo;
+          hechas++;
+          guardar();
+        }
+        showToast(hechas === 1 ? 'Imagen recortada' : `${hechas} imágenes recortadas`);
+      }catch(err){
+        showToast(err.message || 'No se pudo recortar');
+      }finally{
+        progreso.textContent = '';
+        recortarBtn.disabled = false;
+        pintarAviso();
+      }
+    });
+    filaBotones.appendChild(recortarBtn);
+
     const previaBtn = document.createElement('button');
     previaBtn.type = 'button'; previaBtn.className = 'btn ghost small';
     previaBtn.innerHTML = '<i class="fa-regular fa-eye"></i>Vista previa';
@@ -8006,6 +8057,7 @@
       });
       galeria.style.display = media.length ? '' : 'none';
       previaBtn.style.display = media.length ? '' : 'none';
+      recortarBtn.style.display = (!esStory && media.some(fueraDelFeed)) ? '' : 'none';
     };
 
     // Orden de los archivos arrastrando: el primero es la portada del carrusel y el orden es
@@ -8080,12 +8132,14 @@
       entrada.value = '';
       if(!archivos.length) return;
       subirBtn.disabled = true;
-      let subidos = 0;
+      let subidos = 0, recortadas = 0;
       try{
         for(const [n, archivo] of archivos.entries()){
           const prefijo = archivos.length > 1 ? `${n+1}/${archivos.length} · ` : '';
           progreso.textContent = prefijo + 'preparando…';
-          const nuevo = await subirMedio(archivo, p => { progreso.textContent = prefijo + Math.round(p*100) + '%'; });
+          const nuevo = await subirMedio(archivo, p => { progreso.textContent = prefijo + Math.round(p*100) + '%'; }, !esStory);
+          if(nuevo.recortada) recortadas++;
+          delete nuevo.recortada;
           if(!Array.isArray(item.media)) item.media = [];
           pushUndo(key);
           item.media.push(nuevo);
@@ -8102,7 +8156,8 @@
           guardar();
         }
         progreso.textContent = '';
-        showToast(subidos === 1 ? 'Archivo subido' : `${subidos} archivos subidos`);
+        showToast((subidos === 1 ? 'Archivo subido' : `${subidos} archivos subidos`) +
+          (recortadas ? ` · ${recortadas === 1 ? 'una imagen se recortó' : recortadas + ' imágenes se recortaron'} al tamaño que acepta Instagram` : ''));
       }catch(err){
         progreso.textContent = '';
         showToast(err.message || 'No se pudo subir el archivo');
