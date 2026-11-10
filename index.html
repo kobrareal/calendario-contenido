@@ -1844,6 +1844,18 @@
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
 
+  /* ---------- selector del cuadro de portada ---------- */
+  .cuadro-tarjeta{padding:16px;display:flex;flex-direction:column;gap:12px;width:min(380px, 100%);}
+  .cuadro-cabeza{display:flex;flex-direction:column;gap:4px;}
+  .cuadro-cabeza strong{font-size:15px;}
+  .cuadro-cabeza span{font-size:12px;color:#a8a8a8;line-height:1.4;}
+  .cuadro-marco{border-radius:10px;overflow:hidden;background:#000;max-height:56vh;display:flex;justify-content:center;}
+  .cuadro-marco video{display:block;max-width:100%;max-height:56vh;}
+  .cuadro-control{display:flex;align-items:center;gap:10px;}
+  .cuadro-control input{flex:1;accent-color:#00FF7A;}
+  .cuadro-tiempo{font-family:'IBM Plex Mono',monospace;font-size:12px;color:#a8a8a8;min-width:34px;text-align:right;}
+  .cuadro-botones{display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;}
+
   /* ---------- vista previa estilo Instagram ---------- */
   .vp-fondo{
     position:fixed;inset:0;z-index:2000;background:rgba(0,0,0,.78);
@@ -7698,6 +7710,74 @@
     q('.vp-cerrar').focus();
   }
 
+  // ---------- portada del reel elegida de un cuadro del video ----------
+  // Se abre sola al elegir el video de un reel: se recorre el video con una barra, se elige
+  // un cuadro y se sube como portada (cover_url). Trabaja con el archivo local, así no
+  // espera a que termine la subida del video, que sigue de fondo.
+  function elegirCuadroDePortada(archivo, alElegir, alSubirOtra){
+    const url = URL.createObjectURL(archivo);
+    const fondo = document.createElement('div');
+    fondo.className = 'vp-fondo';
+    fondo.innerHTML = `
+      <div class="vp-tarjeta cuadro-tarjeta" role="dialog" aria-label="Elegir la portada del reel">
+        <div class="cuadro-cabeza">
+          <strong>Elegí la portada del reel</strong>
+          <span>Mové la barra hasta el cuadro que quieras. El video se sigue subiendo.</span>
+        </div>
+        <div class="cuadro-marco"><video muted playsinline preload="auto"></video></div>
+        <div class="cuadro-control">
+          <input type="range" min="0" max="1" step="0.04" value="0" aria-label="Momento del video" />
+          <span class="cuadro-tiempo">0:00</span>
+        </div>
+        <div class="cuadro-botones">
+          <button type="button" class="btn ghost small" data-accion="no">Ahora no</button>
+          <button type="button" class="btn small" data-accion="otra"><i class="fa-regular fa-image"></i>Subir otra imagen</button>
+          <button type="button" class="btn primary small" data-accion="usar"><i class="fa-solid fa-check"></i>Usar este cuadro</button>
+        </div>
+      </div>`;
+    const video = fondo.querySelector('video');
+    const barra = fondo.querySelector('input[type=range]');
+    const tiempo = fondo.querySelector('.cuadro-tiempo');
+    const usar = fondo.querySelector('[data-accion=usar]');
+    const fmt = (t)=> Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+    video.src = url;
+    usar.disabled = true;
+    video.addEventListener('loadedmetadata', ()=>{
+      barra.max = String(Math.max(0, video.duration - 0.05));
+      // Arranca un poco adentro del video: el primer cuadro suele ser negro o un corte.
+      const inicio = Math.min(1, video.duration / 4);
+      barra.value = String(inicio);
+      video.currentTime = inicio;
+    });
+    video.addEventListener('seeked', ()=>{ usar.disabled = false; tiempo.textContent = fmt(video.currentTime); });
+    barra.addEventListener('input', ()=>{ video.currentTime = Number(barra.value); });
+
+    const cerrar = ()=>{
+      fondo.remove();
+      URL.revokeObjectURL(url);
+      document.removeEventListener('keydown', teclas, true);
+    };
+    const teclas = (e)=>{ if(e.key === 'Escape'){ e.preventDefault(); e.stopImmediatePropagation(); cerrar(); } };
+    document.addEventListener('keydown', teclas, true);
+    fondo.querySelector('[data-accion=no]').addEventListener('click', cerrar);
+    fondo.querySelector('[data-accion=otra]').addEventListener('click', ()=>{ cerrar(); if(alSubirOtra) alSubirOtra(); });
+    usar.addEventListener('click', ()=>{
+      // El cuadro se pasa a una imagen JPEG del tamaño del video (hasta 1080 de ancho).
+      let w = video.videoWidth, h = video.videoHeight;
+      if(!w || !h){ showToast('No se pudo leer el video para sacar la portada'); return; }
+      if(w > 1080){ h = Math.round(h * 1080 / w); w = 1080; }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+      canvas.toBlob(b=>{
+        cerrar();
+        if(!b){ showToast('No se pudo sacar la portada de ese cuadro'); return; }
+        alElegir(new File([b], 'portada.jpg', { type: 'image/jpeg' }));
+      }, 'image/jpeg', 0.9);
+    });
+    document.body.appendChild(fondo);
+  }
+
   function buildBloquePublicacion(key, item, esStory){
     const caja = document.createElement('div');
     caja.className = 'pub-box';
@@ -7728,6 +7808,7 @@
     extras.className = 'pub-extras';
     let portadaFila = null, portadaVista = null, portadaQuitar = null, portadaBtn = null, colabInput = null;
     let pruebaChk = null, pruebaSel = null;
+    let aplicarPortada = null, abrirSelectorPortada = null; // solo existen en los reels
     if(!esStory){
       if(kindFeed(item.kind) === 'reel'){
         portadaFila = document.createElement('div');
@@ -7748,10 +7829,9 @@
         extras.appendChild(portadaFila);
 
         portadaBtn.addEventListener('click', ()=> portadaInput.click());
-        portadaInput.addEventListener('change', async ()=>{
-          const archivo = portadaInput.files[0];
-          portadaInput.value = '';
-          if(!archivo) return;
+        // Sube una imagen como portada del reel. La usan el botón "Subir portada" y el
+        // selector de cuadro que se abre solo al subir el video.
+        aplicarPortada = async (archivo)=>{
           portadaBtn.disabled = true;
           try{
             const subido = await subirMedio(archivo, p => { portadaBtn.textContent = Math.round(p*100) + '%'; });
@@ -7772,6 +7852,12 @@
             portadaBtn.disabled = false;
             pintarAviso(); // vuelve a poner el texto del botón según haya portada o no
           }
+        };
+        abrirSelectorPortada = ()=> portadaInput.click();
+        portadaInput.addEventListener('change', ()=>{
+          const archivo = portadaInput.files[0];
+          portadaInput.value = '';
+          if(archivo) aplicarPortada(archivo);
         });
         portadaQuitar.addEventListener('click', ()=>{
           pushUndo(key);
@@ -8137,6 +8223,9 @@
         for(const [n, archivo] of archivos.entries()){
           const prefijo = archivos.length > 1 ? `${n+1}/${archivos.length} · ` : '';
           progreso.textContent = prefijo + 'preparando…';
+          if(aplicarPortada && archivo.type.startsWith('video/') && !(item.portada && item.portada.url)){
+            elegirCuadroDePortada(archivo, aplicarPortada, abrirSelectorPortada);
+          }
           const nuevo = await subirMedio(archivo, p => { progreso.textContent = prefijo + Math.round(p*100) + '%'; }, !esStory);
           if(nuevo.recortada) recortadas++;
           delete nuevo.recortada;
