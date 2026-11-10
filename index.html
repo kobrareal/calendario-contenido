@@ -8055,7 +8055,10 @@
         const hay = !!(item.portada && item.portada.url);
         portadaVista.style.display = hay ? '' : 'none';
         if(hay && portadaVista.getAttribute('src') !== item.portada.url){
-          portadaVista.onerror = ()=>{ portadaVista.style.display = 'none'; };
+          portadaVista.onerror = ()=>{
+            if(item.thumb && portadaVista.getAttribute('src') !== item.thumb){ portadaVista.src = item.thumb; return; }
+            portadaVista.style.display = 'none';
+          };
           portadaVista.src = item.portada.url;
         }
         portadaBtn.style.display = cerrado ? 'none' : '';
@@ -8101,6 +8104,15 @@
         // Después de publicarse, el archivo se borra del almacenamiento (ver api/publicar.js):
         // se muestra eso en vez de un ícono de imagen rota.
         vista.addEventListener('error', ()=>{
+          // El primero muestra la miniatura del calendario, que no se borra nunca.
+          if(i === 0 && item.thumb && !celda.dataset.miniatura){
+            celda.dataset.miniatura = '1';
+            const mini = document.createElement('img');
+            mini.src = item.thumb; mini.alt = 'Miniatura';
+            vista.replaceWith(mini);
+            celda.title = 'El archivo original se borró tras publicarse; queda la miniatura como referencia';
+            return;
+          }
           celda.classList.add('borrado');
           celda.title = 'El archivo se borró del almacenamiento después de publicarse';
         });
@@ -8234,9 +8246,10 @@
           item.media.push(nuevo);
           // La miniatura de la vista previa sale del primer archivo si todavía no tenía una:
           // ya está la imagen final, no tiene sentido pedir que se cargue otra.
-          if(!item.thumb && nuevo.tipo === 'imagen'){
+          if(!item.thumb && (nuevo.tipo === 'imagen' || nuevo.tipo === 'video')){
             try{
-              item.thumb = await compressImageFile(archivo);
+              // De un video se saca un cuadro; la portada elegida después la reemplaza.
+              item.thumb = await compressImageFile(nuevo.tipo === 'video' ? await cuadroDeVideo(archivo) : archivo);
               const vista = caja.closest('.item-card') && caja.closest('.item-card').querySelector('.thumb-preview');
               if(vista){ vista.src = item.thumb; vista.classList.add('show'); }
             }catch(e){ /* sin miniatura */ }
@@ -8832,6 +8845,29 @@
 
   // Resizes + compresses an uploaded image client-side into a small JPEG data URI,
   // small enough to fit safely inside a single Google Sheets cell (~50,000 char limit) alongside the day's text.
+  // Un cuadro del video (a 1 s o a un cuarto si es más corto) como archivo JPEG.
+  function cuadroDeVideo(archivo){
+    return new Promise((resolve, reject)=>{
+      const url = URL.createObjectURL(archivo);
+      const video = document.createElement('video');
+      video.muted = true; video.playsInline = true; video.preload = 'auto';
+      const fin = (err, val)=>{ URL.revokeObjectURL(url); err ? reject(err) : resolve(val); };
+      const espera = setTimeout(()=> fin(new Error('El video tardó demasiado')), 15000);
+      video.onerror = ()=>{ clearTimeout(espera); fin(new Error('No se pudo leer el video')); };
+      video.onloadedmetadata = ()=>{ video.currentTime = Math.min(1, (video.duration || 0) / 4); };
+      video.onseeked = ()=>{
+        clearTimeout(espera);
+        const w = video.videoWidth, h = video.videoHeight;
+        if(!w || !h) return fin(new Error('Video sin imagen'));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(video, 0, 0, w, h);
+        canvas.toBlob(b => b ? fin(null, new File([b], 'cuadro.jpg', { type:'image/jpeg' })) : fin(new Error('Sin cuadro')), 'image/jpeg', 0.85);
+      };
+      video.src = url;
+    });
+  }
+
   function compressImageFile(file){
     const BUDGET = 34000; // chars of budget for the image itself
     return new Promise((resolve, reject)=>{

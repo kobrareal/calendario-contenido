@@ -55,6 +55,9 @@ const PAUSA_BLOQUEO_MS = 30 * 60 * 1000;
 const esLimiteDeInstagram = (e) => e && (e.codigo === 9 || /maximum number of posts/i.test(e.message || ''));
 const AVISO_LIMITE = 'Instagram limitó por un rato lo que esta cuenta puede preparar por API. Se reintenta solo en unas horas, retomando lo ya cargado.';
 const PAUSA_LIMITE_MS = 2 * 60 * 60 * 1000;
+// La portada de un posteo publicado se guarda una semana más como referencia; los archivos
+// originales (videos, fotos en calidad completa) se borran apenas sale.
+const GUARDAR_PORTADA_MS = 7 * 24 * 3600 * 1000;
 
 const diaLocal = (ms) => new Date(ms + DESFASE_MS).toISOString().slice(0, 10);
 function momento(dia, hora) {
@@ -238,10 +241,23 @@ module.exports = async (req, res) => {
         }
       }
     }
-    if (!candidatos.length) continue;
-
     const registro = await leerJson(claveRegistro(marca), {});
     const guardar = () => guardarJson(claveRegistro(marca), registro);
+
+    // Portadas que ya cumplieron la semana de guardado: se borran ahora.
+    let limpias = 0;
+    for (const [id, reg] of Object.entries(registro)) {
+      if (!reg || !reg.portadaGuardada || !reg.portadaGuardada.length) continue;
+      const desde = Date.parse(reg.at || '') || 0;
+      if (Date.now() - desde < GUARDAR_PORTADA_MS) continue;
+      const borradas = await borrarArchivos(reg.portadaGuardada);
+      if (borradas.error) { anotar(marca, id, 'no se pudo borrar la portada guardada: ' + borradas.error); continue; }
+      delete reg.portadaGuardada;
+      limpias++;
+    }
+    if (limpias) { await guardar().catch(() => {}); anotar(marca, '-', limpias + ' portada(s) borrada(s) tras una semana'); }
+
+    if (!candidatos.length) continue;
 
     for (const c of candidatos) {
       if (Date.now() - arranque > PRESUPUESTO_MS) break;
@@ -322,12 +338,15 @@ module.exports = async (req, res) => {
           try { permalink = (await graph(`/${publicado.id}`, { params: { fields: 'permalink' }, token: conexion.token })).permalink || ''; }
           catch (e) { /* las stories no siempre lo traen; el posteo salió igual */ }
         }
+        const portadaGuardada = [].concat(c.item.portada || []).filter(p => p && p.url);
         registro[c.id] = { estado: 'publicado', mediaId, permalink, at: new Date().toISOString() };
+        if (portadaGuardada.length) registro[c.id].portadaGuardada = portadaGuardada;
         await guardar();
         anotar(marca, c.id, 'publicado');
-        // Instagram ya tiene su copia: los archivos se borran para no llenar el almacenamiento.
+        // Instagram ya tiene su copia: los archivos originales se borran para no llenar el
+        // almacenamiento. La portada queda una semana como referencia (ver GUARDAR_PORTADA_MS).
         // Si falla no pasa nada grave; el posteo salió igual.
-        const borrados = await borrarArchivos([].concat(c.item.media || [], c.item.portada || []));
+        const borrados = await borrarArchivos([].concat(c.item.media || []));
         if (borrados.error) anotar(marca, c.id, 'no se pudieron borrar los archivos: ' + borrados.error);
       } catch (e) {
         if (esLimiteDeInstagram(e)) {
