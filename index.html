@@ -3481,6 +3481,14 @@
   function buildEmojiPicker(targetInput, opciones){
     const reemplazar = !!(opciones && opciones.reemplazar);
     const ancla = (opciones && opciones.ancla) || null;
+    // Dónde estaba el cursor al abrir el selector. Hay que guardarlo ahora: al escribir en
+    // el buscador del selector el foco se va del texto, aunque el navegador conserva la
+    // selección del campo. Si el campo no admite selección, el emoji va al final.
+    let cursor = null;
+    try{
+      if(typeof targetInput.selectionStart === 'number')
+        cursor = [targetInput.selectionStart, targetInput.selectionEnd];
+    }catch(e){ /* inputs sin selección (p. ej. type=number) */ }
     const container = document.createElement('div');
     // Fondo opaco por el mismo motivo que .angle-menu: var(--surface-3) dejaba ver el
     // formulario de atrás a través de la grilla de emojis.
@@ -3539,7 +3547,16 @@
       btn.addEventListener('mouseenter', ()=>{ btn.style.background = 'var(--surface-2)'; btn.style.borderColor = 'var(--border)'; });
       btn.addEventListener('mouseleave', ()=>{ btn.style.background = 'none'; btn.style.borderColor = 'transparent'; });
       btn.addEventListener('click', ()=>{
-        targetInput.value = reemplazar ? emoji : (targetInput.value + emoji);
+        if(reemplazar || !cursor){
+          targetInput.value = reemplazar ? emoji : (targetInput.value + emoji);
+        } else {
+          // Se inserta donde estaba el cursor (si había texto seleccionado, lo reemplaza) y el
+          // cursor queda justo después del emoji, para seguir escribiendo desde ahí.
+          const largo = targetInput.value.length;
+          const ini = Math.min(cursor[0], largo), fin = Math.min(cursor[1], largo);
+          targetInput.setRangeText(emoji, ini, fin, 'end');
+          targetInput.focus();
+        }
         targetInput.dispatchEvent(new Event('input'));
         container.remove();
       });
