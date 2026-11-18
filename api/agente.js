@@ -10,12 +10,16 @@ const { resolverToken, leerClaves } = require('../lib/acceso');
 const { normalizarReglas, bloqueReglas } = require('../lib/reglas-ia');
 
 // El de respaldo es el liviano: si el primero está saturado, contesta antes.
-const MODELOS = ['gemini-flash-latest', 'gemini-flash-lite-latest'];
+const MODELOS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-flash-lite-latest'];
 const MAX_PEDIDO = 1500;
 // Vercel corta la función a los 60 s y el navegador recibe un "http 504" sin explicación.
 // Se trabaja con un presupuesto propio por debajo de ese techo para poder contestar algo útil.
-const PRESUPUESTO_MS = 54000;
-const MINIMO_PARA_REINTENTAR_MS = 12000;
+// La función tiene hasta 300 s (vercel.json). Cada intento tiene su propio tope para que, si
+// un modelo se cuelga, quede tiempo de probar con el siguiente en vez de esperarlo entero:
+// cuando Gemini está lento, el liviano suele contestar en segundos.
+const PRESUPUESTO_MS = 170000;
+const TOPE_POR_INTENTO_MS = 55000;
+const MINIMO_PARA_REINTENTAR_MS = 15000;
 const AVISO_GRANDE = 'El pedido es muy grande para resolverlo de una sola vez y el asistente no llegó a tiempo. ' +
   'Probá dividirlo, por ejemplo por semana ("stories del 18 al 24"), o pedí menos días por vez.';
 
@@ -196,22 +200,31 @@ module.exports = async (req, res) => {
     /overloaded|unavailable|high demand|quota|exhausted/i.test(e.message || ''));
 
   const arranque = Date.now();
+  const intentos = []; // para el registro de Vercel: qué modelo, cómo terminó y cuánto tardó
   try {
     let json = null, ultimoError = null, vencio = false;
     for (const modelo of MODELOS) {
       const queda = PRESUPUESTO_MS - (Date.now() - arranque);
-      if (json && queda < MINIMO_PARA_REINTENTAR_MS) break;
+      if (intentos.length && queda < MINIMO_PARA_REINTENTAR_MS) break;
+      const t0 = Date.now();
       try {
-        json = await pedirAGemini(modelo, queda);
+        json = await pedirAGemini(modelo, Math.min(TOPE_POR_INTENTO_MS, queda));
       } catch (e) {
-        if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) { vencio = true; break; }
+        if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) {
+          // Se colgó: se prueba con el siguiente modelo mientras quede tiempo.
+          vencio = true; json = null;
+          intentos.push(`${modelo}: venció a los ${Math.round((Date.now() - t0) / 1000)} s`);
+          continue;
+        }
         throw e;
       }
-      if (!json.error) break;
+      intentos.push(`${modelo}: ${json.error ? 'error ' + (json.error.code || '') : 'ok'} en ${Math.round((Date.now() - t0) / 1000)} s`);
+      if (!json.error) { vencio = false; break; }
       ultimoError = json.error;
       if (!saturado(json.error)) break; // un error de otro tipo no se arregla cambiando de modelo
     }
-    if (vencio) return res.status(504).json({ error: AVISO_GRANDE });
+    console.log('[agente]', intentos.join(' · '), '| contexto', contexto.length, 'caracteres');
+    if (vencio && !json) return res.status(504).json({ error: AVISO_GRANDE });
     if (!json || json.error) {
       const e = (json && json.error) || ultimoError || {};
       return res.status(502).json({ error: saturado(e)
@@ -243,7 +256,8 @@ module.exports = async (req, res) => {
     return res.status(200).json({
       respuesta: String(parsed.respuesta || '').slice(0, 6000),
       cambios: validos.slice(0, 40), // techo por si propone una lista desmedida
-      descartados: cambios.length - validos.length
+      descartados: cambios.length - validos.length,
+      intentos // qué modelo contestó y en cuánto (sirve para diagnosticar demoras)
     });
   } catch (err) {
     return res.status(502).json({ error: 'No se pudo contactar al asistente: ' + err.message });

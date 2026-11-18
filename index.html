@@ -10037,7 +10037,7 @@
     const btn = $('runAgenteBtn');
     btn.disabled = true; btn.textContent = 'Pensando…';
     limpiarAgente();
-    $('agenteEstado').textContent = 'Leyendo tu mes y analizándolo…';
+    $('agenteEstado').textContent = 'Leyendo tu mes y analizándolo… Con pedidos grandes puede tardar uno o dos minutos.';
     try{
       const res = await fetch('/api/agente', {
         method:'POST', headers:{'Content-Type':'application/json'},
