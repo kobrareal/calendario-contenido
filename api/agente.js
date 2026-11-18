@@ -267,10 +267,20 @@ module.exports = async (req, res) => {
   try {
     let json = null, ultimoError = null, vencio = false;
     const base = modo === 'planificar' ? MODELOS_PLAN : MODELOS_RESOLVER;
-    const orden = (Date.now() < principalMalHasta && base[0] === PRINCIPAL) ? [LIVIANO, PRINCIPAL, LIVIANO] : base;
+    // Con el principal en pausa (cuota agotada o colgado hace poco) ni se lo prueba: solo el
+    // liviano, con un intento más. Si no, el orden normal más un liviano extra al final.
+    const orden = Date.now() < principalMalHasta ? [LIVIANO, LIVIANO, LIVIANO, LIVIANO] : [...base, LIVIANO];
+    let seguidosSaturados = 0;
     for (const modelo of orden) {
-      const queda = PRESUPUESTO_MS - (Date.now() - arranque);
+      let queda = PRESUPUESTO_MS - (Date.now() - arranque);
       if (intentos.length && queda < MINIMO_PARA_REINTENTAR_MS) break;
+      // Los picos de "high demand" de Google se pasan en segundos: reintentar al instante
+      // vuelve a chocar. Se espera un poco más en cada reintento.
+      if (seguidosSaturados > 0) {
+        const espera = Math.min(2500 * seguidosSaturados, queda - MINIMO_PARA_REINTENTAR_MS);
+        if (espera > 0) await new Promise(r => setTimeout(r, espera));
+        queda = PRESUPUESTO_MS - (Date.now() - arranque);
+      }
       const t0 = Date.now();
       try {
         json = await pedirAGemini(modelo, Math.min(modo === 'planificar' ? TOPE_PLAN_MS : TOPE_POR_INTENTO_MS, queda));
@@ -287,8 +297,14 @@ module.exports = async (req, res) => {
       intentos.push(`${modelo}: ${json.error ? 'error ' + (json.error.code || '') + ' (' + String(json.error.message || '').slice(0, 160) + ')' : 'ok'} en ${Math.round((Date.now() - t0) / 1000)} s`);
       if (!json.error) { vencio = false; break; }
       ultimoError = json.error;
-      if (modelo === PRINCIPAL && saturado(json.error)) principalMalHasta = Date.now() + PAUSA_PRINCIPAL_MS;
+      if (modelo === PRINCIPAL && saturado(json.error)) {
+        // Cuota agotada (no un pico): no vuelve hasta que Google la renueve, así que se la
+        // saltea por una hora en vez de los 5 minutos de una saturación pasajera.
+        const cuota = json.error.code === 429 && /quota/i.test(json.error.message || '');
+        principalMalHasta = Date.now() + (cuota ? 60 * 60 * 1000 : PAUSA_PRINCIPAL_MS);
+      }
       if (!saturado(json.error)) break; // un error de otro tipo no se arregla cambiando de modelo
+      seguidosSaturados++;
     }
     console.log('[agente]', intentos.join(' · '), '| contexto', contexto.length, 'caracteres');
     if (vencio && !json) return res.status(504).json({ error: AVISO_GRANDE });

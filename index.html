@@ -10140,9 +10140,19 @@
       t.detalle = (nuevos.length ? (nuevos.length === 1 ? '1 propuesta' : nuevos.length + ' propuestas') : 'sin propuestas') +
         (json.respuesta ? ' · ' + json.respuesta : '');
     }catch(e){
+      // Una saturación de la IA suele pasar en segundos: se reintenta sola una vez antes de
+      // marcar la parte con error.
+      if(!t.reintentada && /saturada|tardó demasiado/i.test(e.message || '')){
+        t.reintentada = true;
+        t.detalle = 'La IA está cargada, reintento en unos segundos…';
+        pintarPlanAgente();
+        await new Promise(r => setTimeout(r, 8000));
+        return correrTarea(i);
+      }
       t.estado = 'error';
       t.detalle = 'No se pudo: ' + (e.message || 'error desconocido');
     }
+    t.reintentada = false;
     pintarPlanAgente();
   }
 
