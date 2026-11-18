@@ -1308,6 +1308,9 @@
      y una barra de color a la izquierda con el estado. En una lista larga, el color dice de
      un vistazo qué se puede ofrecer sin tener que leer cada desplegable. */
   .kit-productos{display:flex; flex-direction:column; gap:var(--s-2);}
+  .kit-head-acciones{display:flex; align-items:center; gap:var(--s-1);}
+  #kitEliminarProductos:hover{color:#e0574f; border-color:rgba(224,87,79,.5);}
+  #kitEliminarProductos:hover i{color:#e0574f;}
   .kit-producto{
     background:var(--surface-2); border:1px solid var(--border); border-radius:var(--r-2);
     border-left:3px solid var(--muted-2);
@@ -2821,7 +2824,10 @@
           <div class="kit-seccion">
             <div class="kit-seccion-head">
               <h3>Productos</h3>
-              <button class="btn small btn-nueva-idea" id="kitAgregarProducto"><i class="fa-solid fa-plus"></i>Agregar</button>
+              <div class="kit-head-acciones">
+                <button class="btn small ghost admin-only" id="kitEliminarProductos" title="Eliminar todos los productos del listado"><i class="fa-solid fa-trash"></i>Eliminar todo</button>
+                <button class="btn small btn-nueva-idea" id="kitAgregarProducto"><i class="fa-solid fa-plus"></i>Agregar</button>
+              </div>
             </div>
             <p class="hint kit-nota">Lo que la marca vende. La IA los usa para escribir sobre productos reales en vez de inventarlos.</p>
             <div class="kit-productos" id="kitProductos"></div>
@@ -6673,6 +6679,8 @@
   function renderKitProductos(){
     const cont = $('kitProductos');
     cont.innerHTML = '';
+    // "Eliminar todo" solo tiene sentido con algo en la lista.
+    $('kitEliminarProductos').style.display = brandKit.productos.length ? '' : 'none';
     if(!brandKit.productos.length){
       cont.innerHTML = '<div class="kit-vacio">Todavía no cargaste productos.</div>';
       return;
@@ -6732,6 +6740,18 @@
       cont.appendChild(fila);
     });
   }
+
+  // Vacía el listado de una vez (por ejemplo, para volver a cargarlo desde cero). Se pide
+  // confirmación con la cantidad, porque no hay deshacer: el kit se guarda al instante.
+  $('kitEliminarProductos').addEventListener('click', async ()=>{
+    const n = brandKit.productos.length;
+    if(!n) return;
+    if(!confirm(`¿Eliminar ${n === 1 ? 'el producto' : `los ${n} productos`} del listado?\n\nLa IA deja de usarlos para escribir. Esto no se puede deshacer.`)) return;
+    brandKit.productos = [];
+    await saveKit();
+    renderKitProductos();
+    showToast(n === 1 ? 'Se eliminó el producto' : `Se eliminaron ${n} productos`);
+  });
 
   $('kitAgregarProducto').addEventListener('click', async ()=>{
     brandKit.productos.push({ id: genId(), nombre:'', desc:'', estado:'disponible' });
