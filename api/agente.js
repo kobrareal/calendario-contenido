@@ -144,9 +144,18 @@ module.exports = async (req, res) => {
   // Las reglas de estilo valen para todo texto que el asistente proponga ("titulo" y "texto").
   const reglas = bloqueReglas(normalizarReglas((req.body || {}).reglas));
 
+  // Día de la semana de cada fecha: sin esto la IA lo adivina y escribe "este martes" en un
+  // miércoles. "Hoy" en hora argentina (UTC−3), no la del servidor.
+  const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  const hoy = new Date(Date.now() - 3 * 3600 * 1000);
+  const hoyTexto = `${hoy.toISOString().slice(0, 10)} (${DIAS_SEMANA[hoy.getUTCDay()]})`;
+  const semanaDelMes = Array.from({ length: diasDelMes }, (_, i) =>
+    `${i + 1} ${DIAS_SEMANA[new Date(Date.UTC(a, m, i + 1)).getUTCDay()].slice(0, 3)}`).join(', ');
+
   const contexto = [
     `Mes del calendario: ${m + 1}/${a} (${diasDelMes} días).`,
-    `Hoy es ${new Date().toISOString().slice(0, 10)}.`,
+    `Hoy es ${hoyTexto}.`,
+    `Día de la semana de cada fecha del mes (usalo siempre que nombres un día): ${semanaDelMes}.`,
     `Ángulos disponibles: ${angulos.length ? angulos.map(x => x.name).join(' | ') : '(la marca no definió ninguno)'}`,
     '',
     catalogo ? 'Catálogo de la marca:\n' + catalogo + '\n' : '',
