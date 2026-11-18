@@ -271,7 +271,7 @@ module.exports = async (req, res) => {
         }
         throw e;
       }
-      intentos.push(`${modelo}: ${json.error ? 'error ' + (json.error.code || '') : 'ok'} en ${Math.round((Date.now() - t0) / 1000)} s`);
+      intentos.push(`${modelo}: ${json.error ? 'error ' + (json.error.code || '') + ' (' + String(json.error.message || '').slice(0, 160) + ')' : 'ok'} en ${Math.round((Date.now() - t0) / 1000)} s`);
       if (!json.error) { vencio = false; break; }
       ultimoError = json.error;
       if (!saturado(json.error)) break; // un error de otro tipo no se arregla cambiando de modelo
