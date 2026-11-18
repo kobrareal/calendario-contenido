@@ -80,6 +80,29 @@ Reglas para los cambios:
 - Explicá en "respuesta" qué vas a hacer y por qué, en una o dos frases. La persona va a ver tu
   lista de cambios y decidir si la aplica.`;
 
+// Planificador. No resuelve el pedido: decide si conviene hacerlo de una vez o en tandas
+// cortas que el navegador va pidiendo una por una. Un pedido largo resuelto de una sola vez
+// genera una respuesta enorme que tarda más de lo que la función puede esperar.
+const INSTRUCCIONES_PLAN = `Sos el planificador de un asistente de contenido para redes sociales.
+NO resolvés el pedido: decidís si conviene resolverlo en una sola tanda o dividirlo en partes
+chicas que se resuelven una por una, en orden.
+
+Respondé SOLO con un objeto JSON, sin texto alrededor:
+{"resumen":"una frase en español rioplatense contando qué se va a hacer","tareas":[{"titulo":"Stories del 18 al 24","pedido":"...","desde":"YYYY-MM-DD","hasta":"YYYY-MM-DD"}]}
+
+Reglas:
+- Si el pedido es un análisis, una opinión o un consejo, o implica pocos cambios (8 o menos),
+  devolvé UNA sola tarea con el pedido original tal cual y "desde" y "hasta" vacíos.
+- Si implica muchos cambios (más de 8) o abarca muchos días, dividilo en tandas de como máximo
+  7 días o unos 8 cambios cada una: entre 2 y 6 tareas, en orden cronológico, sin superponer
+  fechas y cubriendo todo el rango pedido. Si mezcla cosas distintas (por ejemplo stories y
+  reels) también podés separar por tipo.
+- Cada "pedido" se tiene que entender solo: repetí lo esencial del pedido original (qué
+  contenido, tono, condiciones como "no siempre de producto") y aclarale su rango de fechas.
+- Usá solo fechas del mes del calendario. "Desde hoy" arranca en la fecha de hoy.
+- "titulo" es corto y sirve para mostrarle el avance a la persona.`;
+const MAX_TAREAS = 6;
+
 module.exports = async (req, res) => {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST');
@@ -89,6 +112,18 @@ module.exports = async (req, res) => {
   if (!apiKey) return res.status(500).json({ error: 'Falta configurar GEMINI_API_KEY en Vercel.' });
 
   const { token, pedido, anio, mes } = req.body || {};
+  // modo "planificar": devuelve las tandas. Sin modo: resuelve el pedido (o una parte de uno,
+  // si viene "parte" con el pedido general y el rango de fechas de esa tanda).
+  const modo = (req.body || {}).modo === 'planificar' ? 'planificar' : 'resolver';
+  const fecha = (x) => (typeof x === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x) ? x : '');
+  const parteIn = (req.body || {}).parte;
+  const parte = parteIn && typeof parteIn === 'object' ? {
+    general: String(parteIn.general || '').trim().slice(0, MAX_PEDIDO),
+    desde: fecha(parteIn.desde), hasta: fecha(parteIn.hasta)
+  } : null;
+  // Lo ya propuesto en tandas anteriores, para que no repita ideas ni títulos.
+  const previos = Array.isArray((req.body || {}).previos)
+    ? (req.body || {}).previos.slice(0, 80).map(x => String(x).replace(/\s+/g, ' ').slice(0, 140)) : [];
 
   let sesion;
   try { sesion = await resolverToken(token); }
@@ -156,7 +191,25 @@ module.exports = async (req, res) => {
   const semanaDelMes = Array.from({ length: diasDelMes }, (_, i) =>
     `${i + 1} ${DIAS_SEMANA[new Date(Date.UTC(a, m, i + 1)).getUTCDay()].slice(0, 3)}`).join(', ');
 
-  const contexto = [
+  const fechasDelMes = [
+    `Mes del calendario: ${m + 1}/${a} (${diasDelMes} días).`,
+    `Hoy es ${hoyTexto}.`,
+    `Día de la semana de cada fecha del mes: ${semanaDelMes}.`
+  ];
+  const pedidoFinal = parte && parte.general ? [
+    'Pedido general de la persona (se resuelve por tandas):',
+    parte.general,
+    '',
+    'Resolvé SOLO esta tanda:',
+    texto,
+    (parte.desde && parte.hasta) ? `Proponé cambios únicamente para fechas entre ${parte.desde} y ${parte.hasta}.` : '',
+    previos.length ? 'Ya se propuso esto en tandas anteriores (no repitas estas ideas ni estos títulos):\n' + previos.map(p => '- ' + p).join('\n') : '',
+    'En "respuesta" contá en una frase qué propusiste para esta tanda.'
+  ] : ['Pedido de la persona:', texto];
+
+  const contexto = modo === 'planificar'
+    ? [...fechasDelMes, '', 'Pedido de la persona:', texto].join('\n')
+    : [
     `Mes del calendario: ${m + 1}/${a} (${diasDelMes} días).`,
     `Hoy es ${hoyTexto}.`,
     `Día de la semana de cada fecha del mes (usalo siempre que nombres un día): ${semanaDelMes}.`,
@@ -167,9 +220,9 @@ module.exports = async (req, res) => {
     'Contenido cargado:',
     resumen.length ? resumen.join('\n') : '  (el mes está completamente vacío)',
     '',
-    'Pedido de la persona:',
-    texto
+    ...pedidoFinal
   ].filter(l => l !== '').join('\n');
+  const instrucciones = modo === 'planificar' ? INSTRUCCIONES_PLAN : INSTRUCCIONES;
 
   // Un pedido a Gemini con su propio reloj. Sin razonamiento ("thinking"): para proponer
   // contenido no aporta y es lo que más demora; con listas largas hacía pasar la función de
@@ -181,7 +234,7 @@ module.exports = async (req, res) => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
-          systemInstruction: { parts: [{ text: INSTRUCCIONES }] },
+          systemInstruction: { parts: [{ text: instrucciones }] },
           contents: [{ parts: [{ text: contexto }] }],
           generationConfig: Object.assign(
             { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 8192 },
@@ -246,11 +299,25 @@ module.exports = async (req, res) => {
       return res.status(200).json({ respuesta: String(salida).slice(0, 4000), cambios: [] });
     }
 
+    if (modo === 'planificar') {
+      const enElMes = (d) => d && d.startsWith(`${a}-${String(m + 1).padStart(2, '0')}`);
+      const tareas = (Array.isArray(parsed.tareas) ? parsed.tareas : [])
+        .filter(t => t && String(t.pedido || '').trim())
+        .slice(0, MAX_TAREAS)
+        .map(t => {
+          const desde = enElMes(fecha(t.desde)) ? t.desde : '', hasta = enElMes(fecha(t.hasta)) ? t.hasta : '';
+          return { titulo: String(t.titulo || '').slice(0, 80), pedido: String(t.pedido).slice(0, MAX_PEDIDO),
+            desde: desde && hasta ? desde : '', hasta: desde && hasta ? hasta : '' };
+        });
+      return res.status(200).json({ resumen: String(parsed.resumen || '').slice(0, 400), tareas, intentos });
+    }
+
     const cambios = Array.isArray(parsed.cambios) ? parsed.cambios : [];
     const validos = cambios.filter(c =>
       c && ['agregar', 'modificar', 'eliminar'].includes(c.accion) &&
       typeof c.dia === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(c.dia) &&
-      c.dia.startsWith(`${a}-${String(m + 1).padStart(2, '0')}`) // nunca fuera del mes pedido
+      c.dia.startsWith(`${a}-${String(m + 1).padStart(2, '0')}`) && // nunca fuera del mes pedido
+      (!parte || !parte.desde || (c.dia >= parte.desde && c.dia <= parte.hasta)) // ni fuera de su tanda
     );
 
     return res.status(200).json({

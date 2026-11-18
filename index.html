@@ -1762,6 +1762,18 @@
     padding:14px;font-size:13.5px;line-height:1.6;white-space:pre-wrap;
     max-height:300px;overflow-y:auto;
   }
+  /* Avance de un pedido largo resuelto por tandas. */
+  .agente-plan-resumen{margin-bottom:8px;}
+  .agente-plan{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;white-space:normal;}
+  .agente-tarea{display:flex;align-items:flex-start;gap:9px;padding:7px 9px;border-radius:9px;background:var(--surface-2);border:1px solid var(--border);}
+  .agente-tarea > i{margin-top:3px;font-size:13px;color:var(--muted-2);flex:none;}
+  .agente-tarea.en-curso > i{color:var(--accent);}
+  .agente-tarea.listo > i{color:#3fd399;}
+  .agente-tarea.error > i{color:#e0574f;}
+  .agente-tarea-texto{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px;}
+  .agente-tarea-texto strong{font-size:12.5px;}
+  .agente-tarea-texto span{font-size:11.5px;color:var(--muted);line-height:1.4;}
+  .agente-tarea .btn{flex:none;}
   .cambio-row{
     display:flex;align-items:flex-start;gap:10px;margin-bottom:6px;
     background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 11px;
@@ -10016,7 +10028,8 @@
 
   $('agenteBtn').addEventListener('click', ()=>{
     renderEjemplosAgente();
-    limpiarAgente();
+    // Si quedó trabajando un pedido por tandas, se reabre tal cual: no se pierde lo armado.
+    if(!(planAgente && planAgente.corriendo)) limpiarAgente();
     $('agenteModal').classList.add('open');
     $('agentePedido').focus();
   });
@@ -10031,47 +10044,171 @@
   $('agenteTodos').addEventListener('click', ()=> marcarTodos(true));
   $('agenteNinguno').addEventListener('click', ()=> marcarTodos(false));
 
+  // Una llamada al asistente. Los datos de la marca (productos, reglas) van en todas.
+  async function llamarAgente(extra){
+    const res = await fetch('/api/agente', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(Object.assign({
+        token: TOKEN, anio: viewYear, mes: viewMonth, cliente: CLIENT_ID,
+        // Con los productos a la vista, "armame el mes" propone contenido sobre lo que la
+        // marca vende de verdad en lugar de ideas genéricas.
+        productos: productosParaIA() || undefined,
+        reglas: reglasParaIA() || undefined
+      }, extra))
+    });
+    const json = await res.json().catch(()=>null);
+    if(!res.ok){
+      // Si Vercel corta la función por tiempo, contesta él (no la función) y sin JSON.
+      if(!(json && json.error) && (res.status === 504 || res.status === 502)){
+        throw new Error('el asistente tardó demasiado en esta parte.');
+      }
+      throw new Error((json && json.error) || ('http ' + res.status));
+    }
+    return json;
+  }
+
+  // La lista se repinta entera; si la persona está corrigiendo una propuesta mientras llegan
+  // las de la tanda siguiente, se espera a que cierre el editor (que ya repinta al cerrar).
+  function repintarCambiosSiSePuede(){
+    if($('agenteListaCambios').querySelector('.cambio-editor')) return;
+    renderCambiosAgente();
+  }
+
+  // Un pedido largo ("stories todos los días hasta fin de mes") resuelto de una vez genera
+  // una respuesta enorme que tarda más de lo que el servidor puede esperar. Por eso primero se
+  // le pide al asistente un plan: si conviene, lo parte en tandas cortas (por semana) que se
+  // resuelven una por una. Las propuestas se van sumando a la lista a medida que llegan, y si
+  // una tanda falla se sigue con las demás y se puede reintentar sola.
+  let planAgente = null;
+
+  function pintarPlanAgente(){
+    const cont = $('agenteRespuesta');
+    cont.innerHTML = '';
+    cont.style.display = 'block';
+    if(planAgente.resumen){
+      const r = document.createElement('div');
+      r.className = 'agente-plan-resumen';
+      r.textContent = planAgente.resumen;
+      cont.appendChild(r);
+    }
+    const lista = document.createElement('ol');
+    lista.className = 'agente-plan';
+    planAgente.tareas.forEach((t, i)=>{
+      const li = document.createElement('li');
+      li.className = 'agente-tarea ' + (t.estado || 'pendiente');
+      const icono = { pendiente:'fa-regular fa-circle', 'en-curso':'fa-solid fa-spinner fa-spin', listo:'fa-solid fa-circle-check', error:'fa-solid fa-circle-exclamation' }[t.estado || 'pendiente'];
+      li.innerHTML = '<i class="' + icono + '"></i><div class="agente-tarea-texto"><strong></strong><span></span></div>';
+      li.querySelector('strong').textContent = t.titulo || ('Parte ' + (i + 1));
+      li.querySelector('span').textContent = t.detalle || '';
+      if(t.estado === 'error'){
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'btn ghost small'; b.textContent = 'Reintentar';
+        b.title = 'Volver a pedir solo esta parte';
+        b.addEventListener('click', async ()=>{
+          if(planAgente.corriendo) return;
+          planAgente.corriendo = true; bloquearAgente(true);
+          await correrTarea(i);
+          planAgente.corriendo = false; bloquearAgente(false);
+          cerrarPlanAgente();
+        });
+        li.appendChild(b);
+      }
+      lista.appendChild(li);
+    });
+    cont.appendChild(lista);
+  }
+
+  async function correrTarea(i){
+    const t = planAgente.tareas[i];
+    t.estado = 'en-curso'; t.detalle = 'Armando las propuestas…';
+    pintarPlanAgente();
+    $('agenteEstado').textContent = `Parte ${i + 1} de ${planAgente.tareas.length}: ${t.titulo || 'en curso'}…`;
+    try{
+      // Lo ya propuesto viaja con cada tanda para que no repita ideas ni títulos.
+      const previos = cambiosPropuestos.filter(c => c.accion === 'agregar')
+        .map(c => `${c.dia} ${c.lista === 'stories' ? 'story' : (c.kind || 'feed')}: ${c.titulo || String(c.texto || '').slice(0, 60)}`)
+        .slice(-60);
+      const json = await llamarAgente({
+        pedido: t.pedido,
+        parte: { general: planAgente.pedido, desde: t.desde, hasta: t.hasta },
+        previos
+      });
+      const nuevos = json.cambios || [];
+      cambiosPropuestos.push(...nuevos);
+      repintarCambiosSiSePuede();
+      t.estado = 'listo';
+      t.detalle = (nuevos.length ? (nuevos.length === 1 ? '1 propuesta' : nuevos.length + ' propuestas') : 'sin propuestas') +
+        (json.respuesta ? ' · ' + json.respuesta : '');
+    }catch(e){
+      t.estado = 'error';
+      t.detalle = 'No se pudo: ' + (e.message || 'error desconocido');
+    }
+    pintarPlanAgente();
+  }
+
+  function bloquearAgente(si){
+    const btn = $('runAgenteBtn');
+    btn.disabled = si; btn.textContent = si ? 'Trabajando…' : '✦ Preguntar';
+    // No se aplica a mitad de camino: la lista todavía está creciendo.
+    $('agenteAplicar').disabled = si;
+    $('agenteDescartar').disabled = si;
+    $('agenteAplicar').title = si ? 'Esperá a que terminen todas las partes' : 'Aplicar al calendario solo los cambios marcados';
+  }
+
+  function cerrarPlanAgente(){
+    const n = planAgente.tareas.length;
+    const fallidas = planAgente.tareas.filter(t => t.estado === 'error').length;
+    renderCambiosAgente();
+    $('agenteEstado').textContent = (cambiosPropuestos.length
+      ? `Listo: ${cambiosPropuestos.length} cambio(s) propuestos en ${n} partes. Revisalos antes de aplicar.`
+      : `Terminó sin cambios propuestos.`) +
+      (fallidas ? ` ${fallidas === 1 ? 'Una parte falló' : fallidas + ' partes fallaron'}: podés reintentarla(s) arriba.` : '');
+  }
+
   $('runAgenteBtn').addEventListener('click', async ()=>{
     const pedido = $('agentePedido').value.trim();
     if(!pedido){ showToast('Escribí qué querés pedirle'); return; }
-    const btn = $('runAgenteBtn');
-    btn.disabled = true; btn.textContent = 'Pensando…';
+    if(planAgente && planAgente.corriendo) return;
     limpiarAgente();
-    $('agenteEstado').textContent = 'Leyendo tu mes y analizándolo… Con pedidos grandes puede tardar uno o dos minutos.';
+    planAgente = null;
+    bloquearAgente(true);
+    $('agenteEstado').textContent = 'Organizando el pedido…';
     try{
-      const res = await fetch('/api/agente', {
-        method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({
-          token: TOKEN, pedido, anio: viewYear, mes: viewMonth, cliente: CLIENT_ID,
-          // Con los productos a la vista, "armame el mes" propone contenido sobre lo que la
-          // marca vende de verdad en lugar de ideas genéricas.
-          productos: productosParaIA() || undefined,
-          reglas: reglasParaIA() || undefined
-        })
-      });
-      const json = await res.json().catch(()=>null);
-      if(!res.ok){
-        // Si Vercel corta la función por tiempo, contesta él (no la función) y sin JSON.
-        if(!(json && json.error) && (res.status === 504 || res.status === 502)){
-          throw new Error('el asistente tardó demasiado. Probá dividir el pedido, por ejemplo por semana.');
+      // 1) Plan. Si falla, no se frena nada: se resuelve de una sola vez como siempre.
+      let plan = null;
+      try{ plan = await llamarAgente({ modo: 'planificar', pedido }); }catch(e){ plan = null; }
+      const tareas = (plan && Array.isArray(plan.tareas)) ? plan.tareas : [];
+
+      if(tareas.length <= 1){
+        // 2a) Pedido chico, análisis o consejo: una sola llamada.
+        $('agenteEstado').textContent = 'Leyendo tu mes y analizándolo…';
+        const json = await llamarAgente({ pedido });
+        $('agenteRespuesta').textContent = json.respuesta || '(sin respuesta)';
+        $('agenteRespuesta').style.display = 'block';
+        cambiosPropuestos = json.cambios || [];
+        renderCambiosAgente();
+        $('agenteEstado').textContent = cambiosPropuestos.length
+          ? `Propone ${cambiosPropuestos.length} cambio(s). Revisalos antes de aplicar.`
+          : 'Sin cambios propuestos.';
+        if(json.descartados > 0){
+          $('agenteEstado').textContent += ` (${json.descartados} descartado(s) por caer fuera del mes)`;
         }
-        throw new Error((json && json.error) || ('http ' + res.status));
+        return;
       }
 
-      $('agenteRespuesta').textContent = json.respuesta || '(sin respuesta)';
-      $('agenteRespuesta').style.display = 'block';
-      cambiosPropuestos = json.cambios || [];
-      renderCambiosAgente();
-      $('agenteEstado').textContent = cambiosPropuestos.length
-        ? `Propone ${cambiosPropuestos.length} cambio(s). Revisalos antes de aplicar.`
-        : 'Sin cambios propuestos.';
-      if(json.descartados > 0){
-        $('agenteEstado').textContent += ` (${json.descartados} descartado(s) por caer fuera del mes)`;
+      // 2b) Pedido largo: tanda por tanda, en orden.
+      planAgente = { pedido, resumen: plan.resumen || '', tareas: tareas.map(t => Object.assign({}, t, { estado:'pendiente' })), corriendo: true };
+      pintarPlanAgente();
+      for(let i = 0; i < planAgente.tareas.length; i++){
+        await correrTarea(i);
       }
+      planAgente.corriendo = false;
+      cerrarPlanAgente();
     }catch(e){
       $('agenteEstado').textContent = 'No se pudo: ' + (e.message || 'error desconocido');
     }finally{
-      btn.disabled = false; btn.textContent = '✦ Preguntar';
+      if(planAgente) planAgente.corriendo = false;
+      bloquearAgente(false);
     }
   });
 
