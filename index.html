@@ -10050,7 +10050,13 @@
         })
       });
       const json = await res.json().catch(()=>null);
-      if(!res.ok) throw new Error((json && json.error) || ('http ' + res.status));
+      if(!res.ok){
+        // Si Vercel corta la función por tiempo, contesta él (no la función) y sin JSON.
+        if(!(json && json.error) && (res.status === 504 || res.status === 502)){
+          throw new Error('el asistente tardó demasiado. Probá dividir el pedido, por ejemplo por semana.');
+        }
+        throw new Error((json && json.error) || ('http ' + res.status));
+      }
 
       $('agenteRespuesta').textContent = json.respuesta || '(sin respuesta)';
       $('agenteRespuesta').style.display = 'block';

@@ -9,8 +9,15 @@
 const { resolverToken, leerClaves } = require('../lib/acceso');
 const { normalizarReglas, bloqueReglas } = require('../lib/reglas-ia');
 
-const MODELO = 'gemini-flash-latest';
+// El de respaldo es el liviano: si el primero está saturado, contesta antes.
+const MODELOS = ['gemini-flash-latest', 'gemini-flash-lite-latest'];
 const MAX_PEDIDO = 1500;
+// Vercel corta la función a los 60 s y el navegador recibe un "http 504" sin explicación.
+// Se trabaja con un presupuesto propio por debajo de ese techo para poder contestar algo útil.
+const PRESUPUESTO_MS = 54000;
+const MINIMO_PARA_REINTENTAR_MS = 12000;
+const AVISO_GRANDE = 'El pedido es muy grande para resolverlo de una sola vez y el asistente no llegó a tiempo. ' +
+  'Probá dividirlo, por ejemplo por semana ("stories del 18 al 24"), o pedí menos días por vez.';
 
 const INSTRUCCIONES = `Sos un estratega de contenido para redes sociales con años de experiencia
 trabajando con marcas de rubros muy distintos: gastronomía, indumentaria, servicios profesionales,
@@ -54,6 +61,9 @@ Reglas para los cambios:
 - El campo "texto" no puede pasar de 480 caracteres contando espacios: apuntá a tres o cuatro
   frases cortas y cerrá la idea. Es preferible quedarse corto que pasarse, y nunca dejes una
   frase por la mitad para entrar en el largo.
+- Si vas a proponer más de 12 cambios, cada "texto" va en una o dos frases (máximo 200
+  caracteres) con la idea concreta: la persona la desarrolla después. Y la "respuesta" en
+  dos o tres frases. Una lista larga con textos largos no llega a tiempo.
 - La marca habla siempre en plural, como equipo: "diseñamos", "preparamos", "te mostramos".
   Nunca en primera persona del singular. Se escribe "Diseñamos este buzo", no "Diseñé este buzo".
 - Si te pasan un catálogo, el contenido de producto tiene que ser sobre esos productos y con
@@ -148,21 +158,57 @@ module.exports = async (req, res) => {
     texto
   ].filter(l => l !== '').join('\n');
 
-  try {
-    const respuesta = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`,
+  // Un pedido a Gemini con su propio reloj. Sin razonamiento ("thinking"): para proponer
+  // contenido no aporta y es lo que más demora; con listas largas hacía pasar la función de
+  // los 60 s. Algunos modelos no aceptan thinkingConfig: en ese caso se repite sin él.
+  const pedirAGemini = async (modelo, ms, sinPensar = true) => {
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: INSTRUCCIONES }] },
           contents: [{ parts: [{ text: contexto }] }],
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.7 }
-        })
+          generationConfig: Object.assign(
+            { responseMimeType: 'application/json', temperature: 0.7, maxOutputTokens: 8192 },
+            sinPensar ? { thinkingConfig: { thinkingBudget: 0 } } : {})
+        }),
+        signal: AbortSignal.timeout(ms)
       }
     );
-    const json = await respuesta.json();
-    if (json.error) return res.status(502).json({ error: json.error.message || 'Error de Gemini' });
+    const j = await r.json();
+    if (sinPensar && j.error && (j.error.code === 400 || /thinking|invalid argument/i.test(j.error.message || ''))) {
+      return pedirAGemini(modelo, ms, false);
+    }
+    return j;
+  };
+  const saturado = (e) => e && (e.code === 429 || e.code === 500 || e.code === 503 ||
+    /overloaded|unavailable|high demand|quota|exhausted/i.test(e.message || ''));
+
+  const arranque = Date.now();
+  try {
+    let json = null, ultimoError = null, vencio = false;
+    for (const modelo of MODELOS) {
+      const queda = PRESUPUESTO_MS - (Date.now() - arranque);
+      if (json && queda < MINIMO_PARA_REINTENTAR_MS) break;
+      try {
+        json = await pedirAGemini(modelo, queda);
+      } catch (e) {
+        if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) { vencio = true; break; }
+        throw e;
+      }
+      if (!json.error) break;
+      ultimoError = json.error;
+      if (!saturado(json.error)) break; // un error de otro tipo no se arregla cambiando de modelo
+    }
+    if (vencio) return res.status(504).json({ error: AVISO_GRANDE });
+    if (!json || json.error) {
+      const e = (json && json.error) || ultimoError || {};
+      return res.status(502).json({ error: saturado(e)
+        ? 'La IA está saturada en este momento. Probá de nuevo en un minuto.'
+        : (e.message || 'Error de Gemini') });
+    }
 
     const salida = json.candidates && json.candidates[0] && json.candidates[0].content &&
       json.candidates[0].content.parts && json.candidates[0].content.parts[0] &&
