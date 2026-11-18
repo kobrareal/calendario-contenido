@@ -9,8 +9,17 @@
 const { resolverToken, leerClaves } = require('../lib/acceso');
 const { normalizarReglas, bloqueReglas } = require('../lib/reglas-ia');
 
-// El de respaldo es el liviano: si el primero está saturado, contesta antes.
-const MODELOS = ['gemini-flash-latest', 'gemini-flash-lite-latest', 'gemini-flash-lite-latest'];
+// Modelos por orden de preferencia. El liviano es el respaldo: cuando Gemini está cargado,
+// contesta en segundos mientras el principal se cuelga. El plan lo hace directamente el
+// liviano: decidir cómo partir un pedido es una tarea simple.
+const PRINCIPAL = 'gemini-flash-latest', LIVIANO = 'gemini-flash-lite-latest';
+const MODELOS_RESOLVER = [PRINCIPAL, LIVIANO, LIVIANO];
+const MODELOS_PLAN = [LIVIANO, PRINCIPAL, LIVIANO];
+// Si el principal falló hace poco (cuota, saturación o se colgó), los pedidos de los próximos
+// minutos arrancan por el liviano. Vive en la memoria de la instancia, que Vercel reutiliza
+// entre pedidos seguidos: alcanza para no esperar 35 s en cada tanda de un mismo pedido.
+let principalMalHasta = 0;
+const PAUSA_PRINCIPAL_MS = 5 * 60 * 1000;
 const MAX_PEDIDO = 1500;
 // Vercel corta la función a los 60 s y el navegador recibe un "http 504" sin explicación.
 // Se trabaja con un presupuesto propio por debajo de ese techo para poder contestar algo útil.
@@ -18,7 +27,8 @@ const MAX_PEDIDO = 1500;
 // un modelo se cuelga, quede tiempo de probar con el siguiente en vez de esperarlo entero:
 // cuando Gemini está lento, el liviano suele contestar en segundos.
 const PRESUPUESTO_MS = 170000;
-const TOPE_POR_INTENTO_MS = 55000;
+const TOPE_POR_INTENTO_MS = 35000; // las tandas son chicas: 35 s alcanza de sobra
+const TOPE_PLAN_MS = 20000;
 const MINIMO_PARA_REINTENTAR_MS = 15000;
 const AVISO_GRANDE = 'El pedido es muy grande para resolverlo de una sola vez y el asistente no llegó a tiempo. ' +
   'Probá dividirlo, por ejemplo por semana ("stories del 18 al 24"), o pedí menos días por vez.';
@@ -256,16 +266,19 @@ module.exports = async (req, res) => {
   const intentos = []; // para el registro de Vercel: qué modelo, cómo terminó y cuánto tardó
   try {
     let json = null, ultimoError = null, vencio = false;
-    for (const modelo of MODELOS) {
+    const base = modo === 'planificar' ? MODELOS_PLAN : MODELOS_RESOLVER;
+    const orden = (Date.now() < principalMalHasta && base[0] === PRINCIPAL) ? [LIVIANO, PRINCIPAL, LIVIANO] : base;
+    for (const modelo of orden) {
       const queda = PRESUPUESTO_MS - (Date.now() - arranque);
       if (intentos.length && queda < MINIMO_PARA_REINTENTAR_MS) break;
       const t0 = Date.now();
       try {
-        json = await pedirAGemini(modelo, Math.min(TOPE_POR_INTENTO_MS, queda));
+        json = await pedirAGemini(modelo, Math.min(modo === 'planificar' ? TOPE_PLAN_MS : TOPE_POR_INTENTO_MS, queda));
       } catch (e) {
         if (e && (e.name === 'TimeoutError' || e.name === 'AbortError')) {
           // Se colgó: se prueba con el siguiente modelo mientras quede tiempo.
           vencio = true; json = null;
+          if (modelo === PRINCIPAL) principalMalHasta = Date.now() + PAUSA_PRINCIPAL_MS;
           intentos.push(`${modelo}: venció a los ${Math.round((Date.now() - t0) / 1000)} s`);
           continue;
         }
@@ -274,6 +287,7 @@ module.exports = async (req, res) => {
       intentos.push(`${modelo}: ${json.error ? 'error ' + (json.error.code || '') + ' (' + String(json.error.message || '').slice(0, 160) + ')' : 'ok'} en ${Math.round((Date.now() - t0) / 1000)} s`);
       if (!json.error) { vencio = false; break; }
       ultimoError = json.error;
+      if (modelo === PRINCIPAL && saturado(json.error)) principalMalHasta = Date.now() + PAUSA_PRINCIPAL_MS;
       if (!saturado(json.error)) break; // un error de otro tipo no se arregla cambiando de modelo
     }
     console.log('[agente]', intentos.join(' · '), '| contexto', contexto.length, 'caracteres');
